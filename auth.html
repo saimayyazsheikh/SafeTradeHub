@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Auth - Safe Trade Hub</title>
+  <link rel="stylesheet" href="logreg.css"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"/>
+  <script type="module" src="js/register.js" defer></script>
+  <script type="module" src="js/login.js" defer></script>
+</head>
+<body>
+  <main class="auth-card mode-signup" id="authCard">
+    <!-- LEFT PANEL -->
+    <aside class="panel-left">
+      <div class="brand">
+        <div class="brand-badge">STH</div>
+        <span>Diprella</span>
+      </div>
+      <div class="shape s1"></div>
+      <div class="shape s2"></div>
+      <div class="shape s3"></div>
+
+      <!-- shows when SIGN UP form is active (invites to sign in) -->
+      <div class="panel-copy invite-signin">
+        <h3 class="title">Welcome Back!</h3>
+        <p class="desc">To keep connected with us please login with your personal info.</p>
+        <button class="ghost-btn" type="button" data-switch="signin">
+          <i class="fas fa-sign-in-alt"></i> SIGN IN
+        </button>
+      </div>
+
+      <!-- shows when SIGN IN form is active (invites to sign up) -->
+      <div class="panel-copy invite-signup">
+        <h3 class="title">Hello, Friend!</h3>
+        <p class="desc">Enter your personal details and start your journey with us.</p>
+        <button class="ghost-btn" type="button" data-switch="signup">
+          <i class="fas fa-user-plus"></i> SIGN UP
+        </button>
+      </div>
+    </aside>
+
+    <!-- RIGHT PANEL -->
+    <section class="panel-right">
+      <div class="forms">
+        <!-- SIGN UP -->
+        <form class="form signup" id="register-form" action="#" method="post" novalidate>
+          <header class="form-header"><h2>Create Account</h2></header>
+          <div class="socials" aria-label="social sign up">
+            <button class="s-btn" aria-label="sign up with Facebook" type="button"><i class="fab fa-facebook-f"></i></button>
+            <button class="s-btn" aria-label="sign up with Google"   type="button"><i class="fab fa-google"></i></button>
+            <button class="s-btn" aria-label="sign up with LinkedIn" type="button"><i class="fab fa-linkedin-in"></i></button>
+          </div>
+          <p class="helper">or use your email for registration:</p>
+
+          <label class="input">
+            <i class="fa fa-user"></i>
+            <input type="text" id="name" name="name" placeholder="Name" required />
+          </label>
+
+          <label class="input">
+            <i class="fa fa-envelope"></i>
+            <input type="email" id="email" name="email" placeholder="Email" required />
+          </label>
+
+          <label class="input">
+            <i class="fa fa-lock"></i>
+            <input type="password" id="password" name="password" placeholder="Password" required />
+          </label>
+
+          <button type="submit" class="btn">SIGN UP</button>
+          <p class="alt">Already have an account? <a href="#" data-switch="signin">Log In</a></p>
+        </form>
+
+        <!-- SIGN IN -->
+        <form class="form signin" id="login-form" action="#" method="post" novalidate>
+          <header class="form-header"><h2>Sign in to Safe Trade Hub</h2></header>
+          <div class="socials" aria-label="social sign in">
+            <button class="s-btn" aria-label="sign in with Facebook" type="button"><i class="fab fa-facebook-f"></i></button>
+            <button class="s-btn" aria-label="sign in with Google"   type="button"><i class="fab fa-google"></i></button>
+            <button class="s-btn" aria-label="sign in with LinkedIn" type="button"><i class="fab fa-linkedin-in"></i></button>
+          </div>
+          <p class="helper">or use your email account:</p>
+
+          <label class="input">
+            <i class="fa fa-envelope"></i>
+            <input type="email" id="login-email" name="email" placeholder="Email" required />
+          </label>
+
+          <label class="input">
+            <i class="fa fa-lock"></i>
+            <input type="password" id="login-password" name="password" placeholder="Password" required />
+          </label>
+
+          <div class="forgot"><a href="#">Forgot Password?</a></div>
+          <button type="submit" class="btn">SIGN IN</button>
+          <p class="alt">Don’t have an account? <a href="#" data-switch="signup">Create one</a></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // toggle slide animation
+    const card = document.getElementById('authCard');
+    const toSigninBtns = document.querySelectorAll('[data-switch="signin"]');
+    const toSignupBtns = document.querySelectorAll('[data-switch="signup"]');
+    const signupForm = document.querySelector('.form.signup');
+    const signinForm = document.querySelector('.form.signin');
+
+    function showSignin(){
+      card.classList.remove('mode-signup');
+      card.classList.add('mode-signin');
+      signinForm.classList.add('active');
+      signupForm.classList.remove('active');
+    }
+    function showSignup(){
+      card.classList.remove('mode-signin');
+      card.classList.add('mode-signup');
+      signupForm.classList.add('active');
+      signinForm.classList.remove('active');
+    }
+    toSigninBtns.forEach(b => b.addEventListener('click', showSignin));
+    toSignupBtns.forEach(b => b.addEventListener('click', showSignup));
+
+    // default: show signup
+    showSignup();
+  </script>
+</body>
+</html>
