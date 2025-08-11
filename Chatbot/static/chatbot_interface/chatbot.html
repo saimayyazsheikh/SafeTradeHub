@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Trade Hub Chatbot</title>
+    <style>
+        /* Basic reset for consistent styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f4f7fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* Chatbox container */
+        #chatbox {
+            width: 350px;
+            height: 450px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Chat logs container */
+        #chatlogs {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            background-color: #fafafa;
+        }
+
+        /* Individual message styling */
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        /* User message styling */
+        .user-message {
+            background-color: #4caf50;
+            color: white;
+            align-self: flex-end;
+            border-top-left-radius: 0;
+        }
+
+        /* Bot message styling */
+        .bot-message {
+            background-color: #f1f1f1;
+            color: #333;
+            align-self: flex-start;
+            border-top-right-radius: 0;
+        }
+
+        /* Input container */
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #user-input:focus {
+            border-color: #4caf50;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #4caf50;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Styling for chat header */
+        #chatbox-header {
+            background-color: #4caf50;
+            color: white;
+            padding: 12px;
+            font-weight: bold;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            text-align: center;
+        }
+
+        /* Optional styling for better scroll visibility */
+        #chatlogs::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #chatlogs::-webkit-scrollbar-thumb {
+            background-color: #4caf50;
+            border-radius: 5px;
+        }
+
+        /* Making the button disabled when input is empty */
+        button:disabled {
+            background-color: #b2d8b0;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatbox">
+        <!-- Chatbox Header -->
+        <div id="chatbox-header">Safe Trade Hub Chatbot</div>
+        
+        <!-- Chat Logs -->
+        <div id="chatlogs"></div>
+
+        <!-- Input Section -->
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." />
+            <button id="send-button" onclick="sendMessage()" disabled>Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Enable the Send button when the user types in the input field
+        document.getElementById("user-input").addEventListener("input", function() {
+            const sendButton = document.getElementById("send-button");
+            if (this.value.trim() !== "") {
+                sendButton.disabled = false;
+            } else {
+                sendButton.disabled = true;
+            }
+        });
+
+        function sendMessage() {
+            var userMessage = document.getElementById("user-input").value;
+            var chatlogs = document.getElementById("chatlogs");
+
+            // Display user message
+            var userMessageDiv = document.createElement("div");
+            userMessageDiv.className = "message user-message";
+            userMessageDiv.textContent = userMessage;
+            chatlogs.appendChild(userMessageDiv);
+
+            // Scroll to the bottom of the chat
+            chatlogs.scrollTop = chatlogs.scrollHeight;
+
+            // Send the message to Flask API
+            fetch('http://127.0.0.1:5000/chat', {  // Replace with your deployed backend URL if live
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 'message': userMessage })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display bot response
+                var botMessageDiv = document.createElement("div");
+                botMessageDiv.className = "message bot-message";
+                botMessageDiv.textContent = data.response;
+                chatlogs.appendChild(botMessageDiv);
+
+                // Scroll to the bottom of the chat
+                chatlogs.scrollTop = chatlogs.scrollHeight;
+
+                // Clear the input field
+                document.getElementById("user-input").value = "";
+                document.getElementById("send-button").disabled = true;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
