@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Checkout (Escrow)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">SafeTradeHub</a>
+    <nav class="header-actions">
+      <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
+          <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
+        </svg>
+        <span class="cart-count" id="cartCount">0</span>
+      </a>
+      <a class="link" href="auth.html?mode=signin">Sign In</a>
+      <a class="btn primary" href="auth.html?mode=join">Join</a>
+    </nav>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <h1 style="margin:0 0 16px">Checkout — Escrow</h1>
+
+    <div class="checkout-grid">
+      <!-- Left: Details -->
+      <div class="card-like">
+        <ol class="steps">
+          <li class="active"><span>Details</span></li>
+          <li><span>Review</span></li>
+          <li><span>Pay & Hold</span></li>
+        </ol>
+
+        <form id="checkoutForm" class="form">
+          <div class="form-row">
+            <label>Full Name</label>
+            <input type="text" id="fullName" required />
+          </div>
+          <div class="form-row two">
+            <div>
+              <label>Phone</label>
+              <input type="tel" id="phone" required />
+            </div>
+            <div>
+              <label>Email</label>
+              <input type="email" id="email" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Address (for return/verification contact)</label>
+            <textarea id="address" rows="3" required></textarea>
+          </div>
+
+          <div class="form-row">
+            <label>Escrow Location</label>
+            <select id="escrowLocation" required>
+              <option value="SafeTradeHub – Central Hub (Downtown)">SafeTradeHub – Central Hub (Downtown)</option>
+              <option value="North Pickup Center">North Pickup Center</option>
+              <option value="3rd-Party Courier Locker">3rd-Party Courier Locker</option>
+            </select>
+          </div>
+
+          <fieldset class="form-row">
+            <legend style="font-weight:800; margin-bottom:6px">Payment Method</legend>
+            <label class="radio">
+              <input type="radio" name="pm" value="escrow" checked />
+              <span>Escrow (recommended)</span>
+            </label>
+            <label class="radio muted">
+              <input type="radio" name="pm" value="direct" disabled />
+              <span>Direct payment (coming soon)</span>
+            </label>
+          </fieldset>
+
+          <label class="agree">
+            <input type="checkbox" id="agree" required />
+            I agree: funds are held in escrow until delivery & verification.
+          </label>
+        </form>
+      </div>
+
+      <!-- Right: Summary -->
+      <aside class="card-like summary">
+        <h3>Summary</h3>
+        <div id="items"></div>
+        <hr>
+        <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
+        <div class="total-line"><span>Shipping</span><span>Free</span></div>
+        <div class="total-line" style="font-size:1.1rem"><span>Total</span><strong id="grand">—</strong></div>
+        <button class="btn primary" id="payHoldBtn" style="width:100%; margin-top:12px">Pay & Hold in Escrow</button>
+        <p class="muted-note" style="margin-top:8px;color:var(--muted)">
+          Funds go into an admin-controlled wallet and are released only after buyer confirmation or verification.
+        </p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
+
+<script>
+/* Storage keys */
+const CART_KEY    = 'sthub_cart';
+const ORDERS_KEY  = 'sthub_orders';
+const ESCROWS_KEY = 'sthub_escrows';
+
+const money = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currency:'USD'}).format(n);
+
+function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
+function setCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
+function setBadge(){ const b=document.getElementById('cartCount'); if(b) b.textContent = getCart().reduce((a,i)=>a+(i.qty||1),0); }
+
+function renderSummary(){
+  const cart = getCart();
+  setBadge();
+  const itemsEl = document.getElementById('items');
+  if(!cart.length){
+    itemsEl.innerHTML = '<p class="muted-note">Your cart is empty.</p>';
+    document.getElementById('subtotal').textContent = money(0);
+    document.getElementById('grand').textContent    = money(0);
+    return;
+  }
+  let subtotal = 0;
+  itemsEl.innerHTML = cart.map(it=>{
+    const line = (it.price||0)*(it.qty||1);
+    subtotal += line;
+    return `<div class="review-row">
+      <img src="${it.img}" alt="">
+      <div class="grow">
+        <div class="title">${it.title}</div>
+        <div class="muted">Qty ${it.qty||1}</div>
+      </div>
+      <div class="strong">${money(line)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('subtotal').textContent = money(subtotal);
+  document.getElementById('grand').textContent    = money(subtotal);
+}
+
+document.getElementById('payHoldBtn').addEventListener('click', ()=>{
+  const cart = getCart();
+  if(!cart.length) return alert('Cart is empty.');
+  const name = document.getElementById('fullName').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const address = document.getElementById('address').value.trim();
+  const escrowLocation = document.getElementById('escrowLocation').value;
+  const agree = document.getElementById('agree').checked;
+
+  if(!name || !phone || !address || !agree){
+    alert('Please complete details and agree to escrow terms.');
+    return;
+  }
+
+  const subtotal = cart.reduce((s,i)=> s+(i.price||0)*(i.qty||1), 0);
+
+  // Create order in "pending_escrow"
+  const order = {
+    id: 'ORD-' + Date.now(),
+    items: cart,
+    buyer: { name, phone, email, address },
+    escrowLocation,
+    subtotal,
+    total: subtotal,
+    status: 'pending_escrow', // next: shipped_to_escrow -> at_escrow -> awaiting_buyer_confirm -> released/refunded/disputed
+    createdAt: new Date().toISOString()
+  };
+  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+  orders.push(order);
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+
+  // Create escrow "hold"
+  const escrow = {
+    id: 'ESC-' + Date.now(),
+    orderId: order.id,
+    amount: subtotal,
+    currency: 'USD',
+    status: 'held',           // next: released | refunded | cancelled
+    createdAt: new Date().toISOString(),
+    releases: [],
+    refunds: []
+  };
+  const escrows = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
+  escrows.push(escrow);
+  localStorage.setItem(ESCROWS_KEY, JSON.stringify(escrows));
+
+  // Clear cart and go to order status
+  setCart([]);
+  location.href = 'orderstatus.html?orderId=' + encodeURIComponent(order.id);
+});
+
+renderSummary();
+</script>
+</body>
+</html>

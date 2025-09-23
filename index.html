@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Home</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+      <nav class="header-actions" aria-label="Top actions">
+       <!-- Chat -->
+<button class="icon-btn" aria-label="Chat" title="Chat" onclick="toggleChat()">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+  </svg>
+</button>
+
+<!-- Chatbot Container (Hidden by Default) -->
+<div id="chatbot-container" class="chatbot-container">
+  <!-- Embed the chatbot via iframe -->
+  <iframe src="https://safetradehub-d797d24354d2.herokuapp.com/chatbot" frameborder="0" width="100%" height="100%" style="border-radius: 26px;"></iframe>
+</div>
+
+
+
+<!-- Bell -->
+<button class="icon-btn" aria-label="Notifications" title="Notifications" onclick="requestNotificationPermission()">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/>
+<path d="M13.73 21a2 2 0 01-3.46 0"/>
+</svg>
+</button>
+
+<!-- Cart -->
+<a class="icon-btn cart-link" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6h15l-1.5 9h-12z" />
+        <path d="M6 6L5 3H2" />
+        <circle cx="9" cy="20" r="1.75" />
+        <circle cx="18" cy="20" r="1.75" />
+    </svg>
+    <span class="cart-count" id="cartCount">0</span>
+
+</a>
+
+
+<a class="link" href="auth.html?mode=signin">Sign In</a>
+<a class="btn primary" href="auth.html?mode=join">Join</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero / Search -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <h1>Find Your Best Product</h1>
+
+      <form class="search" role="search" aria-label="Site search">
+        <input type="search" placeholder="Try “Mobile Accessories”" aria-label="Search products" />
+        <button type="submit" class="btn search-btn" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="section">
+    <div class="container">
+      <ul class="categories" aria-label="Browse categories">
+        <!-- Row 1 -->
+        <li class="cat">
+          <span class="cat-icon" aria-hidden="true">
+            <img src="images/mobile.avif" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Mobile</span>
+          <span class="cat-sub">Mobile</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/camera.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Camera</span>
+          <span class="cat-sub">Electronics</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/service.png" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Service</span>
+          <span class="cat-sub">Services</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/chair.webp" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Chair</span>
+          <span class="cat-sub">Furniture</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/dress.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Dress</span>
+          <span class="cat-sub">Fashion</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/makeup.jpeg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Makeup</span>
+          <span class="cat-sub">Beauty</span>
+        </li>
+        <!-- Row 2 -->
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/book.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Book</span>
+          <span class="cat-sub">Book</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/bat.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Bat</span>
+          <span class="cat-sub">Sports</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/dumbell.webp" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Dumbbell</span>
+          <span class="cat-sub">Gym</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/pet.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Pet Care</span>
+          <span class="cat-sub">Animal & Pets</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/laptop.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Laptop</span>
+          <span class="cat-sub">Computers</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="images/homeappliances.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Appliance</span>
+          <span class="cat-sub">Home</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Recommended -->
+  <section class="section">
+    <div class="container recs-header">
+      <h2>Recommended Products &amp; Services</h2>
+      <div class="recs-ctrl">
+        <button class="icon-btn arrow" id="recsNext" aria-label="View more">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4l8 8-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="recs" id="recs">
+        <!-- 8 sample cards -->
+        <article class="card">
+  <div class="card-img">
+    <img src="images/iphone12.jpg" alt="Mobile phone" loading="lazy">
+  </div>
+  <h3 class="card-title">IPhone 12 Pro Max</h3>
+  <button class="btn" 
+          data-add-to-cart
+          data-id="sku-iphone12"
+          data-name="IPhone 12 Pro Max"
+          data-price="899.00"
+          data-img="images/iphone12.jpg"
+          style="width:100%; margin-top:8px;">Add to Cart</button>
+</article>
+
+<article class="card">
+  <div class="card-img">
+    <img src="images/bookset.jpg" alt="Book" loading="lazy">
+  </div>
+  <h3 class="card-title">Book Set Of 8</h3>
+  <button class="btn" 
+          data-add-to-cart
+          data-id="sku-bookset8"
+          data-name="Book Set Of 8"
+          data-price="49.00"
+          data-img="images/bookset.jpg"
+          style="width:100%; margin-top:8px;">Add to Cart</button>
+</article>
+
+<article class="card">
+  <div class="card-img">
+    <img src="images/oven.jpg" alt="Oven" loading="lazy">
+  </div>
+  <h3 class="card-title">Dawlance Oven</h3>
+  <button class="btn" 
+          data-add-to-cart
+          data-id="sku-oven-dawlance"
+          data-name="Dawlance Oven"
+          data-price="179.00"
+          data-img="images/oven.jpg"
+          style="width:100%; margin-top:8px;">Add to Cart</button>
+</article>
+
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Trade Pro Features -->
+  <section class="section">
+    <div class="container">
+      <div class="features">
+        <h3>Trade Pro : Subscribe To Pro</h3>
+        <ul>
+          <li>Escrow Payments</li>
+          <li>Fast Delivery</li>
+          <li>Verified Badge</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose Us -->
+<section class="section">
+    <div class="container">
+      <h2 class="center">WHY CHOOSE US</h2>
+      <div class="why">
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="images/securepayment.png" alt="Safe Payments">
+          </div>
+          <p class="why-text">Secure Payments</p>
+        </div>
+  
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="images/24-7services.avif" alt="24/7 Service">
+          </div>
+          <p class="why-text">24-7 Service</p>
+        </div>
+  
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="images/trustedseller.png" alt="Trusted Sellers">
+          </div>
+          <p class="why-text">Trusted Sellers</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>All Rights Reserved By Safe Trade Hub</p>
+    </div>
+  </footer>
+
+
+  <script>
+
+function toggleChat() {
+      const chatbotContainer = document.getElementById('chatbot-container');
+      chatbotContainer.classList.toggle('show');
+    }
+
+    // Minimal JS for the "view more" arrow
+    (function () {
+      const scroller = document.getElementById('recs');
+      const next = document.getElementById('recsNext');
+      if (scroller && next) {
+        next.addEventListener('click', () => {
+          scroller.scrollBy({ left: scroller.clientWidth * 0.8, behavior: 'smooth' });
+        });
+      }
+    })();
+  </script>
+
+<script>
+
+
+// Firebase Configuration (replace with your Firebase project's config)
+const firebaseConfig = {
+  apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+  authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+  projectId: "safe-trade-hub-a57cb",
+  storageBucket: "safe-trade-hub-a57cb.appspot.com",   // <-- fix
+  messagingSenderId: "509522351934",
+  appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+  measurementId: "G-060FYYP5DD"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+// Get Firebase Messaging instance
+const messaging = firebase.messaging();
+
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')  // Ensure the path is correct
+    .then(function(registration) {
+      // Service Worker registered successfully
+      messaging.useServiceWorker(registration);
+    })
+    .catch(function(error) {
+      console.error('Service Worker registration failed:', error);
+    });
+}
+
+
+
+// Request notification permission & get FCM token
+async function requestNotificationPermission() {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          const token = await messaging.getToken({
+            vapidKey: 'BJ13KKFRdr9XHWWFTGBZc1wSE5gRJaBLtUDH9QJxeCKDG2YolMlbnSrBIkEc_Aein7dq6M1-t9GQtJmUDQVice0' // Replace this with your actual VAPID key from Firebase Console
+          });
+          // FCM Token obtained successfully
+          sendTokenToServer(token);
+          alert('Notifications enabled! You\'ll receive updates about your orders and important announcements.');
+        } else {
+          alert('Notifications are disabled. You can enable them later by clicking the bell icon.');
+        }
+      } catch (error) {
+        console.error('Error getting FCM token:', error);
+        alert('Unable to set up notifications. Please try again later.');
+      }
+    }
+
+    // Send FCM token to backend
+    function sendTokenToServer(token) {
+      fetch('/save-fcm-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fcmToken: token })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Token saved successfully
+      })
+      .catch(error => console.error('Error saving token:', error));
+    }
+
+// Initialize cart count on page load
+updateCartCount();
+</script>
+
+<script>
+/* ---- Cart (home page) ---- */
+const CART_KEY = 'sthub_cart';
+
+function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
+function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
+function cartCount(){ return getCart().reduce((a,i)=> a + (i.qty||1), 0); }
+function updateCartCount(){ const b = document.getElementById('cartCount'); if (b) b.textContent = cartCount(); }
+
+function addToCart(product, qty=1){
+  const cart = getCart();
+  const i = cart.findIndex(x => x.id === product.id);
+  if (i > -1) cart[i].qty += qty; else cart.push({...product, qty});
+  saveCart(cart);
+  updateCartCount();
+  alert('Added to cart: ' + product.title);
+}
+
+/* Event delegation so it works for any future cards, too */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-add-to-cart]');
+  if (!btn) return;
+  const product = {
+    id: btn.dataset.id,
+    title: btn.dataset.name,                // you used data-name in HTML
+    price: parseFloat(btn.dataset.price || '0'),
+    img: btn.dataset.img
+  };
+  addToCart(product, 1);
+});
+
+/* init badge on load */
+updateCartCount();
+</script>
+
+<script>
+// Category tile navigation without changing markup
+(function(){
+  const mapping = {
+    'Mobile': 'category-mobile.html',
+    'Camera': 'category-camera.html',
+    'Service': 'category-services.html',
+    'Chair': 'category-furniture.html',
+    'Dress': 'category-fashion.html',
+    'Makeup': 'category-beauty.html',
+    'Book': 'category-books.html',
+    'Bat': 'category-sports.html',
+    'Dumbbell': 'category-gym.html',
+    'Pet Care': 'category-pets.html',
+    'Laptop': 'category-computers.html',
+    'Appliance': 'category-home.html'
+  };
+  document.querySelectorAll('.categories .cat').forEach(cat=>{
+    cat.style.cursor = 'pointer';
+    cat.addEventListener('click', ()=>{
+      const title = (cat.querySelector('.cat-title')||{}).textContent || '';
+      const url = mapping[title && title.trim()];
+      if (url) window.location.href = url;
+    });
+  });
+})();
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "safe-trade-hub",
+  "version": "1.0.0",
+  "description": "Safe Trade Hub - Secure marketplace with escrow system",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saimayyazsheikh/SafeTradeHub.git"
+  },
+  "keywords": ["marketplace", "escrow", "ecommerce", "secure-trading", "firebase"],
+  "author": "Saim Ayaz Sheikh",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/saimayyazsheikh/SafeTradeHub/issues"
+  },
+  "homepage": "https://github.com/saimayyazsheikh/SafeTradeHub#readme",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.4.0"
+  }
+}

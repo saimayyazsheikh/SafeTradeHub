@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile Management – Safe Trade Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">SafeTradeHub</a>
+      <nav class="header-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+        <a class="link" href="dashboard.html">Dashboard</a>
+        <button class="btn primary" id="signOutBtn">Sign Out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-section">
+      <div class="container">
+        <div class="profile-header">
+          <h1>Profile Management</h1>
+          <p>Manage your personal information and account settings</p>
+        </div>
+
+      <div class="profile-grid">
+        <!-- Profile Overview -->
+        <div class="profile-card profile-overview">
+          <div class="profile-avatar">
+            <div class="avatar-circle" id="userAvatar">
+              <span id="userInitials">U</span>
+            </div>
+            <button class="avatar-upload" id="uploadAvatar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          </div>
+          <div class="profile-info">
+            <h2 id="userDisplayName">User Name</h2>
+            <p class="user-email" id="userEmail">user@example.com</p>
+            <div class="user-role" id="userRole">Buyer</div>
+            <div class="verification-badge" id="verificationBadge">
+              <span class="badge-icon">⏳</span>
+              <span class="badge-text">Verification Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal Information -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h3>Personal Information</h3>
+            <button class="edit-btn" id="editPersonalBtn">Edit</button>
+          </div>
+          <div class="card-content">
+            <form id="personalForm" class="profile-form">
+              <div class="form-row">
+                <label>Full Name</label>
+                <input type="text" id="fullName" name="fullName" required>
+              </div>
+              <div class="form-row">
+                <label>Email Address</label>
+                <input type="email" id="email" name="email" required readonly>
+                <small class="field-note">Email cannot be changed. Contact support if needed.</small>
+              </div>
+              <div class="form-row">
+                <label>Phone Number</label>
+                <input type="tel" id="phone" name="phone" required>
+              </div>
+              <div class="form-row">
+                <label>Date of Birth</label>
+                <input type="date" id="dateOfBirth" name="dateOfBirth">
+              </div>
+              <div class="form-row">
+                <label>Gender</label>
+                <select id="gender" name="gender">
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn secondary" id="cancelPersonalBtn">Cancel</button>
+                <button type="submit" class="btn primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Address Information -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h3>Address Information</h3>
+            <button class="edit-btn" id="editAddressBtn">Edit</button>
+          </div>
+          <div class="card-content">
+            <form id="addressForm" class="profile-form">
+              <div class="form-row">
+                <label>Street Address</label>
+                <input type="text" id="streetAddress" name="streetAddress" placeholder="123 Main Street">
+              </div>
+              <div class="form-row two">
+                <div>
+                  <label>City</label>
+                  <input type="text" id="city" name="city" placeholder="Karachi">
+                </div>
+                <div>
+                  <label>State/Province</label>
+                  <input type="text" id="state" name="state" placeholder="Sindh">
+                </div>
+              </div>
+              <div class="form-row two">
+                <div>
+                  <label>Postal Code</label>
+                  <input type="text" id="postalCode" name="postalCode" placeholder="75000">
+                </div>
+                <div>
+                  <label>Country</label>
+                  <select id="country" name="country">
+                    <option value="PK">Pakistan</option>
+                    <option value="US">United States</option>
+                    <option value="UK">United Kingdom</option>
+                    <option value="CA">Canada</option>
+                    <option value="AU">Australia</option>
+                    <option value="IN">India</option>
+                    <option value="BD">Bangladesh</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Address Type</label>
+                <div class="radio-group">
+                  <label class="radio">
+                    <input type="radio" name="addressType" value="home" checked>
+                    <span>Home</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="addressType" value="work">
+                    <span>Work</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="addressType" value="other">
+                    <span>Other</span>
+                  </label>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn secondary" id="cancelAddressBtn">Cancel</button>
+                <button type="submit" class="btn primary">Save Address</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h3>Account Settings</h3>
+          </div>
+          <div class="card-content">
+            <div class="settings-list">
+              <div class="setting-item">
+                <div class="setting-info">
+                  <h4>Change Password</h4>
+                  <p>Update your account password</p>
+                </div>
+                <button class="btn secondary" id="changePasswordBtn">Change</button>
+              </div>
+              <div class="setting-item">
+                <div class="setting-info">
+                  <h4>Two-Factor Authentication</h4>
+                  <p>Add an extra layer of security</p>
+                </div>
+                <button class="btn secondary" id="setup2FABtn">Setup</button>
+              </div>
+              <div class="setting-item">
+                <div class="setting-info">
+                  <h4>Notification Preferences</h4>
+                  <p>Manage how you receive notifications</p>
+                </div>
+                <button class="btn secondary" id="notificationSettingsBtn">Manage</button>
+              </div>
+              <div class="setting-item">
+                <div class="setting-info">
+                  <h4>Privacy Settings</h4>
+                  <p>Control your privacy and data sharing</p>
+                </div>
+                <button class="btn secondary" id="privacySettingsBtn">Manage</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h3>Transaction History</h3>
+            <a href="orders.html" class="view-all">View All</a>
+          </div>
+          <div class="card-content">
+            <div id="transactionHistory" class="transaction-list">
+              <div class="loading-skeleton">
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Status -->
+        <div class="profile-card">
+          <div class="card-header">
+            <h3>Account Status</h3>
+          </div>
+          <div class="card-content">
+            <div class="status-grid">
+              <div class="status-item">
+                <div class="status-label">Account Status</div>
+                <div class="status-value active" id="accountStatus">Active</div>
+              </div>
+              <div class="status-item">
+                <div class="status-label">Member Since</div>
+                <div class="status-value" id="memberSince">January 2024</div>
+              </div>
+              <div class="status-item">
+                <div class="status-label">Last Login</div>
+                <div class="status-value" id="lastLogin">2 hours ago</div>
+              </div>
+              <div class="status-item">
+                <div class="status-label">Verification Level</div>
+                <div class="status-value" id="verificationLevel">Basic</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
+
+  <!-- Change Password Modal -->
+  <div id="passwordModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Change Password</h3>
+        <button class="close-btn" id="closePasswordModal">×</button>
+      </div>
+      <div class="modal-content">
+        <form id="passwordForm">
+          <div class="form-row">
+            <label>Current Password</label>
+            <input type="password" id="currentPassword" required>
+          </div>
+          <div class="form-row">
+            <label>New Password</label>
+            <input type="password" id="newPassword" required minlength="6">
+            <div class="password-strength" id="passwordStrength"></div>
+          </div>
+          <div class="form-row">
+            <label>Confirm New Password</label>
+            <input type="password" id="confirmPassword" required>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn secondary" id="cancelPasswordBtn">Cancel</button>
+            <button type="submit" class="btn primary">Update Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Firebase Configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+    authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+    projectId: "safe-trade-hub-a57cb",
+    storageBucket: "safe-trade-hub-a57cb.appspot.com",
+    messagingSenderId: "509522351934",
+    appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+    measurementId: "G-060FYYP5DD"
+  };
+
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  let currentUser = null;
+  let userData = null;
+
+  // Auth state listener
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      location.href = 'auth.html?mode=signin';
+      return;
+    }
+    
+    currentUser = user;
+    await loadUserData();
+    await loadTransactionHistory();
+  });
+
+  // Load user data from Firestore
+  async function loadUserData() {
+    try {
+      const userDoc = await db.collection('users').doc(currentUser.uid).get();
+      userData = userDoc.exists ? userDoc.data() : null;
+      
+      if (userData) {
+        updateProfileInfo();
+        populateForms();
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }
+
+  // Update profile information in UI
+  function updateProfileInfo() {
+    const displayName = userData.displayName || currentUser.displayName || 'User';
+    const email = userData.email || currentUser.email || 'user@example.com';
+    const role = userData.role || 'Buyer';
+    
+    document.getElementById('userDisplayName').textContent = displayName;
+    document.getElementById('userEmail').textContent = email;
+    document.getElementById('userRole').textContent = role;
+    
+    // Generate initials
+    const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
+    document.getElementById('userInitials').textContent = initials;
+    
+    // Update verification badge
+    updateVerificationBadge();
+    
+    // Update account status
+    updateAccountStatus();
+  }
+
+  // Update verification badge
+  function updateVerificationBadge() {
+    const verification = userData?.verification || {};
+    const badge = document.getElementById('verificationBadge');
+    
+    let badgeClass = 'pending';
+    let badgeText = 'Verification Pending';
+    let badgeIcon = '⏳';
+    
+    if (verification.email && verification.phone && verification.cnic?.verified) {
+      if (userData.role === 'Seller' && verification.shop?.verified) {
+        badgeClass = 'verified';
+        badgeText = 'Fully Verified';
+        badgeIcon = '✅';
+      } else if (userData.role === 'Buyer') {
+        badgeClass = 'verified';
+        badgeText = 'Fully Verified';
+        badgeIcon = '✅';
+      }
+    }
+    
+    badge.className = `verification-badge ${badgeClass}`;
+    badge.innerHTML = `
+      <span class="badge-icon">${badgeIcon}</span>
+      <span class="badge-text">${badgeText}</span>
+    `;
+  }
+
+  // Update account status
+  function updateAccountStatus() {
+    const memberSince = userData?.createdAt?.toDate?.() || new Date();
+    const lastLogin = userData?.lastLoginAt?.toDate?.() || new Date();
+    
+    document.getElementById('memberSince').textContent = memberSince.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long' 
+    });
+    
+    document.getElementById('lastLogin').textContent = getTimeAgo(lastLogin);
+    
+    const verification = userData?.verification || {};
+    let verificationLevel = 'Basic';
+    
+    if (verification.email && verification.phone) {
+      verificationLevel = 'Intermediate';
+    }
+    if (verification.cnic?.verified) {
+      verificationLevel = 'Advanced';
+    }
+    if (userData.role === 'Seller' && verification.shop?.verified) {
+      verificationLevel = 'Complete';
+    }
+    
+    document.getElementById('verificationLevel').textContent = verificationLevel;
+  }
+
+  // Populate forms with user data
+  function populateForms() {
+    // Personal information form
+    document.getElementById('fullName').value = userData.displayName || '';
+    document.getElementById('email').value = userData.email || '';
+    document.getElementById('phone').value = userData.phone || '';
+    document.getElementById('dateOfBirth').value = userData.dateOfBirth || '';
+    document.getElementById('gender').value = userData.gender || '';
+    
+    // Address form
+    const address = userData.address || {};
+    document.getElementById('streetAddress').value = address.street || '';
+    document.getElementById('city').value = address.city || '';
+    document.getElementById('state').value = address.state || '';
+    document.getElementById('postalCode').value = address.postalCode || '';
+    document.getElementById('country').value = address.country || 'PK';
+    
+    const addressType = address.type || 'home';
+    document.querySelector(`input[name="addressType"][value="${addressType}"]`).checked = true;
+  }
+
+  // Load transaction history
+  async function loadTransactionHistory() {
+    try {
+      const orders = JSON.parse(localStorage.getItem('sthub_orders') || '[]');
+      const recentOrders = orders.slice(0, 5);
+      
+      const historyDiv = document.getElementById('transactionHistory');
+      
+      if (recentOrders.length === 0) {
+        historyDiv.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <div class="empty-text">No transactions yet</div>
+            <a href="index.html" class="btn primary">Start Shopping</a>
+          </div>
+        `;
+        return;
+      }
+      
+      historyDiv.innerHTML = recentOrders.map(order => `
+        <div class="transaction-item">
+          <div class="transaction-info">
+            <div class="transaction-id">Order #${order.id}</div>
+            <div class="transaction-date">${new Date(order.createdAt).toLocaleDateString()}</div>
+          </div>
+          <div class="transaction-amount">$${order.total?.toFixed(2) || '0.00'}</div>
+          <div class="transaction-status ${order.status}">${order.status}</div>
+        </div>
+      `).join('');
+      
+    } catch (error) {
+      console.error('Error loading transaction history:', error);
+    }
+  }
+
+  // Form submission handlers
+  document.getElementById('personalForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const updates = {
+      displayName: formData.get('fullName'),
+      phone: formData.get('phone'),
+      dateOfBirth: formData.get('dateOfBirth'),
+      gender: formData.get('gender'),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    try {
+      await db.collection('users').doc(currentUser.uid).update(updates);
+      await currentUser.updateProfile({ displayName: formData.get('fullName') });
+      
+      showSuccess('Personal information updated successfully!');
+      await loadUserData();
+    } catch (error) {
+      showError('Failed to update personal information. Please try again.');
+    }
+  });
+
+  document.getElementById('addressForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const address = {
+      street: formData.get('streetAddress'),
+      city: formData.get('city'),
+      state: formData.get('state'),
+      postalCode: formData.get('postalCode'),
+      country: formData.get('country'),
+      type: formData.get('addressType'),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    try {
+      await db.collection('users').doc(currentUser.uid).update({ address });
+      showSuccess('Address updated successfully!');
+    } catch (error) {
+      showError('Failed to update address. Please try again.');
+    }
+  });
+
+  // Password change modal
+  document.getElementById('changePasswordBtn').addEventListener('click', () => {
+    document.getElementById('passwordModal').classList.add('show');
+  });
+
+  document.getElementById('closePasswordModal').addEventListener('click', () => {
+    document.getElementById('passwordModal').classList.remove('show');
+  });
+
+  document.getElementById('cancelPasswordBtn').addEventListener('click', () => {
+    document.getElementById('passwordModal').classList.remove('show');
+  });
+
+  // Password form submission
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (newPassword !== confirmPassword) {
+      showError('New passwords do not match.');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      showError('Password must be at least 6 characters long.');
+      return;
+    }
+    
+    try {
+      // Re-authenticate user
+      const credential = firebase.auth.EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+      
+      await currentUser.reauthenticateWithCredential(credential);
+      await currentUser.updatePassword(newPassword);
+      
+      showSuccess('Password updated successfully!');
+      document.getElementById('passwordModal').classList.remove('show');
+      document.getElementById('passwordForm').reset();
+    } catch (error) {
+      if (error.code === 'auth/wrong-password') {
+        showError('Current password is incorrect.');
+      } else {
+        showError('Failed to update password. Please try again.');
+      }
+    }
+  });
+
+  // Password strength indicator
+  document.getElementById('newPassword').addEventListener('input', function() {
+    const password = this.value;
+    const strengthDiv = document.getElementById('passwordStrength');
+    
+    let strength = 0;
+    let strengthText = '';
+    let strengthColor = '';
+    
+    if (password.length >= 6) strength++;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^A-Za-z0-9]/.test(password)) strength++;
+    
+    switch (strength) {
+      case 0:
+      case 1:
+        strengthText = 'Very Weak';
+        strengthColor = '#dc2626';
+        break;
+      case 2:
+        strengthText = 'Weak';
+        strengthColor = '#ea580c';
+        break;
+      case 3:
+        strengthText = 'Fair';
+        strengthColor = '#d97706';
+        break;
+      case 4:
+        strengthText = 'Good';
+        strengthColor = '#059669';
+        break;
+      case 5:
+      case 6:
+        strengthText = 'Strong';
+        strengthColor = '#16a34a';
+        break;
+    }
+    
+    if (password.length > 0) {
+      strengthDiv.innerHTML = `<div style="color: ${strengthColor}; font-size: 12px; margin-top: 4px;">Password strength: ${strengthText}</div>`;
+    } else {
+      strengthDiv.innerHTML = '';
+    }
+  });
+
+  // Sign out functionality
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try {
+      await auth.signOut();
+      location.href = 'index.html';
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  });
+
+  // Helper functions
+  function getTimeAgo(date) {
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    
+    return date.toLocaleDateString();
+  }
+
+  function showSuccess(message) {
+    // Remove existing messages
+    const existingMessage = document.querySelector('.success-message');
+    if (existingMessage) existingMessage.remove();
+    
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.textContent = message;
+    successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; z-index: 1000; font-weight: 600;';
+    
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => {
+      if (successDiv.parentNode) successDiv.remove();
+    }, 3000);
+  }
+
+  function showError(message) {
+    // Remove existing messages
+    const existingMessage = document.querySelector('.error-message');
+    if (existingMessage) existingMessage.remove();
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 12px 20px; border-radius: 8px; z-index: 1000; font-weight: 600;';
+    
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+      if (errorDiv.parentNode) errorDiv.remove();
+    }, 3000);
+  }
+  </script>
+
+  <style>
+  /* Profile Styles */
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .profile-section {
+    padding: 32px 0;
+    background: #f8fafc;
+    flex: 1;
+  }
+
+  .profile-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .profile-header h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    font-weight: 800;
+    color: #1e293b;
+  }
+
+  .profile-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 16px;
+  }
+
+  .profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+  }
+
+  .profile-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+    overflow: hidden;
+  }
+
+  .profile-overview {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 32px;
+  }
+
+  .profile-avatar {
+    position: relative;
+  }
+
+  .avatar-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 800;
+  }
+
+  .avatar-upload {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #3b82f6;
+    color: #3b82f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .avatar-upload:hover {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .profile-info h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+  }
+
+  .user-email {
+    margin: 0 0 12px;
+    color: #64748b;
+    font-size: 16px;
+  }
+
+  .user-role {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .verification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .verification-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .verification-badge.verified {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  .card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .edit-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #374151;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .edit-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .card-content {
+    padding: 24px;
+  }
+
+  .profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-row.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-row label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+  }
+
+  .form-row input,
+  .form-row select {
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+
+  .form-row input:focus,
+  .form-row select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .form-row input[readonly] {
+    background: #f9fafb;
+    color: #6b7280;
+  }
+
+  .field-note {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .radio input[type="radio"] {
+    margin: 0;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 14px;
+  }
+
+  .btn.primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .btn.primary:hover {
+    background: #2563eb;
+  }
+
+  .btn.secondary {
+    background: #f8fafc;
+    color: #374151;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btn.secondary:hover {
+    background: #f1f5f9;
+  }
+
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .setting-info h4 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .setting-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+  }
+
+  .transaction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .transaction-info {
+    flex: 1;
+  }
+
+  .transaction-id {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+  }
+
+  .transaction-date {
+    font-size: 14px;
+    color: #64748b;
+  }
+
+  .transaction-amount {
+    font-weight: 700;
+    color: #1e293b;
+    margin-right: 16px;
+  }
+
+  .transaction-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .transaction-status.completed {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  .transaction-status.pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .status-item {
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .status-label {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 8px;
+  }
+
+  .status-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .status-value.active {
+    color: #059669;
+  }
+
+  .view-all {
+    color: #3b82f6;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .view-all:hover {
+    text-decoration: underline;
+  }
+
+  /* Modal Styles */
+  .modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal.show {
+    display: flex;
+  }
+
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .modal-panel {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px rgba(16, 24, 40, 0.15);
+    width: min(500px, 90vw);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 24px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .close-btn:hover {
+    color: #374151;
+  }
+
+  .modal-content {
+    padding: 24px;
+  }
+
+  .password-strength {
+    margin-top: 8px;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .empty-text {
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+
+  /* Loading Skeleton */
+  .loading-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skeleton-line {
+    height: 20px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+  }
+
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .profile-overview {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .profile-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .form-row.two {
+      grid-template-columns: 1fr;
+    }
+
+    .radio-group {
+      flex-direction: column;
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+  }
+  </style>
+</body>
+</html>

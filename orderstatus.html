@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Order Status</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">SafeTradeHub</a>
+    <nav class="header-actions">
+      <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
+          <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
+        </svg>
+        <span class="cart-count" id="cartCount">0</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+    <h1 style="margin:0 0 16px">Order Status</h1>
+
+    <div class="card-like">
+      <div id="statusBlock"></div>
+
+      <div class="actions">
+        <button class="btn" id="markEscrowReceived">Simulate: Escrow Received</button>
+        <button class="btn primary" id="confirmRelease">I Received & Accept — Release Funds</button>
+        <button class="btn" id="openDispute">Open Dispute</button>
+      </div>
+
+      <p class="muted-note" style="margin-top:8px;color:var(--muted)">
+        Real flow: seller ships to <strong id="loc"></strong> → verification → buyer confirms → funds released.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
+
+<script>
+const ORDERS_KEY  = 'sthub_orders';
+const ESCROWS_KEY = 'sthub_escrows';
+const DISPUTES_KEY= 'sthub_disputes';
+
+const money = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currency:'USD'}).format(n);
+
+const params   = new URLSearchParams(location.search);
+const orderId  = params.get('orderId');
+
+function load(){
+  const orders  = JSON.parse(localStorage.getItem(ORDERS_KEY)  || '[]');
+  const escrows = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
+  const order   = orders.find(o=>o.id===orderId);
+  const escrow  = escrows.find(e=>e.orderId===orderId);
+
+  if(!order){ document.getElementById('statusBlock').innerHTML = '<p>Order not found.</p>'; return; }
+
+  const stages = [
+    {key:'pending_escrow', label:'Payment Held in Escrow'},
+    {key:'shipped_to_escrow', label:'Seller Shipped to Escrow Location'},
+    {key:'at_escrow', label:'Arrived at Escrow • Verification'},
+    {key:'awaiting_buyer_confirm', label:'Awaiting Buyer Confirmation'},
+    {key:'released', label:'Funds Released to Seller'},
+    {key:'refunded', label:'Refunded to Buyer'},
+    {key:'disputed', label:'Dispute Opened'}
+  ];
+
+  const idx = stages.findIndex(s=>s.key===order.status);
+  const html = `
+    <div class="status-rows">
+      ${stages.map((s,i)=>`
+        <div class="status-row ${i<=idx ? 'done' : ''}">
+          <span class="dot"></span>
+          <div class="label">${s.label}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="summary-box">
+      <div><strong>Order:</strong> ${order.id}</div>
+      <div><strong>Escrow:</strong> ${escrow ? escrow.id : '—'}</div>
+      <div><strong>Amount:</strong> ${money(order.total)}</div>
+      <div><strong>Current Status:</strong> ${order.status}</div>
+    </div>
+  `;
+  document.getElementById('statusBlock').innerHTML = html;
+  document.getElementById('loc').textContent = order.escrowLocation || 'Escrow Location';
+}
+
+function updateOrderStatus(newStatus){
+  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+  const idx = orders.findIndex(o=>o.id===orderId);
+  if(idx===-1) return;
+  orders[idx].status = newStatus;
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+  load();
+}
+
+function releaseFunds(){
+  const escrows = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
+  const eIdx = escrows.findIndex(e=>e.orderId===orderId);
+  if(eIdx>-1){
+    escrows[eIdx].status = 'released';
+    escrows[eIdx].releases.push({ at: new Date().toISOString(), by: 'buyer_confirm' });
+    localStorage.setItem(ESCROWS_KEY, JSON.stringify(escrows));
+  }
+  updateOrderStatus('released');
+  alert('Funds released to seller. Thank you!');
+}
+
+function openDispute(){
+  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+  const order  = orders.find(o=>o.id===orderId);
+  if(!order) return;
+  const disputes = JSON.parse(localStorage.getItem(DISPUTES_KEY) || '[]');
+  disputes.push({
+    id: 'DSP-' + Date.now(),
+    orderId,
+    openedAt: new Date().toISOString(),
+    reason: 'Buyer opened dispute via UI',
+    status: 'open'
+  });
+  localStorage.setItem(DISPUTES_KEY, JSON.stringify(disputes));
+  updateOrderStatus('disputed');
+  alert('Dispute opened. Admin will review.');
+}
+
+/* Demo helpers */
+document.getElementById('markEscrowReceived').addEventListener('click', ()=>{
+  // step through states toward buyer confirmation
+  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+  const oIdx = orders.findIndex(o=>o.id===orderId);
+  if(oIdx===-1) return;
+  const seq = ['pending_escrow','shipped_to_escrow','at_escrow','awaiting_buyer_confirm'];
+  const i = seq.indexOf(orders[oIdx].status);
+  const next = seq[Math.min(i+1, seq.length-1)];
+  orders[oIdx].status = next;
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+  load();
+});
+
+document.getElementById('confirmRelease').addEventListener('click', releaseFunds);
+document.getElementById('openDispute').addEventListener('click', openDispute);
+
+load();
+</script>
+</body>
+</html>
