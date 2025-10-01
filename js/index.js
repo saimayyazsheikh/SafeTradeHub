@@ -33,8 +33,77 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Get Firebase Messaging instance
+// Get Firebase instances
+const auth = firebase.auth();
+const db = firebase.firestore();
 const messaging = firebase.messaging();
+
+// Global authentication helper functions
+window.isUserLoggedIn = function() {
+  // Check Firebase auth state
+  if (firebase.auth().currentUser) {
+    return true;
+  }
+  
+  // Check localStorage for auth token as fallback
+  const authToken = localStorage.getItem('authToken');
+  const userData = localStorage.getItem('userData');
+  
+  return !!(authToken && userData);
+};
+
+window.showLoginPrompt = function() {
+  const shouldRedirect = confirm('Please sign in to add items to your cart. Would you like to go to the login page?');
+  if (shouldRedirect) {
+    window.location.href = 'auth.html?mode=signin';
+  }
+};
+
+// Authentication state management
+auth.onAuthStateChanged((user) => {
+  updateUIForAuthState(user);
+});
+
+function updateUIForAuthState(user) {
+  const signInLink = document.getElementById('signInLink');
+  const joinBtn = document.getElementById('joinBtn');
+  const dashboardLink = document.getElementById('dashboardLink');
+  const signOutBtn = document.getElementById('signOutBtn');
+  
+  if (user) {
+    // User is signed in
+    if (signInLink) signInLink.style.display = 'none';
+    if (joinBtn) joinBtn.style.display = 'none';
+    if (dashboardLink) dashboardLink.style.display = 'inline';
+    if (signOutBtn) signOutBtn.style.display = 'inline';
+  } else {
+    // User is signed out
+    if (signInLink) signInLink.style.display = 'inline';
+    if (joinBtn) joinBtn.style.display = 'inline';
+    if (dashboardLink) dashboardLink.style.display = 'none';
+    if (signOutBtn) signOutBtn.style.display = 'none';
+  }
+}
+
+// Sign out function
+window.signOut = function() {
+  auth.signOut().then(() => {
+    // Clear local storage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userData');
+    
+    // Show success message
+    if (typeof showNotification === 'function') {
+      showNotification('You have been signed out successfully.', 'info');
+    }
+    
+    // Refresh page to update UI
+    window.location.reload();
+  }).catch((error) => {
+    console.error('Sign out error:', error);
+  });
+};
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/firebase-messaging-sw.js')  // Ensure the path is correct

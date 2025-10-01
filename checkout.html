@@ -5,39 +5,639 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Safe Trade Hub – Checkout (Escrow)</title>
   <link rel="stylesheet" href="style.css" />
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
+  <style>
+    /* Enhanced Checkout Page Styles */
+    :root {
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --border-radius: 12px;
+      --border-radius-sm: 8px;
+    }
+
+    .checkout-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #6366f1 100%);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      border-radius: 0 0 24px 24px;
+    }
+
+    .checkout-header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .checkout-header .subtitle {
+      text-align: center;
+      margin-top: 0.5rem;
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .checkout-grid {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1024px) {
+      .checkout-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+    }
+
+    .card-like {
+      background: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .card-like:hover {
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+    }
+
+    .card-header {
+      background: var(--gray-50);
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .card-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--gray-800);
+    }
+
+    .card-content {
+      padding: 1.5rem;
+    }
+
+    /* Enhanced Steps Design */
+    .steps {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin: 0 0 2rem 0;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+      border-bottom: 1px solid var(--gray-200);
+      list-style: none;
+    }
+
+    .steps li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      transition: color 0.3s ease;
+    }
+
+    .steps li.active {
+      color: var(--primary-color);
+    }
+
+    .steps li.completed {
+      color: var(--success-color);
+    }
+
+    .steps li:before {
+      content: counter(step-counter);
+      counter-increment: step-counter;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--gray-600);
+      font-size: 0.875rem;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+
+    .steps li.active:before {
+      background: var(--primary-color);
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .steps li.completed:before {
+      background: var(--success-color);
+      color: white;
+      content: '✓';
+    }
+
+    .steps {
+      counter-reset: step-counter;
+    }
+
+    .steps li:not(:last-child):after {
+      content: '';
+      width: 40px;
+      height: 2px;
+      background: var(--gray-200);
+      margin: 0 1rem;
+    }
+
+    .steps li.completed:after {
+      background: var(--success-color);
+    }
+
+    /* Enhanced Form Styles */
+    .form {
+      padding: 0;
+    }
+
+    .form-row {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-row label {
+      display: block;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-row input,
+    .form-row textarea,
+    .form-row select {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-row input:focus,
+    .form-row textarea:focus,
+    .form-row select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .form-row input.error,
+    .form-row textarea.error,
+    .form-row select.error {
+      border-color: var(--danger-color);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .form-row.two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .form-row.two {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Enhanced Fieldset Styles */
+    fieldset {
+      border: 2px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      background: var(--gray-50);
+    }
+
+    fieldset legend {
+      padding: 0 1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      background: white;
+      border-radius: var(--border-radius-sm);
+      border: 2px solid var(--gray-200);
+    }
+
+    .radio {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .radio:hover {
+      border-color: var(--primary-color);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .radio input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary-color);
+    }
+
+    .radio.muted {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .radio.muted:hover {
+      border-color: var(--gray-200);
+      background: white;
+    }
+
+    /* Enhanced Wallet Info Styles */
+    .wallet-info {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 2px solid #0ea5e9;
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      margin-top: 1rem;
+      transition: all 0.3s ease;
+    }
+    
+    .wallet-balance-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .balance-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #0c4a6e;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    
+    .balance-header i {
+      color: #0ea5e9;
+      font-size: 1.25rem;
+    }
+    
+    .balance-amount {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #0c4a6e;
+    }
+    
+    .balance-amount.insufficient {
+      color: var(--danger-color);
+    }
+    
+    .add-tokens-link {
+      color: #0ea5e9;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 0.5rem 1rem;
+      border-radius: var(--border-radius-sm);
+      border: 2px solid #0ea5e9;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .add-tokens-link:hover {
+      background: #0ea5e9;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .insufficient-funds {
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      border-color: var(--danger-color);
+      color: #991b1b;
+    }
+    
+    .insufficient-funds .balance-header {
+      color: #991b1b;
+    }
+    
+    .insufficient-funds .balance-header i {
+      color: var(--danger-color);
+    }
+    
+    .error-message {
+      color: var(--danger-color);
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: #fef2f2;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid #fecaca;
+    }
+    
+    .field-error {
+      color: var(--danger-color);
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .loading {
+      opacity: 0.6;
+    }
+    
+    /* Enhanced Button Styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: var(--border-radius-sm);
+      font-weight: 700;
+      font-size: 0.875rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-height: 48px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #6366f1 100%);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, #5b21b6 100%);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .btn-primary:disabled {
+      background: var(--gray-400);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-secondary {
+      background: var(--gray-600);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--gray-700);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Enhanced Agreement Checkbox */
+    .agree {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 1.5rem;
+      background: var(--gray-50);
+      border: 2px solid var(--gray-200);
+      border-radius: var(--border-radius-sm);
+      margin: 1.5rem 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .agree:hover {
+      background: rgba(59, 130, 246, 0.05);
+      border-color: var(--primary-color);
+    }
+
+    .agree input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary-color);
+      margin-top: 2px;
+    }
+
+    .agree span {
+      font-weight: 600;
+      color: var(--gray-700);
+      line-height: 1.5;
+    }
+
+    /* Enhanced Summary Styles */
+    .summary {
+      position: sticky;
+      top: 2rem;
+      height: fit-content;
+    }
+
+    .summary h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .review-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .review-row:last-child {
+      border-bottom: none;
+    }
+
+    .review-row img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--gray-200);
+    }
+
+    .review-row .grow {
+      flex: 1;
+    }
+
+    .review-row .title {
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 0.25rem;
+    }
+
+    .review-row .muted {
+      color: var(--gray-500);
+      font-size: 0.875rem;
+    }
+
+    .review-row .strong {
+      font-weight: 700;
+      color: var(--gray-800);
+      font-size: 1.125rem;
+    }
+
+    .total-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .total-line:last-child {
+      border-bottom: 2px solid var(--primary-color);
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .muted-note {
+      color: var(--gray-500);
+      font-size: 0.875rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .checkout-header {
+        padding: 1.5rem 0;
+      }
+
+      .checkout-header h1 {
+        font-size: 2rem;
+      }
+
+      .card-content {
+        padding: 1rem;
+      }
+
+      .steps {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .steps li:after {
+        display: none;
+      }
+
+      .wallet-balance-display {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+      }
+
+      .summary {
+        position: static;
+      }
+    }
+  </style>
 </head>
 <body>
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="logo">SafeTradeHub</a>
     <nav class="header-actions">
-      <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
-          <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
-        </svg>
-        <span class="cart-count" id="cartCount">0</span>
-      </a>
-      <a class="link" href="auth.html?mode=signin">Sign In</a>
-      <a class="btn primary" href="auth.html?mode=join">Join</a>
+      <!-- Navigation will be updated by HeaderManager -->
     </nav>
   </div>
 </header>
 
+<div class="checkout-header">
+  <div class="container">
+    <h1>Secure Checkout</h1>
+    <p class="subtitle">Complete your purchase with our escrow protection system</p>
+  </div>
+</div>
+
 <section class="section">
   <div class="container">
-    <h1 style="margin:0 0 16px">Checkout — Escrow</h1>
-
     <div class="checkout-grid">
       <!-- Left: Details -->
       <div class="card-like">
         <ol class="steps">
-          <li class="active"><span>Details</span></li>
-          <li><span>Review</span></li>
-          <li><span>Pay & Hold</span></li>
+          <li class="active"><span>Customer Details</span></li>
+          <li><span>Review Order</span></li>
+          <li><span>Secure Payment</span></li>
         </ol>
 
-        <form id="checkoutForm" class="form">
+        <div class="card-content">
+          <form id="checkoutForm" class="form">
           <div class="form-row">
             <label>Full Name</label>
             <input type="text" id="fullName" required />
@@ -69,8 +669,8 @@
           <fieldset class="form-row">
             <legend style="font-weight:800; margin-bottom:6px">Payment Method</legend>
             <label class="radio">
-              <input type="radio" name="pm" value="escrow" checked />
-              <span>Escrow (recommended)</span>
+              <input type="radio" name="pm" value="wallet_tokens" checked />
+              <span>Wallet Tokens (recommended)</span>
             </label>
             <label class="radio muted">
               <input type="radio" name="pm" value="direct" disabled />
@@ -78,25 +678,46 @@
             </label>
           </fieldset>
 
-          <label class="agree">
-            <input type="checkbox" id="agree" required />
-            I agree: funds are held in escrow until delivery & verification.
-          </label>
-        </form>
+          <!-- Wallet Balance Display -->
+          <div class="wallet-info form-row" id="walletInfo">
+            <div class="wallet-balance-display">
+              <div class="balance-header">
+                <i class="fas fa-wallet"></i>
+                <span>Available Balance</span>
+              </div>
+              <div class="balance-amount" id="walletBalance">Loading...</div>
+              <a href="wallet.html" class="add-tokens-link">Add Tokens</a>
+            </div>
+          </div>
+
+            <label class="agree">
+              <input type="checkbox" id="agree" required />
+              <span>I agree that my funds will be held securely in escrow until delivery confirmation and product verification. This protects both buyer and seller in the transaction.</span>
+            </label>
+          </form>
+        </div>
       </div>
 
       <!-- Right: Summary -->
       <aside class="card-like summary">
-        <h3>Summary</h3>
-        <div id="items"></div>
-        <hr>
-        <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
-        <div class="total-line"><span>Shipping</span><span>Free</span></div>
-        <div class="total-line" style="font-size:1.1rem"><span>Total</span><strong id="grand">—</strong></div>
-        <button class="btn primary" id="payHoldBtn" style="width:100%; margin-top:12px">Pay & Hold in Escrow</button>
-        <p class="muted-note" style="margin-top:8px;color:var(--muted)">
-          Funds go into an admin-controlled wallet and are released only after buyer confirmation or verification.
-        </p>
+        <div class="card-header">
+          <h3>Order Summary</h3>
+        </div>
+        <div class="card-content">
+          <div id="items"></div>
+          <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
+          <div class="total-line"><span>Escrow Protection Fee (2%)</span><span id="escrowFee">—</span></div>
+          <div class="total-line"><span>Shipping & Handling</span><span>Free</span></div>
+          <div class="total-line"><span>Total Amount</span><strong id="grand">—</strong></div>
+          <button class="btn btn-primary" id="payHoldBtn" style="width:100%; margin-top:1rem">
+            <i class="fas fa-shield-alt"></i>
+            Secure Payment with Escrow
+          </button>
+          <p class="muted-note" style="margin-top:1rem">
+            <i class="fas fa-info-circle"></i>
+            Your payment will be held securely in escrow and released to the seller only after you confirm delivery and product verification.
+          </p>
+        </div>
       </aside>
     </div>
   </div>
@@ -104,98 +725,584 @@
 
 <footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
 
+
+<script src="js/app-state.js"></script>
 <script>
-/* Storage keys */
-const CART_KEY    = 'sthub_cart';
-const ORDERS_KEY  = 'sthub_orders';
-const ESCROWS_KEY = 'sthub_escrows';
 
-const money = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currency:'USD'}).format(n);
-
-function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
-function setCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
-function setBadge(){ const b=document.getElementById('cartCount'); if(b) b.textContent = getCart().reduce((a,i)=>a+(i.qty||1),0); }
-
-function renderSummary(){
-  const cart = getCart();
-  setBadge();
-  const itemsEl = document.getElementById('items');
-  if(!cart.length){
-    itemsEl.innerHTML = '<p class="muted-note">Your cart is empty.</p>';
-    document.getElementById('subtotal').textContent = money(0);
-    document.getElementById('grand').textContent    = money(0);
-    return;
+// Enhanced checkout functionality using central state management
+document.addEventListener('DOMContentLoaded', function() {
+  // Wait for SafeTradeHub to be available
+  if (window.SafeTradeHub) {
+    initializeCheckout();
+  } else {
+    setTimeout(initializeCheckout, 100);
   }
-  let subtotal = 0;
-  itemsEl.innerHTML = cart.map(it=>{
-    const line = (it.price||0)*(it.qty||1);
-    subtotal += line;
-    return `<div class="review-row">
-      <img src="${it.img}" alt="">
-      <div class="grow">
-        <div class="title">${it.title}</div>
-        <div class="muted">Qty ${it.qty||1}</div>
-      </div>
-      <div class="strong">${money(line)}</div>
-    </div>`;
-  }).join('');
-  document.getElementById('subtotal').textContent = money(subtotal);
-  document.getElementById('grand').textContent    = money(subtotal);
-}
-
-document.getElementById('payHoldBtn').addEventListener('click', ()=>{
-  const cart = getCart();
-  if(!cart.length) return alert('Cart is empty.');
-  const name = document.getElementById('fullName').value.trim();
-  const phone = document.getElementById('phone').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const address = document.getElementById('address').value.trim();
-  const escrowLocation = document.getElementById('escrowLocation').value;
-  const agree = document.getElementById('agree').checked;
-
-  if(!name || !phone || !address || !agree){
-    alert('Please complete details and agree to escrow terms.');
-    return;
-  }
-
-  const subtotal = cart.reduce((s,i)=> s+(i.price||0)*(i.qty||1), 0);
-
-  // Create order in "pending_escrow"
-  const order = {
-    id: 'ORD-' + Date.now(),
-    items: cart,
-    buyer: { name, phone, email, address },
-    escrowLocation,
-    subtotal,
-    total: subtotal,
-    status: 'pending_escrow', // next: shipped_to_escrow -> at_escrow -> awaiting_buyer_confirm -> released/refunded/disputed
-    createdAt: new Date().toISOString()
-  };
-  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
-  orders.push(order);
-  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-
-  // Create escrow "hold"
-  const escrow = {
-    id: 'ESC-' + Date.now(),
-    orderId: order.id,
-    amount: subtotal,
-    currency: 'USD',
-    status: 'held',           // next: released | refunded | cancelled
-    createdAt: new Date().toISOString(),
-    releases: [],
-    refunds: []
-  };
-  const escrows = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
-  escrows.push(escrow);
-  localStorage.setItem(ESCROWS_KEY, JSON.stringify(escrows));
-
-  // Clear cart and go to order status
-  setCart([]);
-  location.href = 'orderstatus.html?orderId=' + encodeURIComponent(order.id);
 });
 
-renderSummary();
+let walletBalance = 0;
+let currentUser = null;
+
+async function initializeCheckout() {
+  // Wait for AuthManager to be ready
+  if (window.AuthManager) {
+    await window.AuthManager.waitForInit();
+  }
+  
+  // Update cart count
+  if (window.SafeTradeHub) {
+    window.SafeTradeHub.updateCartCount();
+  }
+  
+  // Check authentication using global AuthManager
+  currentUser = getCurrentUser();
+  if (!currentUser) {
+    // Show error message instead of automatic redirect
+    showAuthenticationRequired();
+    return;
+  }
+  
+  renderSummary();
+  loadWalletBalance();
+
+  // Add form validation
+  initializeFormValidation();
+
+  // Handle checkout submission
+  const payButton = document.getElementById('payHoldBtn');
+  if (payButton) {
+    payButton.addEventListener('click', processCheckout);
+  }
+}
+
+function getCurrentUser() {
+  // Use global AuthManager
+  return window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+}
+
+async function loadWalletBalance() {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      showWalletError('Authentication required');
+      return;
+    }
+    
+    const response = await fetch('/api/wallet', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data.wallet) {
+        walletBalance = data.data.wallet.balance || 0;
+        updateWalletDisplay();
+      } else {
+        showWalletError('Failed to load wallet data');
+      }
+    } else {
+      showWalletError('Failed to connect to wallet service');
+    }
+  } catch (error) {
+    console.error('Error loading wallet balance:', error);
+    // Fallback to localStorage or default
+    walletBalance = 0;
+    updateWalletDisplay();
+  }
+}
+
+function updateWalletDisplay() {
+  const balanceEl = document.getElementById('walletBalance');
+  const walletInfo = document.getElementById('walletInfo');
+  
+  if (balanceEl) {
+    balanceEl.textContent = formatPrice(walletBalance);
+    
+    // Check if balance is sufficient for current cart total
+    const total = calculateCartTotal();
+    const hasSufficientFunds = walletBalance >= total;
+    
+    balanceEl.classList.toggle('insufficient', !hasSufficientFunds);
+    walletInfo.classList.toggle('insufficient-funds', !hasSufficientFunds);
+    
+    if (!hasSufficientFunds && total > 0) {
+      showInsufficientFundsError(total - walletBalance);
+    } else {
+      hideInsufficientFundsError();
+    }
+  }
+}
+
+function showWalletError(message) {
+  const balanceEl = document.getElementById('walletBalance');
+  if (balanceEl) {
+    balanceEl.textContent = 'Error loading balance';
+    balanceEl.classList.add('insufficient');
+  }
+}
+
+function showInsufficientFundsError(shortfall) {
+  const walletInfo = document.getElementById('walletInfo');
+  if (walletInfo) {
+    // Remove existing error message
+    const existingError = walletInfo.querySelector('.error-message');
+    if (existingError) {
+      existingError.remove();
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+      <i class="fas fa-exclamation-triangle"></i>
+      <span>Insufficient funds. You need ${formatPrice(shortfall)} more to complete this order.</span>
+    `;
+    walletInfo.appendChild(errorDiv);
+  }
+}
+
+function hideInsufficientFundsError() {
+  const walletInfo = document.getElementById('walletInfo');
+  if (walletInfo) {
+    const errorMessage = walletInfo.querySelector('.error-message');
+    if (errorMessage) {
+      errorMessage.remove();
+    }
+  }
+}
+
+function calculateCartTotal() {
+  let cart = [];
+  if (window.SafeTradeHub) {
+    cart = window.SafeTradeHub.cart.get();
+  } else {
+    try {
+      const rawCart = JSON.parse(localStorage.getItem('sthub_cart') || '[]');
+      cart = Array.isArray(rawCart) ? rawCart.map(i => ({
+        id: i.id,
+        title: i.title || i.name || 'Item',
+        name: i.title || i.name || 'Item',
+        price: Number(i.price) || 0,
+        img: i.img || '',
+        qty: Number(i.qty) || 1,
+        desc: i.desc || i.description || ''
+      })) : [];
+    } catch (error) {
+      console.error('Error reading cart:', error);
+      cart = [];
+    }
+  }
+  
+  const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
+  const escrowFee = subtotal * 0.02; // 2% escrow fee
+  return subtotal + escrowFee;
+}
+
+function showAuthenticationRequired() {
+  const container = document.querySelector('.checkout-grid');
+  if (container) {
+    container.innerHTML = `
+      <div class="card-like" style="text-align: center; padding: 40px;">
+        <div style="color: #dc2626; margin-bottom: 16px;">
+          <i class="fas fa-lock" style="font-size: 48px;"></i>
+        </div>
+        <h2 style="margin-bottom: 16px; color: #1f2937;">Authentication Required</h2>
+        <p style="margin-bottom: 24px; color: #6b7280;">You need to be signed in to access the checkout page.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="auth.html?mode=signin&redirect=checkout.html" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt"></i>
+            Sign In
+          </a>
+          <a href="auth.html?mode=join&redirect=checkout.html" class="btn btn-secondary">
+            <i class="fas fa-user-plus"></i>
+            Create Account
+          </a>
+          <a href="cart.html" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Back to Cart
+          </a>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderSummary() {
+  console.log('=== Checkout Debug Info ===');
+  
+  // Debug: Check all possible cart storage keys
+  console.log('Checking storage keys:');
+  console.log('sthub_cart:', localStorage.getItem('sthub_cart'));
+  console.log('safetradehub_cart:', localStorage.getItem('safetradehub_cart'));
+  console.log('cart:', localStorage.getItem('cart'));
+  
+  // Get cart data with fallback
+  let cart = [];
+  if (window.SafeTradeHub) {
+    cart = window.SafeTradeHub.cart.get();
+    console.log('Cart from SafeTradeHub:', cart);
+  } else {
+    // Fallback: Read directly from localStorage using the same method as cart.html
+    console.log('SafeTradeHub not available, using fallback method');
+    try {
+      const rawCart = JSON.parse(localStorage.getItem('sthub_cart') || '[]');
+      cart = Array.isArray(rawCart) ? rawCart.map(i => ({
+        id: i.id,
+        title: i.title || i.name || 'Item',
+        name: i.title || i.name || 'Item',
+        price: Number(i.price) || 0,
+        img: i.img || '',
+        qty: Number(i.qty) || 1,
+        desc: i.desc || i.description || ''
+      })) : [];
+      console.log('Fallback cart:', cart);
+    } catch (error) {
+      console.error('Error reading cart with fallback:', error);
+      cart = [];
+    }
+  }
+  
+  console.log('Final cart length:', cart.length);
+  
+  const itemsEl = document.getElementById('items');
+
+  
+  if (!cart.length) {
+    itemsEl.innerHTML = '<p class="muted-note">Your cart is empty. <a href="index.html">Continue Shopping</a></p>';
+    document.getElementById('subtotal').textContent = formatPrice(0);
+    document.getElementById('grand').textContent = formatPrice(0);
+    return;
+  }
+
+
+  let subtotal = 0;
+
+  itemsEl.innerHTML = cart.map(item => {
+    const price = Number(item.price) || 0;
+    const qty = Number(item.qty) || 1;
+    const line = price * qty;
+    subtotal += line;
+
+    
+    return `
+      <div class="review-row">
+        <img src="${item.img || 'images/mobile.jpg'}" alt="${item.title || item.name}" 
+             onerror="this.src='images/mobile.jpg'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+      <div class="grow">
+
+          <div class="title">${item.title || item.name}</div>
+          <div class="muted">Qty ${qty} × ${formatPrice(price)}</div>
+          ${item.desc ? `<div class="muted" style="font-size: 0.85rem;">${item.desc}</div>` : ''}
+        </div>
+        <div class="strong">${formatPrice(line)}</div>
+      </div>
+
+    `;
+  }).join('');
+
+  // Calculate escrow fee
+  const escrowFee = subtotal * 0.02; // 2% escrow fee
+  const total = subtotal + escrowFee;
+
+  document.getElementById('subtotal').textContent = formatPrice(subtotal);
+  document.getElementById('escrowFee').textContent = formatPrice(escrowFee);
+  document.getElementById('grand').textContent = formatPrice(total);
+  
+  // Update wallet display after cart calculation
+  if (walletBalance !== undefined) {
+    updateWalletDisplay();
+  }
+}
+
+function formatPrice(amount) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+}
+
+function initializeFormValidation() {
+  const form = document.getElementById('checkoutForm');
+  const inputs = form.querySelectorAll('input[required]');
+  
+  inputs.forEach(input => {
+    input.addEventListener('blur', function() {
+      validateField(this);
+    });
+    
+    input.addEventListener('input', function() {
+      // Remove error state on input
+      this.classList.remove('error');
+    });
+  });
+
+  // Email validation
+  const emailInput = document.getElementById('email');
+  if (emailInput) {
+    emailInput.addEventListener('blur', function() {
+      if (this.value && !isValidEmail(this.value)) {
+        this.classList.add('error');
+        showFieldError(this, 'Please enter a valid email address');
+      }
+    });
+  }
+
+  // Phone validation
+  const phoneInput = document.getElementById('phone');
+  if (phoneInput) {
+    phoneInput.addEventListener('blur', function() {
+      if (this.value && !isValidPhone(this.value)) {
+        this.classList.add('error');
+        showFieldError(this, 'Please enter a valid phone number');
+      }
+    });
+  }
+}
+
+function validateField(field) {
+  if (field.hasAttribute('required') && !field.value.trim()) {
+    field.classList.add('error');
+    showFieldError(field, 'This field is required');
+    return false;
+  }
+  
+  field.classList.remove('error');
+  hideFieldError(field);
+  return true;
+}
+
+function showFieldError(field, message) {
+  hideFieldError(field); // Remove existing error
+  
+  const errorEl = document.createElement('div');
+  errorEl.className = 'field-error';
+  errorEl.textContent = message;
+  errorEl.style.color = '#ef4444';
+  errorEl.style.fontSize = '0.875rem';
+  errorEl.style.marginTop = '4px';
+  
+  field.parentNode.appendChild(errorEl);
+}
+
+function hideFieldError(field) {
+  const existingError = field.parentNode.querySelector('.field-error');
+  if (existingError) {
+    existingError.remove();
+  }
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidPhone(phone) {
+  return /^[\+]?[1-9][\d]{0,15}$/.test(phone.replace(/[\s\-\(\)]/g, ''));
+}
+
+async function processCheckout() {
+  // Get cart data with same fallback as renderSummary
+  let cart = [];
+  if (window.SafeTradeHub) {
+    cart = window.SafeTradeHub.cart.get();
+  } else {
+    try {
+      const rawCart = JSON.parse(localStorage.getItem('sthub_cart') || '[]');
+      cart = Array.isArray(rawCart) ? rawCart.map(i => ({
+        id: i.id,
+        title: i.title || i.name || 'Item',
+        name: i.title || i.name || 'Item',
+        price: Number(i.price) || 0,
+        img: i.img || '',
+        qty: Number(i.qty) || 1,
+        desc: i.desc || i.description || ''
+      })) : [];
+    } catch (error) {
+      console.error('Error reading cart for checkout:', error);
+      cart = [];
+    }
+  }
+  
+  if (!cart.length) {
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.showNotification('Your cart is empty', 'error');
+    } else {
+      alert('Your cart is empty');
+    }
+    return;
+  }
+
+  // Validate form
+  const form = document.getElementById('checkoutForm');
+  const requiredFields = form.querySelectorAll('input[required]');
+  let isValid = true;
+
+  requiredFields.forEach(field => {
+    if (!validateField(field)) {
+      isValid = false;
+    }
+  });
+
+  // Check agreement
+  const agreeCheckbox = document.getElementById('agree');
+  if (!agreeCheckbox.checked) {
+    agreeCheckbox.focus();
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.showNotification('Please agree to the escrow terms', 'error');
+    } else {
+      alert('Please agree to the escrow terms');
+    }
+    return;
+  }
+
+  if (!isValid) {
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.showNotification('Please fix the errors in the form', 'error');
+    } else {
+      alert('Please fix the errors in the form');
+    }
+    return;
+  }
+
+  // Calculate totals
+  const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
+  const escrowFee = subtotal * 0.02; // 2% escrow fee
+  const total = subtotal + escrowFee;
+
+  // Check wallet balance
+  if (walletBalance < total) {
+    const shortfall = total - walletBalance;
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.showNotification(
+        `Insufficient wallet balance. You need ${formatPrice(shortfall)} more. Please add tokens to your wallet.`, 
+        'error'
+      );
+    } else {
+      alert(`Insufficient wallet balance. You need ${formatPrice(shortfall)} more. Please add tokens to your wallet.`);
+    }
+    return;
+  }
+
+  // Collect form data
+  const formData = {
+    fullName: document.getElementById('fullName').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    address: document.getElementById('address').value.trim(),
+    escrowLocation: document.getElementById('escrowLocation').value,
+    agreeToTerms: agreeCheckbox.checked
+  };
+
+  // Show processing state
+  const payButton = document.getElementById('payHoldBtn');
+  const originalText = payButton.innerHTML;
+  payButton.disabled = true;
+  payButton.innerHTML = '<span>Processing...</span>';
+
+  try {
+    // Create order first
+    const orderData = {
+      items: cart,
+      buyer: {
+        id: currentUser.id || currentUser.uid,
+        name: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address
+      },
+      escrowLocation: formData.escrowLocation,
+      subtotal: subtotal,
+      escrowFee: escrowFee,
+      total: total,
+      paymentMethod: 'wallet_tokens',
+      agreeToTerms: formData.agreeToTerms,
+      status: 'pending'
+    };
+
+    const token = localStorage.getItem('authToken');
+    
+    // Create order
+    const orderResponse = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    if (!orderResponse.ok) {
+      throw new Error('Failed to create order');
+    }
+
+    const orderResult = await orderResponse.json();
+    if (!orderResult.success) {
+      throw new Error(orderResult.message || 'Failed to create order');
+    }
+
+    const order = orderResult.data;
+    
+    // Create escrow transaction
+    const escrowResponse = await fetch('/api/escrow/create', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        orderId: order.id,
+        amount: total,
+        sellerId: order.sellerId || 'placeholder-seller-id', // In a real app, this would come from cart items
+        productDetails: {
+          items: cart,
+          escrowLocation: formData.escrowLocation
+        }
+      })
+    });
+
+    if (!escrowResponse.ok) {
+      throw new Error('Failed to create escrow transaction');
+    }
+
+    const escrowResult = await escrowResponse.json();
+    if (!escrowResult.success) {
+      throw new Error(escrowResult.message || 'Failed to create escrow transaction');
+    }
+
+    // Clear cart
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.cart.clear();
+      window.SafeTradeHub.showNotification(
+        `Order ${order.id} created successfully! Tokens secured in escrow.`, 
+        'success'
+      );
+    } else {
+      localStorage.setItem('sthub_cart', '[]');
+      alert(`Order ${order.id} created successfully! Tokens secured in escrow.`);
+    }
+
+    // Redirect to order status
+    setTimeout(() => {
+      window.location.href = `orderstatus.html?orderId=${encodeURIComponent(order.id)}`;
+    }, 1500);
+
+  } catch (error) {
+    console.error('Checkout error:', error);
+    if (window.SafeTradeHub) {
+      window.SafeTradeHub.showNotification(
+        error.message || 'An error occurred during checkout. Please try again.', 
+        'error'
+      );
+    } else {
+      alert(error.message || 'An error occurred during checkout. Please try again.');
+    }
+    
+    // Restore button state
+    payButton.disabled = false;
+    payButton.innerHTML = originalText;
+  }
+}
 </script>
 </body>
 </html>
+

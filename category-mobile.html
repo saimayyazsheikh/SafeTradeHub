@@ -7,6 +7,31 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="css/category-mobile.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -33,7 +58,7 @@
       <div class="category-stats">
         <span id="productCount">14 products available</span>
         <span>•</span>
-        <span>From $149 to $899</span>
+        <span>From $99 to $1199</span>
       </div>
     </div>
   </section>
@@ -99,8 +124,10 @@
               <option value="all">All Brands</option>
               <option value="apple">Apple</option>
               <option value="samsung">Samsung</option>
-              <option value="google">Google</option>
-              <option value="oneplus">OnePlus</option>
+              <option value="xiaomi">Xiaomi</option>
+              <option value="vivo">Vivo</option>
+              <option value="tecno">Tecno</option>
+              <option value="generic">Generic</option>
             </select>
           </div>
           <button id="clearFilters" class="clear-filters-btn">

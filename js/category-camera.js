@@ -7,8 +7,125 @@ function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY))||[] 
 function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
 function cartCount(){ return getCart().reduce((a,i)=> a + (i.qty||1), 0); }
 function updateCartCount(){ const b=document.getElementById('cartCount'); if(b) b.textContent=cartCount(); }
-function addToCart(product, qty=1){ const cart=getCart(); const i=cart.findIndex(x=>x.id===product.id); if(i>-1) cart[i].qty += qty; else cart.push({...product, qty}); saveCart(cart); updateCartCount(); alert('Added to cart: '+product.title); }
-document.addEventListener('click', (e)=>{ const btn=e.target.closest('[data-add-to-cart]'); if(!btn) return; const product={ id:btn.dataset.id, title:btn.dataset.name, price:parseFloat(btn.dataset.price||'0'), img:btn.dataset.img, desc:btn.dataset.desc }; addToCart(product,1); });
+function addToCart(product, qty=1){ 
+  // Check if user is authenticated
+  if (!isUserLoggedIn()) {
+    showLoginPrompt();
+    return false;
+  }
+  
+  const cart=getCart(); 
+  const i=cart.findIndex(x=>x.id===product.id); 
+  if(i>-1) cart[i].qty += qty; 
+  else cart.push({...product, qty}); 
+  saveCart(cart); 
+  updateCartCount(); 
+  alert('Added to cart: '+product.title);
+  return true;
+}
+
+// Authentication helper functions - Updated to use robust authentication
+function isUserLoggedIn() {
+  // Method 1: Check localStorage directly (most reliable)
+  const userData = localStorage.getItem('userData');
+  const authToken = localStorage.getItem('authToken');
+  
+  if (userData) {
+    try {
+      const parsedUser = JSON.parse(userData);
+      if (parsedUser && (parsedUser.id || parsedUser.uid || parsedUser.email)) {
+        console.log('✅ Category-Camera: User authenticated via localStorage:', parsedUser.name || parsedUser.email);
+        return true;
+      }
+    } catch (parseError) {
+      console.warn('⚠️ Category-Camera: Error parsing userData:', parseError);
+    }
+  }
+  
+  // Method 2: Check AuthManager if available
+  if (window.AuthManager) {
+    try {
+      const authResult = window.AuthManager.isAuthenticated();
+      const currentUser = window.AuthManager.getCurrentUser();
+      if (authResult && currentUser) {
+        console.log('✅ Category-Camera: User authenticated via AuthManager:', currentUser.name || currentUser.email);
+        return true;
+      }
+    } catch (authError) {
+      console.warn('⚠️ Category-Camera: AuthManager error:', authError);
+    }
+  }
+  
+  // Method 3: Check Firebase directly
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    try {
+      const firebaseUser = firebase.auth().currentUser;
+      if (firebaseUser) {
+        console.log('✅ Category-Camera: User authenticated via Firebase:', firebaseUser.email);
+        return true;
+      }
+    } catch (firebaseError) {
+      console.warn('⚠️ Category-Camera: Firebase error:', firebaseError);
+    }
+  }
+  
+  console.log('❌ Category-Camera: User not authenticated');
+  return false;
+}
+
+function showLoginPrompt() {
+  const shouldRedirect = confirm('Please sign in to add items to your cart. Would you like to go to the login page?');
+  if (shouldRedirect) {
+    window.location.href = 'auth.html?mode=signin';
+  }
+}
+
+document.addEventListener('click', async (e)=>{ 
+  const btn=e.target.closest('[data-add-to-cart]'); 
+  if(!btn) return; 
+  
+  console.log('📷 Category-Camera: Add to cart clicked');
+  
+  // Wait for authentication systems to be ready
+  if (window.AuthManager) {
+    try {
+      await window.AuthManager.waitForInit();
+    } catch (error) {
+      console.warn('⚠️ Category-Camera: AuthManager wait error:', error);
+    }
+  }
+  
+  // Robust authentication check with retries
+  let authenticated = false;
+  let attempts = 0;
+  
+  while (!authenticated && attempts < 3) {
+    authenticated = isUserLoggedIn();
+    if (!authenticated) {
+      console.warn(`⚠️ Category-Camera: Auth check failed, attempt ${attempts + 1}/3`);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      attempts++;
+    }
+  }
+  
+  if (!authenticated) {
+    e.preventDefault();
+    console.error('❌ Category-Camera: Not authenticated after multiple attempts');
+    showLoginPrompt();
+    return;
+  }
+  
+  console.log('✅ Category-Camera: Authentication confirmed, adding to cart');
+  
+  const product={ 
+    id:btn.dataset.id, 
+    title:btn.dataset.name, 
+    price:parseFloat(btn.dataset.price||'0'), 
+    img:btn.dataset.img, 
+    desc:btn.dataset.desc 
+  }; 
+  addToCart(product,1); 
+});
 
 // Enhanced camera products data
 const allProducts = [

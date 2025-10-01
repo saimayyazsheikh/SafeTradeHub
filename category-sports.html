@@ -130,8 +130,65 @@
   function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
   function cartCount(){ return getCart().reduce((a,i)=> a + (i.qty||1), 0); }
   function updateCartCount(){ const b=document.getElementById('cartCount'); if(b) b.textContent=cartCount(); }
-  function addToCart(product, qty=1){ const cart=getCart(); const i=cart.findIndex(x=>x.id===product.id); if(i>-1) cart[i].qty += qty; else cart.push({...product, qty}); saveCart(cart); updateCartCount(); alert('Added to cart: '+product.title); }
-  document.addEventListener('click', (e)=>{ const btn=e.target.closest('[data-add-to-cart]'); if(!btn) return; const product={ id:btn.dataset.id, title:btn.dataset.name, price:parseFloat(btn.dataset.price||'0'), img:btn.dataset.img, desc:btn.dataset.desc }; addToCart(product,1); });
+  
+  // Authentication helper functions
+  function isUserLoggedIn() {
+    // Check Firebase auth state
+    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+      return true;
+    }
+    
+    // Check localStorage for auth token as fallback
+    const authToken = localStorage.getItem('authToken');
+    const userData = localStorage.getItem('userData');
+    
+    return !!(authToken && userData);
+  }
+
+  function showLoginPrompt() {
+    const shouldRedirect = confirm('Please sign in to add items to your cart. Would you like to go to the login page?');
+    if (shouldRedirect) {
+      window.location.href = 'auth.html?mode=signin';
+    }
+  }
+  
+  function addToCart(product, qty=1){ 
+    // Check if user is authenticated
+    if (!isUserLoggedIn()) {
+      showLoginPrompt();
+      return false;
+    }
+    
+    const cart=getCart(); 
+    const i=cart.findIndex(x=>x.id===product.id); 
+    if(i>-1) cart[i].qty += qty; 
+    else cart.push({...product, qty}); 
+    saveCart(cart); 
+    updateCartCount(); 
+    alert('Added to cart: '+product.title);
+    return true;
+  }
+  
+  document.addEventListener('click', (e)=>{ 
+    const btn=e.target.closest('[data-add-to-cart]'); 
+    if(!btn) return; 
+    
+    // Prevent default action if not logged in
+    if (!isUserLoggedIn()) {
+      e.preventDefault();
+      showLoginPrompt();
+      return;
+    }
+    
+    const product={ 
+      id:btn.dataset.id, 
+      title:btn.dataset.name, 
+      price:parseFloat(btn.dataset.price||'0'), 
+      img:btn.dataset.img, 
+      desc:btn.dataset.desc 
+    }; 
+    addToCart(product,1); 
+  });
 
   // Enhanced sports products data
   const allProducts = [

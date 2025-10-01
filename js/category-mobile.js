@@ -7,25 +7,142 @@ function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY))||[] 
 function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
 function cartCount(){ return getCart().reduce((a,i)=> a + (i.qty||1), 0); }
 function updateCartCount(){ const b=document.getElementById('cartCount'); if(b) b.textContent=cartCount(); }
-function addToCart(product, qty=1){ const cart=getCart(); const i=cart.findIndex(x=>x.id===product.id); if(i>-1) cart[i].qty += qty; else cart.push({...product, qty}); saveCart(cart); updateCartCount(); alert('Added to cart: '+product.title); }
-document.addEventListener('click', (e)=>{ const btn=e.target.closest('[data-add-to-cart]'); if(!btn) return; const product={ id:btn.dataset.id, title:btn.dataset.name, price:parseFloat(btn.dataset.price||'0'), img:btn.dataset.img, desc:btn.dataset.desc }; addToCart(product,1); });
+function addToCart(product, qty=1){ 
+  // Check if user is authenticated
+  if (!isUserLoggedIn()) {
+    showLoginPrompt();
+    return false;
+  }
+  
+  const cart=getCart(); 
+  const i=cart.findIndex(x=>x.id===product.id); 
+  if(i>-1) cart[i].qty += qty; 
+  else cart.push({...product, qty}); 
+  saveCart(cart); 
+  updateCartCount(); 
+  alert('Added to cart: '+product.title);
+  return true;
+}
 
-// Enhanced mobile products data
+// Authentication helper functions - Updated to use robust authentication
+function isUserLoggedIn() {
+  // Method 1: Check localStorage directly (most reliable)
+  const userData = localStorage.getItem('userData');
+  const authToken = localStorage.getItem('authToken');
+  
+  if (userData) {
+    try {
+      const parsedUser = JSON.parse(userData);
+      if (parsedUser && (parsedUser.id || parsedUser.uid || parsedUser.email)) {
+        console.log('✅ Category-Mobile: User authenticated via localStorage:', parsedUser.name || parsedUser.email);
+        return true;
+      }
+    } catch (parseError) {
+      console.warn('⚠️ Category-Mobile: Error parsing userData:', parseError);
+    }
+  }
+  
+  // Method 2: Check AuthManager if available
+  if (window.AuthManager) {
+    try {
+      const authResult = window.AuthManager.isAuthenticated();
+      const currentUser = window.AuthManager.getCurrentUser();
+      if (authResult && currentUser) {
+        console.log('✅ Category-Mobile: User authenticated via AuthManager:', currentUser.name || currentUser.email);
+        return true;
+      }
+    } catch (authError) {
+      console.warn('⚠️ Category-Mobile: AuthManager error:', authError);
+    }
+  }
+  
+  // Method 3: Check Firebase directly
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    try {
+      const firebaseUser = firebase.auth().currentUser;
+      if (firebaseUser) {
+        console.log('✅ Category-Mobile: User authenticated via Firebase:', firebaseUser.email);
+        return true;
+      }
+    } catch (firebaseError) {
+      console.warn('⚠️ Category-Mobile: Firebase error:', firebaseError);
+    }
+  }
+  
+  console.log('❌ Category-Mobile: User not authenticated');
+  return false;
+}
+
+function showLoginPrompt() {
+  const shouldRedirect = confirm('Please sign in to add items to your cart. Would you like to go to the login page?');
+  if (shouldRedirect) {
+    window.location.href = 'auth.html?mode=signin';
+  }
+}
+
+document.addEventListener('click', async (e)=>{ 
+  const btn=e.target.closest('[data-add-to-cart]'); 
+  if(!btn) return; 
+  
+  console.log('🛍️ Category-Mobile: Add to cart clicked');
+  
+  // Wait for authentication systems to be ready
+  if (window.AuthManager) {
+    try {
+      await window.AuthManager.waitForInit();
+    } catch (error) {
+      console.warn('⚠️ Category-Mobile: AuthManager wait error:', error);
+    }
+  }
+  
+  // Robust authentication check with retries
+  let authenticated = false;
+  let attempts = 0;
+  
+  while (!authenticated && attempts < 3) {
+    authenticated = isUserLoggedIn();
+    if (!authenticated) {
+      console.warn(`⚠️ Category-Mobile: Auth check failed, attempt ${attempts + 1}/3`);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      attempts++;
+    }
+  }
+  
+  if (!authenticated) {
+    e.preventDefault();
+    console.error('❌ Category-Mobile: Not authenticated after multiple attempts');
+    showLoginPrompt();
+    return;
+  }
+  
+  console.log('✅ Category-Mobile: Authentication confirmed, adding to cart');
+  
+  const product={ 
+    id:btn.dataset.id, 
+    title:btn.dataset.name, 
+    price:parseFloat(btn.dataset.price||'0'), 
+    img:btn.dataset.img, 
+    desc:btn.dataset.desc 
+  }; 
+  addToCart(product,1); 
+});
+
+// Enhanced mobile products data using actual mobile images
 const allProducts = [
-  {id:'mob-iphone12', name:'iPhone 12 Pro Max', price:899.00, img:'images/iphone12.jpg', desc:'6.7" display, A14 Bionic, triple camera.', category:'iphone', brand:'apple', condition:'new', rating:4.8},
-  {id:'mob-prime-x', name:'Android Prime X', price:399.00, img:'images/mobile.jpg', desc:'Smooth performance with long battery life.', category:'android', brand:'generic', condition:'new', rating:4.6},
-  {id:'mob-a2', name:'Budget A2', price:149.00, img:'images/mobile.avif', desc:'Affordable phone for everyday use.', category:'budget', brand:'generic', condition:'new', rating:4.2},
-  {id:'mob-lite', name:'Android Lite', price:199.00, img:'images/mobile.jpg', desc:'Compact design with essential features.', category:'android', brand:'generic', condition:'new', rating:4.4},
-  {id:'mob-ultra', name:'Android Ultra', price:699.00, img:'images/mobile.avif', desc:'Flagship camera and OLED display.', category:'android', brand:'samsung', condition:'new', rating:4.7},
-  {id:'mob-note10', name:'Samsung Note 10', price:329.00, img:'images/mobile.jpg', desc:'Large screen and stylus support.', category:'samsung', brand:'samsung', condition:'new', rating:4.5},
-  {id:'mob-mini', name:'iPhone Mini S', price:249.00, img:'images/mobile.jpg', desc:'Pocket size with solid battery.', category:'iphone', brand:'apple', condition:'new', rating:4.3},
-  {id:'mob-max', name:'Max Plus', price:549.00, img:'images/mobile.avif', desc:'Big screen entertainment phone.', category:'android', brand:'generic', condition:'new', rating:4.4},
-  {id:'mob-pro', name:'Pro ZX', price:629.00, img:'images/mobile.jpg', desc:'Pro camera features for creators.', category:'android', brand:'generic', condition:'new', rating:4.6},
-  {id:'mob-core', name:'Core 5', price:179.00, img:'images/mobile.avif', desc:'Great value starter smartphone.', category:'budget', brand:'generic', condition:'new', rating:4.1},
-  {id:'mob-air', name:'Air 7', price:289.00, img:'images/mobile.jpg', desc:'Slim, light and fast charging.', category:'android', brand:'generic', condition:'new', rating:4.3},
-  {id:'mob-edge', name:'Edge Curve', price:459.00, img:'images/mobile.avif', desc:'Curved display with 5G.', category:'android', brand:'samsung', condition:'new', rating:4.5},
-  {id:'mob-xr', name:'XR Neo', price:379.00, img:'images/mobile.jpg', desc:'Balanced specs for daily tasks.', category:'android', brand:'generic', condition:'new', rating:4.4},
-  {id:'mob-iphone13', name:'iPhone 13', price:799.00, img:'images/iphone12.jpg', desc:'Latest iPhone with advanced features.', category:'iphone', brand:'apple', condition:'new', rating:4.9}
+  {id:'mob-iphone12', name:'iPhone 12 Pro Max', price:899.00, img:'images/mobile/iphone12.jpg', desc:'6.7" Super Retina XDR display, A14 Bionic chip, Pro camera system with LiDAR.', category:'iphone', brand:'apple', condition:'new', rating:4.8},
+  {id:'mob-iphone13', name:'iPhone 13', price:799.00, img:'images/mobile/iphone13.jpg', desc:'6.1" Super Retina XDR display, A15 Bionic chip, advanced dual-camera system.', category:'iphone', brand:'apple', condition:'new', rating:4.9},
+  {id:'mob-iphone16', name:'iPhone 16', price:999.00, img:'images/mobile/iphone16.jfif', desc:'Latest iPhone with A18 Pro chip, enhanced camera system, and titanium design.', category:'iphone', brand:'apple', condition:'new', rating:4.9},
+  {id:'mob-iphone17', name:'iPhone 17 Pro', price:1199.00, img:'images/mobile/iphone17.webp', desc:'Premium iPhone with Pro Max features, advanced photography capabilities.', category:'iphone', brand:'apple', condition:'new', rating:4.9},
+  {id:'mob-samsung-a05s', name:'Samsung Galaxy A05s', price:199.00, img:'images/mobile/samsunga05s.jpg', desc:'6.7" Infinity-V display, 50MP camera, 5000mAh battery, Android 13.', category:'samsung', brand:'samsung', condition:'new', rating:4.3},
+  {id:'mob-samsung-a06', name:'Samsung Galaxy A06', price:179.00, img:'images/mobile/samsunga06.webp', desc:'6.6" HD+ display, 50MP main camera, 5000mAh battery, One UI.', category:'samsung', brand:'samsung', condition:'new', rating:4.2},
+  {id:'mob-samsung-a5', name:'Samsung Galaxy A5', price:249.00, img:'images/mobile/samsunga5.avif', desc:'5.2" Super AMOLED display, 16MP camera, fingerprint sensor, premium design.', category:'samsung', brand:'samsung', condition:'new', rating:4.4},
+  {id:'mob-samsung-s24', name:'Samsung Galaxy S24', price:799.00, img:'images/mobile/samsungs24.webp', desc:'6.2" Dynamic AMOLED 2X, Snapdragon 8 Gen 3, 50MP camera, AI features.', category:'samsung', brand:'samsung', condition:'new', rating:4.8},
+  {id:'mob-poco', name:'POCO X6 Pro', price:299.00, img:'images/mobile/poco.jpg', desc:'6.67" AMOLED display, MediaTek Dimensity 8300-Ultra, 64MP camera, 67W fast charging.', category:'android', brand:'xiaomi', condition:'new', rating:4.5},
+  {id:'mob-redmi', name:'Redmi Note 13', price:199.00, img:'images/mobile/redme.jpg', desc:'6.67" AMOLED display, 108MP camera, 5000mAh battery, MIUI 14.', category:'android', brand:'xiaomi', condition:'new', rating:4.4},
+  {id:'mob-vivo', name:'Vivo Y100', price:179.00, img:'images/mobile/vivo.png', desc:'6.38" AMOLED display, 50MP camera, 4500mAh battery, Funtouch OS.', category:'android', brand:'vivo', condition:'new', rating:4.2},
+  {id:'mob-sparkx', name:'Tecno Spark X', price:149.00, img:'images/mobile/sparkx.webp', desc:'6.6" HD+ display, 16MP camera, 5000mAh battery, HiOS interface.', category:'android', brand:'tecno', condition:'new', rating:4.1},
+  {id:'mob-generic1', name:'Android Smartphone', price:129.00, img:'images/mobile/mobile.jpg', desc:'6.1" HD display, dual camera, 4000mAh battery, Android 12.', category:'budget', brand:'generic', condition:'new', rating:4.0},
+  {id:'mob-generic2', name:'Budget Mobile', price:99.00, img:'images/mobile/mobile.avif', desc:'5.5" HD display, 13MP camera, 3000mAh battery, essential features.', category:'budget', brand:'generic', condition:'new', rating:3.9}
 ];
 
 let filteredProducts = [...allProducts];
