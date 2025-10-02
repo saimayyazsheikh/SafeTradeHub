@@ -49,41 +49,36 @@
             </div>
             <div class="status-summary">
               <div class="status-item" id="emailStatus">
-                <div class="status-icon">📧</div>
                 <div class="status-content">
-                  <div class="status-title">Email</div>
+                  <div class="status-title">Email Verification</div>
                   <div class="status-desc">Email address verified</div>
                 </div>
                 <div class="status-badge pending">Pending</div>
               </div>
               <div class="status-item" id="phoneStatus">
-                <div class="status-icon">📱</div>
                 <div class="status-content">
-                  <div class="status-title">Phone</div>
+                  <div class="status-title">Phone Verification</div>
                   <div class="status-desc">Phone number verified</div>
                 </div>
                 <div class="status-badge pending">Pending</div>
               </div>
               <div class="status-item" id="addressStatus">
-                <div class="status-icon">📍</div>
                 <div class="status-content">
-                  <div class="status-title">Address</div>
+                  <div class="status-title">Address Verification</div>
                   <div class="status-desc">Residential address</div>
                 </div>
                 <div class="status-badge pending">Pending</div>
               </div>
               <div class="status-item" id="identityStatus">
-                <div class="status-icon">🆔</div>
                 <div class="status-content">
-                  <div class="status-title">Identity</div>
+                  <div class="status-title">Identity Verification</div>
                   <div class="status-desc">CNIC & Selfie verification</div>
                 </div>
                 <div class="status-badge pending">Pending</div>
               </div>
               <div class="status-item" id="shopStatus" style="display: none;">
-                <div class="status-icon">🏪</div>
                 <div class="status-content">
-                  <div class="status-title">Shop</div>
+                  <div class="status-title">Shop Verification</div>
                   <div class="status-desc">Business verification</div>
                 </div>
                 <div class="status-badge pending">Pending</div>
@@ -92,10 +87,10 @@
             <div class="verification-benefits">
               <h4>Verification Benefits</h4>
               <ul>
-                <li>✅ Access to all marketplace features</li>
-                <li>✅ Higher trust score from buyers</li>
-                <li>✅ Priority customer support</li>
-                <li>✅ Advanced seller tools</li>
+                <li>• Access to all marketplace features</li>
+                <li>• Higher trust score from buyers</li>
+                <li>• Priority customer support</li>
+                <li>• Advanced seller tools</li>
               </ul>
             </div>
           </aside>
@@ -115,7 +110,6 @@
               </div>
               <div class="step-body">
                 <div class="step-info">
-                  <div class="info-icon">📧</div>
                   <div class="info-content">
                     <p>We've sent a verification link to your email address. Please check your inbox and click the link to verify your email.</p>
                     <p class="email-address" id="userEmail">user@example.com</p>
@@ -123,16 +117,14 @@
                 </div>
                 <div class="step-actions">
                   <button class="btn secondary" id="resendEmailBtn">
-                    <span class="btn-icon">↻</span>
                     Resend Email
                   </button>
                   <button class="btn primary" id="refreshEmailBtn">
-                    <span class="btn-icon">✓</span>
                     Check Status
                   </button>
                 </div>
                 <div class="step-help">
-                  <p>📌 <strong>Tip:</strong> Check your spam folder if you don't see the email</p>
+                  <p><strong>Tip:</strong> Check your spam folder if you don't see the email</p>
                 </div>
               </div>
             </div>
@@ -151,7 +143,6 @@
               </div>
               <div class="step-body">
                 <div class="step-info">
-                  <div class="info-icon">📱</div>
                   <div class="info-content">
                     <p>Enter your phone number to receive a verification code via SMS. This helps us verify your identity and contact you if needed.</p>
                   </div>
@@ -159,44 +150,34 @@
                 <div class="phone-form">
                   <div class="form-group">
                     <label for="phoneInput">Phone Number</label>
-                    <div class="input-group">
-                      <select class="country-select" id="countryCode">
-                        <option value="+92">🇵🇰 +92</option>
-                        <option value="+1">🇺🇸 +1</option>
-                        <option value="+44">🇬🇧 +44</option>
-                        <option value="+91">🇮🇳 +91</option>
-                        <option value="+880">🇧🇩 +880</option>
-                      </select>
-                      <input id="phoneInput" type="tel" placeholder="3001234567" />
+                    <div class="phone-input-group">
+                      <div class="country-code">+92</div>
+                      <input id="phoneInput" type="tel" placeholder="300 123 4567" class="phone-input" />
                     </div>
-                    <small class="form-help">Enter your phone number without the country code</small>
+                    <small class="form-help">Enter your Pakistani phone number</small>
                   </div>
+                  
+                  <div class="form-group">
+                    <label for="otpCode">Verification Code</label>
+                    <input id="otpCode" type="text" placeholder="Enter 6-digit code" maxlength="6" class="otp-input" />
+                    <small class="form-help">Enter the 6-digit code sent to your phone</small>
+                  </div>
+                  
                   <div class="form-actions">
                     <button class="btn primary" id="sendOtpBtn">
-                      <span class="btn-icon">📤</span>
                       Send OTP
+                    </button>
+                    <button class="btn secondary" id="verifyOtpBtn" style="display:none;">
+                      Verify Code
+                    </button>
+                    <button class="btn secondary" id="resendOtpBtn" style="display:none;">
+                      Resend OTP
                     </button>
                   </div>
                 </div>
                 <div id="recaptcha-container"></div>
-                <div class="otp-section" id="otpSection" style="display:none">
-                  <div class="form-group">
-                    <label for="otpCode">Verification Code</label>
-                    <div class="otp-input-group">
-                      <input id="otpCode" type="text" placeholder="000000" maxlength="6" />
-                      <button class="btn secondary" id="resendOtpBtn">Resend</button>
-                    </div>
-                    <small class="form-help">Enter the 6-digit code sent to your phone</small>
-                  </div>
-                  <div class="form-actions">
-                    <button class="btn primary" id="verifyOtpBtn">
-                      <span class="btn-icon">✓</span>
-                      Verify Code
-                    </button>
-                  </div>
-                </div>
                 <div class="step-help">
-                  <p>📌 <strong>Note:</strong> SMS charges may apply. Code expires in 5 minutes.</p>
+                  <p><strong>Note:</strong> SMS charges may apply. Code expires in 5 minutes.</p>
                 </div>
               </div>
             </div>
@@ -215,7 +196,6 @@
               </div>
               <div class="step-body">
                 <div class="step-info">
-                  <div class="info-icon">📍</div>
                   <div class="info-content">
                     <p>Please provide your complete residential address. This information is used for identity verification and delivery purposes.</p>
                   </div>
@@ -257,13 +237,12 @@
                   </div>
                   <div class="location-section">
                     <div class="location-header">
-                      <h4>📍 Location Verification (Optional)</h4>
-                      <p>Help us verify your address by sharing your current location</p>
+                      <h4>Location Verification</h4>
+                      <p>Please share your current location to verify your address</p>
                     </div>
                     <div class="location-input">
                       <input id="latlng" type="text" placeholder="Latitude, Longitude" readonly />
                       <button class="btn secondary" id="useLocationBtn">
-                        <span class="btn-icon">🎯</span>
                         Use My Location
                       </button>
                     </div>
@@ -271,13 +250,12 @@
                   </div>
                   <div class="form-actions">
                     <button class="btn primary" id="saveAddressBtn">
-                      <span class="btn-icon">✓</span>
                       Submit Address
                     </button>
                   </div>
                 </div>
                 <div class="step-help">
-                  <p>📌 <strong>Privacy:</strong> Your address information is encrypted and only used for verification</p>
+                  <p><strong>Privacy:</strong> Your address information is encrypted and only used for verification</p>
                 </div>
               </div>
             </div>
@@ -296,7 +274,6 @@
               </div>
               <div class="step-body">
                 <div class="step-info">
-                  <div class="info-icon">🆔</div>
                   <div class="info-content">
                     <p>Upload clear photos of your CNIC (front and back) and a selfie. Our admin team will review these documents to verify your identity.</p>
                   </div>
@@ -304,11 +281,10 @@
                 
                 <!-- CNIC Upload Section -->
                 <div class="document-upload-section">
-                  <h4>📄 CNIC Document Upload</h4>
+                  <h4>CNIC Document Upload</h4>
                   <div class="upload-grid">
                     <div class="upload-item">
                       <div class="upload-area" id="cnicFrontArea">
-                        <div class="upload-icon">📄</div>
                         <div class="upload-text">
                           <h5>CNIC Front</h5>
                           <p>Upload the front side of your CNIC</p>
@@ -322,7 +298,6 @@
                     </div>
                     <div class="upload-item">
                       <div class="upload-area" id="cnicBackArea">
-                        <div class="upload-icon">📄</div>
                         <div class="upload-text">
                           <h5>CNIC Back</h5>
                           <p>Upload the back side of your CNIC</p>
@@ -339,43 +314,55 @@
 
                 <!-- Selfie Upload Section -->
                 <div class="document-upload-section">
-                  <h4>📸 Selfie Upload</h4>
+                  <h4>Selfie Upload</h4>
                   <div class="upload-item single">
                     <div class="upload-area" id="selfieArea">
-                      <div class="upload-icon">📸</div>
                       <div class="upload-text">
-                        <h5>Live Selfie</h5>
-                        <p>Take a clear selfie showing your face</p>
+                        <h5>Live Selfie Required</h5>
+                        <p>You must take a live selfie using your camera for identity verification</p>
                       </div>
-                      <input id="selfie" type="file" accept="image/*" capture="user" hidden />
-                      <button class="upload-btn" onclick="document.getElementById('selfie').click()">
-                        Take Photo
-                      </button>
+                      <div class="camera-section" style="position: relative;">
+                        <video id="cameraPreview" width="300" height="225" autoplay style="display:none; border-radius: 8px; margin: 10px 0; border: 2px solid #3b82f6;"></video>
+                        <canvas id="photoCanvas" width="300" height="225" style="display:none;"></canvas>
+                        <div id="capturedImageDisplay" style="display:none; text-align: center; margin: 10px 0;">
+                          <img id="capturedImage" style="max-width: 300px; border-radius: 8px; border: 3px solid #22c55e; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">
+                        </div>
+                      </div>
+                      <div class="camera-controls">
+                        <button class="btn primary" id="startCameraBtn">
+                          Start Camera
+                        </button>
+                        <button class="btn primary" id="capturePhotoBtn" style="display:none;">
+                          Capture Photo
+                        </button>
+                        <button class="btn secondary" id="retakePhotoBtn" style="display:none;">
+                          Retake
+                        </button>
+                      </div>
                     </div>
                     <div class="file-preview" id="selfiePreview"></div>
                   </div>
                 </div>
 
                 <div class="upload-requirements">
-                  <h5>📋 Upload Requirements</h5>
+                  <h5>Upload Requirements</h5>
                   <ul>
-                    <li>✅ Clear, high-quality images (minimum 800x600px)</li>
-                    <li>✅ All text should be clearly readable</li>
-                    <li>✅ Good lighting and no shadows</li>
-                    <li>✅ File size under 5MB per image</li>
-                    <li>✅ Supported formats: JPG, PNG, PDF</li>
+                    <li>• Clear, high-quality images (minimum 800x600px)</li>
+                    <li>• All text should be clearly readable</li>
+                    <li>• Good lighting and no shadows</li>
+                    <li>• File size under 5MB per image</li>
+                    <li>• Supported formats: JPG, PNG</li>
                   </ul>
                 </div>
 
                 <div class="form-actions">
                   <button class="btn primary" id="uploadCnicBtn">
-                    <span class="btn-icon">📤</span>
                     Upload Documents
                   </button>
                 </div>
 
                 <div class="step-help">
-                  <p>📌 <strong>Security:</strong> Your documents are encrypted and only accessible to our verification team</p>
+                  <p><strong>Security:</strong> Your documents are encrypted and only accessible to our verification team</p>
                 </div>
               </div>
             </div>
@@ -401,7 +388,7 @@
                 </div>
                 
                 <div class="shop-form">
-                  <h4>🏢 Business Information</h4>
+                  <h4>Business Business Information</h4>
                   <div class="form-row two">
                     <div class="form-group">
                       <label for="shopName">Business Name</label>
@@ -423,6 +410,26 @@
                     <label for="shopAddr">Business Address</label>
                     <textarea id="shopAddr" rows="3" placeholder="Complete business address including city and postal code"></textarea>
                   </div>
+                  
+                  <!-- Business Location Verification -->
+                  <div class="location-verification-section">
+                    <h4>Business Location Verification</h4>
+                    <p>Please share your business location to verify your address</p>
+                    <div class="location-controls">
+                      <button class="btn secondary" id="getBusinessLocationBtn">
+                        Use My Location
+                      </button>
+                      <div id="businessLocationStatus" class="location-status"></div>
+                    </div>
+                    <div id="businessLocationDisplay" class="location-display" style="display: none;">
+                      <div class="location-info">
+                        <h6>Business Location Captured</h6>
+                        <p id="businessLocationCoords"></p>
+                        <small id="businessLocationTime"></small>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div class="form-row two">
                     <div class="form-group">
                       <label for="businessPhone">Business Phone</label>
@@ -436,11 +443,11 @@
                 </div>
 
                 <div class="document-upload-section">
-                  <h4>📸 Business Photos</h4>
+                  <h4>Business Photos</h4>
                   <div class="upload-grid">
                     <div class="upload-item">
                       <div class="upload-area" id="shopPhotosArea">
-                        <div class="upload-icon">📷</div>
+                        <div class="upload-icon">Photo</div>
                         <div class="upload-text">
                           <h5>Shop Photos</h5>
                           <p>Upload photos of your physical store or workspace</p>
@@ -456,11 +463,11 @@
                 </div>
 
                 <div class="document-upload-section">
-                  <h4>📄 Business Documents</h4>
+                  <h4>Business Documents</h4>
                   <div class="upload-grid">
                     <div class="upload-item">
                       <div class="upload-area" id="shopDocsArea">
-                        <div class="upload-icon">📋</div>
+                        <div class="upload-icon">Document</div>
                         <div class="upload-text">
                           <h5>Business Documents</h5>
                           <p>Upload business license, registration, or utility bills</p>
@@ -476,25 +483,24 @@
                 </div>
 
                 <div class="upload-requirements">
-                  <h5>📋 Document Requirements</h5>
+                  <h5>Document Requirements</h5>
                   <ul>
-                    <li>✅ Business registration certificate or license</li>
-                    <li>✅ Utility bill (electricity, gas, water) in business name</li>
-                    <li>✅ Bank statement or tax document</li>
-                    <li>✅ Clear photos of your physical store/workspace</li>
-                    <li>✅ All documents should be recent (within 6 months)</li>
+                    <li>• Business registration certificate or license</li>
+                    <li>• Utility bill (electricity, gas, water) in business name</li>
+                    <li>• Bank statement or tax document</li>
+                    <li>• Clear photos of your physical store/workspace</li>
+                    <li>• All documents should be recent (within 6 months)</li>
                   </ul>
                 </div>
 
                 <div class="form-actions">
                   <button class="btn primary" id="uploadShopBtn">
-                    <span class="btn-icon">📤</span>
                     Submit Business Verification
                   </button>
                 </div>
 
                 <div class="step-help">
-                  <p>📌 <strong>Note:</strong> Business verification typically takes 1-3 business days</p>
+                  <p><strong>Note:</strong> Business verification typically takes 1-3 business days</p>
                 </div>
               </div>
             </div>
@@ -779,6 +785,77 @@ $('useLocationBtn').addEventListener('click', ()=>{
     $('latlng').value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
   }, err=> alert(err.message), { enableHighAccuracy:true, timeout:10000 });
 });
+
+/* Business Location */
+let businessLocationData = null;
+
+document.getElementById('getBusinessLocationBtn')?.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Geolocation not available on this device.');
+    return;
+  }
+  
+  const statusDiv = document.getElementById('businessLocationStatus');
+  const displayDiv = document.getElementById('businessLocationDisplay');
+  const coordsP = document.getElementById('businessLocationCoords');
+  const timeSmall = document.getElementById('businessLocationTime');
+  
+  statusDiv.innerHTML = '<span style="color: #3b82f6;">Getting location...</span>';
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude.toFixed(6);
+      const lng = position.coords.longitude.toFixed(6);
+      const timestamp = new Date().toLocaleString();
+      
+      businessLocationData = {
+        latitude: lat,
+        longitude: lng,
+        timestamp: timestamp,
+        accuracy: position.coords.accuracy
+      };
+      
+      // Show success status
+      statusDiv.innerHTML = '<span style="color: #22c55e;">✓ Location captured successfully</span>';
+      
+      // Show location display
+      coordsP.textContent = `Coordinates: ${lat}, ${lng}`;
+      timeSmall.textContent = `Captured: ${timestamp}`;
+      displayDiv.style.display = 'block';
+      
+      // Hide the button after successful capture
+      document.getElementById('getBusinessLocationBtn').style.display = 'none';
+      
+    },
+    (error) => {
+      let errorMessage = 'Unable to get location. ';
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage += 'Please allow location access.';
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage += 'Location information unavailable.';
+          break;
+        case error.TIMEOUT:
+          errorMessage += 'Location request timed out.';
+          break;
+        default:
+          errorMessage += 'Unknown error occurred.';
+          break;
+      }
+      statusDiv.innerHTML = `<span style="color: #ef4444;">${errorMessage}</span>`;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+});
+
+function getBusinessLocationData() {
+  return businessLocationData;
+}
 $('saveAddressBtn').addEventListener('click', async ()=>{
   const u = firebase.auth().currentUser; if(!u) return alert('Please sign in');
   
@@ -923,7 +1000,7 @@ $('uploadCnicBtn').addEventListener('click', async ()=>{
 
 // Enhanced shop upload handler
 $('uploadShopBtn').addEventListener('click', async ()=>{
-  const u = firebase.auth().currentUser; if(!u) return alert('Please sign in');
+const u = firebase.auth().currentUser; if(!u) return alert('Please sign in');
   
   const shopName = $('shopName').value.trim();
   const businessType = $('businessType').value;
@@ -935,6 +1012,12 @@ $('uploadShopBtn').addEventListener('click', async ()=>{
   
   if (!shopName || !businessType || !shopAddr) {
     return alert('Please fill in all required business information');
+  }
+  
+  // Check if business location is captured (mandatory)
+  const locationData = getBusinessLocationData();
+  if (!locationData) {
+    return alert('Please capture your business location using "Use My Location" button. This is mandatory for verification.');
   }
   
   if (shopPhotos.length === 0 || shopDocs.length === 0) {
@@ -957,6 +1040,12 @@ $('uploadShopBtn').addEventListener('click', async ()=>{
         businessEmail,
         photoUrls,
         docUrls,
+        location: {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          timestamp: locationData.timestamp,
+          accuracy: locationData.accuracy
+        },
         submittedAt: firebase.firestore.FieldValue.serverTimestamp()
       }
     });
@@ -1117,6 +1206,120 @@ async function uploadToCloudinary(file) {
   });
 </script>
 
+<!-- Camera Functionality for Live Selfie -->
+<script>
+  let cameraStream = null;
+  let capturedPhoto = null;
+
+  // Get DOM elements
+  const startCameraBtn = document.getElementById('startCameraBtn');
+  const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+  const retakePhotoBtn = document.getElementById('retakePhotoBtn');
+  const cameraPreview = document.getElementById('cameraPreview');
+  const photoCanvas = document.getElementById('photoCanvas');
+  const capturedImageDisplay = document.getElementById('capturedImageDisplay');
+  const capturedImage = document.getElementById('capturedImage');
+  const selfiePreview = document.getElementById('selfiePreview');
+
+  // Start camera
+  startCameraBtn?.addEventListener('click', async () => {
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: 300, 
+          height: 225,
+          facingMode: 'user'
+        } 
+      });
+      
+      cameraPreview.srcObject = cameraStream;
+      cameraPreview.style.display = 'block';
+      capturedImageDisplay.style.display = 'none';
+      
+      startCameraBtn.style.display = 'none';
+      capturePhotoBtn.style.display = 'inline-block';
+      retakePhotoBtn.style.display = 'none';
+      
+      // Clear any previous preview
+      selfiePreview.innerHTML = '';
+      
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please ensure you have granted camera permissions. Camera access is required for identity verification.');
+    }
+  });
+
+  // Capture photo
+  capturePhotoBtn?.addEventListener('click', () => {
+    try {
+      const context = photoCanvas.getContext('2d');
+      
+      // Draw video frame to canvas
+      context.drawImage(cameraPreview, 0, 0, 300, 225);
+      
+      // Get image as data URL
+      const imageDataURL = photoCanvas.toDataURL('image/jpeg', 0.9);
+      
+      // Show captured image
+      capturedImage.src = imageDataURL;
+      capturedImageDisplay.style.display = 'block';
+      
+      // Hide camera preview
+      cameraPreview.style.display = 'none';
+      
+      // Update buttons
+      capturePhotoBtn.style.display = 'none';
+      retakePhotoBtn.style.display = 'inline-block';
+      
+      // Show success message in preview area
+      selfiePreview.innerHTML = `
+        <div class="captured-photo-container">
+          <div class="success-message">
+            <h6>✓ Selfie Captured Successfully</h6>
+            <p>Your live selfie has been captured and is ready for verification</p>
+          </div>
+          <div class="photo-info">
+            <small>Photo captured: ${new Date().toLocaleString()}</small>
+          </div>
+        </div>
+      `;
+      
+      // Convert to blob for upload
+      photoCanvas.toBlob((blob) => {
+        capturedPhoto = blob;
+        console.log('Photo captured successfully, blob size:', blob.size);
+      }, 'image/jpeg', 0.9);
+      
+      // Stop camera stream
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      
+    } catch (error) {
+      console.error('Error capturing photo:', error);
+      alert('Error capturing photo. Please try again.');
+    }
+  });
+
+  // Retake photo
+  retakePhotoBtn?.addEventListener('click', () => {
+    // Clear displays
+    capturedImageDisplay.style.display = 'none';
+    selfiePreview.innerHTML = '';
+    capturedPhoto = null;
+    
+    // Reset buttons
+    retakePhotoBtn.style.display = 'none';
+    startCameraBtn.style.display = 'inline-block';
+  });
+
+  // Function to get selfie data for upload
+  function getSelfieData() {
+    return capturedPhoto;
+  }
+</script>
+
 <style>
 /* Enhanced Verification Styles */
 body {
@@ -1143,9 +1346,10 @@ body {
   align-items: center;
   margin-bottom: 32px;
   padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
+  background: linear-gradient(135deg, #1e90ff, #0066cc, #004499, #002266);
+  border-radius: 20px;
   color: white;
+  box-shadow: 0 8px 32px rgba(30, 144, 255, 0.3);
 }
 
 .header-content h1 {
@@ -1692,6 +1896,315 @@ body {
   font-weight: 600;
   color: #374151;
 }
+
+/* Clean Status Layout */
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-content {
+  flex: 1;
+}
+
+.step-info {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.info-content {
+  width: 100%;
+}
+
+/* Professional Phone Input Styling */
+.phone-input-group {
+  display: flex;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.phone-input-group:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.country-code {
+  background: #f8fafc;
+  border-right: 1px solid #d1d5db;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  min-width: 60px;
+  justify-content: center;
+}
+
+.phone-input {
+  flex: 1;
+  border: none;
+  padding: 12px 16px;
+  font-size: 16px;
+  outline: none;
+  background: transparent;
+}
+
+.phone-input::placeholder {
+  color: #9ca3af;
+}
+
+.otp-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+  letter-spacing: 2px;
+  font-weight: 600;
+  transition: border-color 0.2s ease;
+}
+
+.otp-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.otp-input::placeholder {
+  color: #9ca3af;
+  letter-spacing: normal;
+  font-weight: normal;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.form-help {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn.primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn.secondary {
+  background: #f8fafc;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn.secondary:hover {
+  background: #f1f5f9;
+  border-color: #9ca3af;
+}
+
+/* Camera Section Styling */
+.camera-section {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.camera-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+#cameraPreview {
+  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.upload-area {
+  text-align: center;
+  padding: 24px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.upload-area:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+
+.upload-text h5 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.upload-text p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* Captured Photo Preview Styling */
+.captured-photo-container {
+  text-align: center;
+  padding: 20px;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.success-message {
+  margin-bottom: 16px;
+}
+
+.success-message h6 {
+  margin: 0 0 8px 0;
+  color: #15803d;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.success-message p {
+  margin: 0;
+  color: #166534;
+  font-size: 0.9rem;
+}
+
+.captured-selfie {
+  max-width: 250px;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 3px solid #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+  margin: 16px 0;
+}
+
+.photo-info {
+  margin-top: 12px;
+}
+
+  .photo-info small {
+    color: #15803d;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  /* Business Location Verification Styling */
+  .location-verification-section {
+    margin: 20px 0;
+    padding: 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+  }
+
+  .location-verification-section h4 {
+    margin: 0 0 8px 0;
+    color: #374151;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .location-verification-section p {
+    margin: 0 0 16px 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .location-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .location-status {
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .location-display {
+    background: #f0fdf4;
+    border: 2px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 12px;
+  }
+
+  .location-info h6 {
+    margin: 0 0 8px 0;
+    color: #15803d;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .location-info p {
+    margin: 0 0 4px 0;
+    color: #166534;
+    font-size: 0.9rem;
+    font-family: monospace;
+  }
+
+  .location-info small {
+    color: #15803d;
+    font-size: 0.8rem;
+  }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
