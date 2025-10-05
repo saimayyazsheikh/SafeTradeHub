@@ -663,4 +663,270 @@ router.get('/user/favorites', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
+// @desc    Get seller's products
+// @route   GET /api/products/seller/my-products
+// @access  Seller/Admin
+router.get('/seller/my-products', authenticate, requireSeller, asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { page = 1, limit = 12, status, category, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+  let query = collections.products.where('sellerId', '==', userId);
+
+  // Add status filter
+  if (status) {
+    switch (status) {
+      case 'active':
+        query = query.where('isActive', '==', true).where('status', '!=', 'sold');
+        break;
+      case 'sold':
+        query = query.where('status', '==', 'sold');
+        break;
+      case 'draft':
+        query = query.where('isActive', '==', false);
+        break;
+      case 'inactive':
+        query = query.where('isActive', '==', false);
+        break;
+    }
+  }
+
+  // Execute query
+  const snapshot = await query.get();
+  let products = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  // Client-side filtering for category
+  if (category) {
+    products = products.filter(product => product.category === category);
+  }
+
+  // Sort products
+  products.sort((a, b) => {
+    let aValue, bValue;
+    
+    switch (sortBy) {
+      case 'price':
+        aValue = parseFloat(a.price);
+        bValue = parseFloat(b.price);
+        break;
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'views':
+        aValue = a.views || 0;
+        bValue = b.views || 0;
+        break;
+      case 'favorites':
+        aValue = a.favorites || 0;
+        bValue = b.favorites || 0;
+        break;
+      case 'createdAt':
+      default:
+        aValue = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        bValue = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        break;
+    }
+
+    if (sortOrder === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+
+  // Pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  const paginatedProducts = products.slice(startIndex, endIndex);
+
+  const total = products.length;
+  const totalPages = Math.ceil(total / limit);
+
+  res.json({
+    success: true,
+    data: {
+      products: paginatedProducts,
+      pagination: {
+        current: parseInt(page),
+        pages: totalPages,
+        total,
+        limit: parseInt(limit)
+      }
+    }
+  });
+}));
+
+// @desc    Update product status
+// @route   PUT /api/products/:id/status
+// @access  Seller/Admin
+router.put('/:id/status', authenticate, requireSeller, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const userId = req.user.id;
+
+  // Validate status
+  const validStatuses = ['active', 'inactive', 'sold', 'draft'];
+  if (!validStatuses.includes(status)) {
+    throw new AppError('Invalid status', 400);
+  }
+
+  const productDoc = await collections.products.doc(id).get();
+
+  if (!productDoc.exists) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const productData = productDoc.data();
+
+  // Check if user owns the product or is admin
+  if (productData.sellerId !== userId && req.user.role !== 'Admin') {
+    throw new AppError('Not authorized to update this product', 403);
+  }
+
+  // Prepare update data
+  const updateData = {
+    status,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+
+  // Set isActive based on status
+  if (status === 'active') {
+    updateData.isActive = true;
+  } else if (status === 'inactive' || status === 'draft') {
+    updateData.isActive = false;
+  }
+
+  // Update product
+  await collections.products.doc(id).update(updateData);
+
+  logger.info(`Product ${id} status updated to ${status} by user ${userId}`);
+
+  res.json({
+    success: true,
+    message: 'Product status updated successfully',
+    data: {
+      productId: id,
+      status,
+      isActive: updateData.isActive
+    }
+  });
+}));
+
+// @desc    Duplicate product
+// @route   POST /api/products/:id/duplicate
+// @access  Seller/Admin
+router.post('/:id/duplicate', authenticate, requireSeller, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const productDoc = await collections.products.doc(id).get();
+
+  if (!productDoc.exists) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const productData = productDoc.data();
+
+  // Check if user owns the product or is admin
+  if (productData.sellerId !== userId && req.user.role !== 'Admin') {
+    throw new AppError('Not authorized to duplicate this product', 403);
+  }
+
+  // Create duplicate
+  const duplicateData = {
+    ...productData,
+    name: `${productData.name} (Copy)`,
+    sellerId: userId,
+    sellerName: req.user.name,
+    isActive: false, // Start as draft
+    status: 'draft',
+    views: 0,
+    favorites: 0,
+    averageRating: 0,
+    totalReviews: 0,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+
+  // Remove fields that shouldn't be duplicated
+  delete duplicateData.id;
+
+  const duplicateRef = await collections.products.add(duplicateData);
+
+  logger.info(`Product ${id} duplicated by user ${userId}, new product: ${duplicateRef.id}`);
+
+  res.json({
+    success: true,
+    message: 'Product duplicated successfully',
+    data: {
+      productId: duplicateRef.id,
+      originalId: id
+    }
+  });
+}));
+
+// @desc    Get product analytics
+// @route   GET /api/products/:id/analytics
+// @access  Seller/Admin
+router.get('/:id/analytics', authenticate, requireSeller, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const productDoc = await collections.products.doc(id).get();
+
+  if (!productDoc.exists) {
+    throw new AppError('Product not found', 404);
+  }
+
+  const productData = productDoc.data();
+
+  // Check if user owns the product or is admin
+  if (productData.sellerId !== userId && req.user.role !== 'Admin') {
+    throw new AppError('Not authorized to view analytics for this product', 403);
+  }
+
+  // Get orders for this product
+  const ordersSnapshot = await collections.orders
+    .where('productId', '==', id)
+    .get();
+
+  const orders = ordersSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  // Calculate analytics
+  const analytics = {
+    totalViews: productData.views || 0,
+    totalFavorites: productData.favorites || 0,
+    totalOrders: orders.length,
+    completedOrders: orders.filter(order => order.status === 'completed').length,
+    pendingOrders: orders.filter(order => ['pending', 'confirmed', 'shipped'].includes(order.status)).length,
+    totalRevenue: orders
+      .filter(order => order.status === 'completed')
+      .reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+    averageRating: productData.averageRating || 0,
+    totalReviews: productData.totalReviews || 0,
+    conversionRate: productData.views > 0 ? (orders.length / productData.views * 100).toFixed(2) : 0,
+    ordersByStatus: {
+      pending: orders.filter(order => order.status === 'pending').length,
+      confirmed: orders.filter(order => order.status === 'confirmed').length,
+      shipped: orders.filter(order => order.status === 'shipped').length,
+      completed: orders.filter(order => order.status === 'completed').length,
+      cancelled: orders.filter(order => order.status === 'cancelled').length
+    }
+  };
+
+  res.json({
+    success: true,
+    data: {
+      productId: id,
+      analytics
+    }
+  });
+}));
+
 module.exports = router;
