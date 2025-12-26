@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Camera – Safe Trade Hub</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/category-template.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+      <nav class="header-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6h15l-1.5 9h-12z" />
+            <path d="M6 6L5 3H2" />
+            <circle cx="9" cy="20" r="1.75" />
+            <circle cx="18" cy="20" r="1.75" />
+          </svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Category Header -->
+  <section class="category-header">
+    <div class="container">
+      <div class="category-breadcrumb">
+        <a href="index.html">Home</a>
+        <span>›</span>
+        <span>Camera</span>
+      </div>
+      <h1>Cameras & Photography</h1>
+      <div class="category-stats">
+        <span id="productCount">12 products available</span>
+        <span>•</span>
+        <span>From $299 to $2999</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <!-- Search and Filters -->
+      <div class="search-filters-container">
+        <!-- Search Bar -->
+        <div class="search-container">
+          <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Search cameras..." class="search-input">
+            <button id="clearSearch" class="clear-search" style="display: none;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Filters -->
+        <div class="quick-filters">
+          <button class="filter-chip active" data-filter="all">All</button>
+          <button class="filter-chip" data-filter="dslr">DSLR</button>
+          <button class="filter-chip" data-filter="mirrorless">Mirrorless</button>
+          <button class="filter-chip" data-filter="lenses">Lenses</button>
+          <button class="filter-chip" data-filter="accessories">Accessories</button>
+        </div>
+
+        <!-- Advanced Filters -->
+        <div class="advanced-filters">
+          <div class="filter-group">
+            <label for="sortBy">Sort by:</label>
+            <select id="sortBy" class="filter-select">
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="name">Name A-Z</option>
+              <option value="rating">Rating</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="priceRange">Price Range:</label>
+            <select id="priceRange" class="filter-select">
+              <option value="all">All Prices</option>
+              <option value="under-1000">Under RS 1,000</option>
+              <option value="1000-5000">RS 1,000 - 5,000</option>
+              <option value="5000-20000">RS 5,000 - 20,000</option>
+              <option value="20000-50000">RS 20,000 - 50,000</option>
+              <option value="50000-100000">RS 50,000 - 100,000</option>
+              <option value="over-100000">Over RS 100,000</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="condition">Condition:</label>
+            <select id="condition" class="filter-select">
+              <option value="all">All Conditions</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+              <option value="refurbished">Refurbished</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="brand">Brand:</label>
+            <select id="brand" class="filter-select">
+              <option value="all">All Brands</option>
+              <option value="canon">Canon</option>
+              <option value="nikon">Nikon</option>
+              <option value="sony">Sony</option>
+              <option value="fujifilm">Fujifilm</option>
+            </select>
+          </div>
+          <button id="clearFilters" class="clear-filters-btn">
+            <i class="fas fa-times"></i>
+            Clear All
+          </button>
+        </div>
+      </div>
+
+      <div class="recs" id="grid"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>All Rights Reserved By Safe Trade Hub</p>
+    </div>
+  </footer>
+
+  <!-- Product detail modal -->
+  <div id="productModal" class="modal" aria-hidden="true" role="dialog">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <button class="icon-btn" id="closeModal" aria-label="Close"
+        style="position:absolute;top:12px;right:12px">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- External JavaScript Files -->
+  <script>
+    const CURRENT_CATEGORY = 'camera';
+  </script>
+  <script src="/static/js/category-manager.js"></script>
+  <script src="/static/js/seller-chat.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,555 @@
+/* ========================================
+   WALLET.CSS - Wallet specific styling
+   ======================================== */
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.amount-suggestions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.amount-btn {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.amount-btn:hover {
+  background: #f3f4f6;
+  border-color: #6366f1;
+}
+
+/* Payment Methods */
+.payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-method {
+  display: block;
+  cursor: pointer;
+}
+
+.payment-method input[type="radio"] {
+  display: none;
+}
+
+.method-content {
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  /* Added to crop large images */
+  height: 50px;
+  /* Fixed height to ensure uniformity */
+}
+
+.payment-method input:checked+.method-content {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.method-content i {
+  font-size: 20px;
+  color: #6366f1;
+}
+
+.method-content span {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.method-content small {
+  color: #6b7280;
+  margin-left: auto;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+  width: auto;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toast {
+  background: white;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-left: 4px solid #6366f1;
+  min-width: 300px;
+  max-width: 400px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast.success {
+  border-left-color: #10b981;
+}
+
+.toast.error {
+  border-left-color: #ef4444;
+}
+
+.toast.warning {
+  border-left-color: #f59e0b;
+}
+
+/* Pagination */
+.pagination-container {
+  padding: 20px 24px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pagination button {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination button:hover {
+  background: #f9fafb;
+}
+
+.pagination button.active {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+
+  .payment-methods {
+    gap: 8px;
+  }
+
+  .method-content {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: center;
+  }
+
+  .method-content small {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
+
+/* ========================================
+   Enhanced Modal Styles
+   ======================================== */
+
+/* Account Details Box */
+.account-details-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  margin-bottom: 24px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.account-details-box h4 {
+  color: #1e293b !important;
+  font-size: 16px !important;
+  margin-bottom: 16px !important;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+#accountInfo div {
+  padding: 8px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+#accountInfo div:last-child {
+  border-bottom: none;
+}
+
+#accountInfo strong {
+  color: #64748b;
+  font-weight: 500;
+}
+
+#accountInfo span {
+  color: #0f172a;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Copy Button */
+.btn-outline {
+  background: white;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.btn-outline:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+  background: #eff6ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* File Upload Area */
+.file-upload-wrapper {
+  border: 2px dashed #cbd5e1 !important;
+  background: #f8fafc;
+  border-radius: 12px !important;
+  padding: 32px 24px !important;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-upload-wrapper:hover {
+  border-color: #6366f1 !important;
+  background: #eff6ff;
+}
+
+.file-upload-wrapper i {
+  color: #94a3b8 !important;
+  transition: all 0.3s ease;
+}
+
+.file-upload-wrapper:hover i {
+  color: #6366f1 !important;
+  transform: translateY(-4px);
+}
+
+.file-upload-wrapper p {
+  color: #475569 !important;
+  font-weight: 500;
+  margin-top: 12px !important;
+}
+
+.file-upload-wrapper small {
+  color: #94a3b8 !important;
+}
+
+/* Action Buttons */
+.modal-footer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  margin-top: 10px;
+}
+
+.modal-footer button {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid transparent;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn-primary {
+  background: #6366f1;
+  color: white;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(99, 102, 241, 0.4);
+}
+
+/* Payment Method Logos */
+/* Payment Method Images */
+.method-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  max-width: 120px;
+}
+
+@media (max-width: 768px) {
+  .method-img {
+    height: 32px;
+    margin-bottom: 4px;
+  }
+}
+
+/* Specific adjustment for Meezan Bank logo */
+.method-img-meezan {
+  height: 90px;
+  /* Large height for zoom effect */
+  max-width: 200px;
+  transform: scale(1.2);
+  margin-left: -5px;
+  object-fit: contain;
+}
+
+/* Specific adjustment for Easypaisa logo */
+.method-img-easypaisa {
+  height: 60px;
+  max-width: 180px;
+  transform: scale(1.6);
+  margin-left: 10px;
+  object-fit: contain;
+}
+
+/* Success Modal Styles */
+.success-content {
+  text-align: center;
+  padding: 40px !important;
+  max-width: 400px !important;
+}
+
+.success-icon {
+  font-size: 64px;
+  color: #10b981;
+  margin-bottom: 20px;
+  animation: scaleIn 0.5s ease;
+}
+
+.success-content h3 {
+  font-size: 24px;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.success-content p {
+  color: #6b7280;
+  margin-bottom: 5px;
+}
+
+.success-subtext {
+  font-size: 0.9rem;
+  margin-bottom: 25px !important;
+}
+
+.btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  80% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}

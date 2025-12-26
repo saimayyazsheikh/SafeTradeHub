@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - SafeTradeHub</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/messages.css?v=1.1">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <script src="/static/js/firebase-config.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i> SafeTradeHub
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="orders.html" class="nav-item">
+                <i class="fas fa-box"></i> Orders
+            </a>
+            <a href="product-management.html" class="nav-item" id="navProducts" style="display: none;">
+                <i class="fas fa-tags"></i> Products
+            </a>
+            <a href="verification.html" class="nav-item">
+                <i class="fas fa-check-circle"></i> Verification
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <i class="fas fa-wallet"></i> Wallet
+            </a>
+            <a href="messages.html" class="nav-item active">
+                <i class="fas fa-envelope"></i> Messages
+            </a>
+            <a href="profile.html" class="nav-item">
+                <i class="fas fa-user"></i> Profile
+            </a>
+            <a href="settings.html" class="nav-item">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-mini-profile">
+                <img src="/static/images/avatar-placeholder.png" alt="User" class="user-avatar-small" id="userAvatar">
+                <div class="user-info-mini">
+                    <h4 id="userName">Loading...</h4>
+                    <span id="userRole">...</span>
+                </div>
+            </div>
+            <a href="#" onclick="logout()" class="nav-item" style="color: var(--danger);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <script>
+        // Immediate check to prevent flicker
+        (function () {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    if (user.role === 'Seller') {
+                        const navProducts = document.getElementById('navProducts');
+                        if (navProducts) navProducts.style.display = 'flex';
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data for sidebar:', e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div class="page-title">
+                <h1><i class="fas fa-comments"></i> Messages</h1>
+                <p>Your conversations with buyers and sellers</p>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Messages Grid -->
+            <div class="messages-grid">
+                <!-- Conversations List -->
+                <div class="card conversations-card">
+                    <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                        <h3>Conversations</h3>
+                        <div class="search-box" style="margin-top: 0;">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchConversations" placeholder="Search...">
+                        </div>
+                    </div>
+                    <div class="conversations-list" id="conversationsList">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div class="card chat-card">
+                    <div class="chat-empty-state" id="emptyState">
+                        <i class="fas fa-comments"></i>
+                        <h3>Select a conversation</h3>
+                        <p>Choose a conversation from the list to start messaging</p>
+                    </div>
+
+                    <div class="chat-active" id="activeChat" style="display: none;">
+                        <div class="chat-header">
+                            <div class="chat-user-info">
+                                <img src="" alt="" id="chatUserAvatar" class="chat-avatar">
+                                <div>
+                                    <h3 id="chatUserName">User Name</h3>
+                                    <p id="chatProductName" class="chat-product-tag"></p>
+                                </div>
+                            </div>
+                            <button class="icon-btn" onclick="closeChatView()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div class="chat-messages-area" id="chatMessagesArea">
+                            <!-- Messages will be loaded here -->
+                        </div>
+
+                        <div class="chat-input-area">
+                            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                            <button class="icon-btn-attach" onclick="document.getElementById('imageInput').click()"
+                                title="Upload Image">
+                                <i class="fas fa-image"></i>
+                            </button>
+                            <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+                            <button id="sendMessageBtn" onclick="sendMessageFromPage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/static/js/messages-manager.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+
+</html>

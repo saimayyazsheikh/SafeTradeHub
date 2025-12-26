@@ -1,0 +1,162 @@
+{
+    "rules": {
+        ".read": false,
+        ".write": false,
+        "users": {
+            ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+            ".indexOn": [
+                "email",
+                "role",
+                "createdAt"
+            ],
+            "$uid": {
+                ".read": true,
+                ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                "wallet": {
+                    ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                    ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+                }
+            }
+        },
+        "withdrawals": {
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || (query.orderByChild == 'userId' && query.equalTo == auth.uid))",
+            ".indexOn": [
+                "userId",
+                "status",
+                "createdAt"
+            ],
+            "$withdrawalId": {
+                ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+            }
+        },
+        "deposits": {
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || (query.orderByChild == 'userId' && query.equalTo == auth.uid))",
+            ".indexOn": [
+                "userId",
+                "status",
+                "createdAt"
+            ],
+            "$depositId": {
+                ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+            }
+        },
+        "products": {
+            ".read": true,
+            ".indexOn": [
+                "category",
+                "sellerId",
+                "createdAt",
+                "price"
+            ],
+            "$productId": {
+                ".write": "auth != null && (data.child('sellerId').val() === auth.uid || newData.child('sellerId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                "bids": {
+                    ".write": "auth != null"
+                },
+                "currentBid": {
+                    ".write": "auth != null"
+                },
+                "highestBidderId": {
+                    ".write": "auth != null"
+                },
+                "bidCount": {
+                    ".write": "auth != null"
+                },
+                "views": {
+                    ".write": "auth != null"
+                }
+            }
+        },
+        "orders": {
+            ".read": "auth != null",
+            ".indexOn": [
+                "buyerId",
+                "sellerId",
+                "status",
+                "createdAt"
+            ],
+            "$orderId": {
+                ".read": "auth != null && (data.child('buyerId').val() === auth.uid || data.child('sellerId').val() === auth.uid || data.child('items/0/sellerId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null"
+            }
+        },
+        "escrows": {
+            ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+            ".indexOn": [
+                "buyerId",
+                "sellerId",
+                "orderId",
+                "status"
+            ],
+            "$escrowId": {
+                ".read": "auth != null && (data.child('buyerId').val() === auth.uid || data.child('sellerId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null"
+            }
+        },
+        "transactions": {
+            ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+            ".indexOn": [
+                "userId",
+                "orderId",
+                "type"
+            ],
+            "$transactionId": {
+                ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+            }
+        },
+        "walletTransactions": {
+            ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+            ".indexOn": [
+                "userId",
+                "type",
+                "createdAt"
+            ],
+            "$txnId": {
+                ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
+            }
+        },
+        "disputes": {
+            ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
+            ".indexOn": [
+                "reportedBy",
+                "orderId",
+                "status"
+            ],
+            "$disputeId": {
+                ".read": "auth != null && (data.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null && (newData.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+            }
+        },
+        "notifications": {
+            ".indexOn": [
+                "userId",
+                "read"
+            ],
+            "$notificationId": {
+                ".read": "auth != null && (data.child('userId').val() === auth.uid)",
+                ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+            }
+        },
+        "chats": {
+            ".read": "auth != null",
+            ".indexOn": [
+                "participants",
+                "updatedAt"
+            ],
+            "$chatId": {
+                ".read": "auth != null && (data.child('participants/0').val() === auth.uid || data.child('participants/1').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                ".write": "auth != null && ((data.child('participants/0').val() === auth.uid || data.child('participants/1').val() === auth.uid) || (newData.child('participants/0').val() === auth.uid || newData.child('participants/1').val() === auth.uid) || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                "messages": {
+                    ".read": "auth != null && (root.child('chats').child($chatId).child('participants/0').val() === auth.uid || root.child('chats').child($chatId).child('participants/1').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+                    ".write": "auth != null && (root.child('chats').child($chatId).child('participants/0').val() === auth.uid || root.child('chats').child($chatId).child('participants/1').val() === auth.uid)",
+                    ".indexOn": [
+                        "createdAt",
+                        "senderId"
+                    ]
+                }
+            }
+        }
+    }
+}

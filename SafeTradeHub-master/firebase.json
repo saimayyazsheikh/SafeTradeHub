@@ -1,0 +1,36 @@
+{
+    "hosting": {
+        "public": ".",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ],
+        "headers": [
+            {
+                "source": "**/*.@(js|html|css)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache, no-store, must-revalidate"
+                    }
+                ]
+            }
+        ]
+    },
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "database": {
+        "rules": "database.rules.json"
+    },
+    "storage": {
+        "rules": "storage.rules"
+    }
+}

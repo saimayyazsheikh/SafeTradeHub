@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Upload Product – Safe Trade Hub</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/product-upload.css" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">SafeTradeHub</a>
+      <nav class="header-actions">
+        <!-- Navigation will be updated by HeaderManager -->
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Breadcrumb -->
+    <section class="breadcrumb-section">
+      <div class="container">
+        <nav class="breadcrumb">
+          <a href="index.html">Home</a>
+          <span class="breadcrumb-separator">›</span>
+          <a href="dashboard.html">Dashboard</a>
+          <span class="breadcrumb-separator">›</span>
+          <span class="breadcrumb-current">Upload Product</span>
+        </nav>
+      </div>
+    </section>
+
+    <!-- Upload Form Section -->
+    <section class="upload-section">
+      <div class="container">
+        <div class="upload-header">
+          <h1>Upload New Product</h1>
+          <p class="upload-subtitle">List your product and start selling on SafeTradeHub</p>
+        </div>
+
+
+        <div class="upload-layout-wrapper">
+          <form id="productUploadForm" class="upload-form" enctype="multipart/form-data">
+
+            <!-- Top Section: Grid for Basic Info & Sidebar -->
+            <div class="upload-top-section">
+              <!-- Basic Information Card -->
+              <div class="form-card">
+                <div class="card-header">
+                  <h2>Basic Information</h2>
+                  <p class="card-subtitle">Essential details about your product</p>
+                </div>
+
+                <div class="form-grid">
+                  <!-- Product Name -->
+                  <div class="form-group full-width">
+                    <label for="productName" class="form-label required">Product Name</label>
+                    <input type="text" id="productName" name="name" class="form-input"
+                      placeholder="Enter a clear, descriptive product name" maxlength="100" required>
+                    <div class="form-hint">Be specific and descriptive. This helps buyers find your product.</div>
+                  </div>
+
+                  <!-- Category -->
+                  <div class="form-group">
+                    <label for="productCategory" class="form-label required">Category</label>
+                    <select id="productCategory" name="category" class="form-select" required>
+                      <option value="mobile">Mobiles & Tablets</option>
+                      <option value="computers">Laptops & Computers</option>
+                      <option value="camera">Cameras & Photography</option>
+                      <option value="electronics">Other Electronics</option>
+                      <option value="fashion">Fashion & Apparel</option>
+                      <option value="beauty">Beauty & Personal Care</option>
+                      <option value="furniture">Furniture & Decor</option>
+                      <option value="home">Home & Garden</option>
+                      <option value="books">Books & Media</option>
+                      <option value="automotive">Automotive & Parts</option>
+                      <option value="gym">Gym & Fitness Equipment</option>
+                      <option value="sports">Sports & Outdoor Equipment</option>
+                      <option value="toys">Toys & Games</option>
+                      <option value="pets">Pet Care Products</option>
+                      <option value="services">Professional Services</option>
+                    </select>
+                  </div>
+
+                  <!-- Condition -->
+                  <div class="form-group">
+                    <label for="productCondition" class="form-label required">Condition</label>
+                    <select id="productCondition" name="condition" class="form-select" required>
+                      <option value="">Select condition</option>
+                      <option value="new">New</option>
+                      <option value="used">Used - Good</option>
+                      <option value="refurbished">Refurbished</option>
+                    </select>
+                  </div>
+
+                  <!-- Listing Type -->
+                  <div class="form-group full-width">
+                    <label class="form-label required">Listing Type</label>
+                    <div class="radio-group">
+                      <label class="radio-label">
+                        <input type="radio" name="listingType" value="fixed" checked>
+                        <span class="radio-custom"></span>
+                        <span class="radio-text">Fixed Price</span>
+                      </label>
+                      <label class="radio-label">
+                        <input type="radio" name="listingType" value="auction">
+                        <span class="radio-custom"></span>
+                        <span class="radio-text">Auction</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Fixed Price Input -->
+                  <div class="form-group" id="fixedPriceGroup">
+                    <label for="productPrice" class="form-label required">Price (RS)</label>
+                    <input type="number" id="productPrice" name="price" class="form-input" placeholder="0.00"
+                      step="0.01" min="0">
+                  </div>
+
+                  <!-- Auction Settings -->
+                  <div id="auctionSettings" class="form-grid full-width"
+                    style="display: none; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                    <div class="form-group">
+                      <label for="startingBid" class="form-label required">Starting Bid (RS)</label>
+                      <input type="number" id="startingBid" name="startingBid" class="form-input" placeholder="0.00"
+                        step="0.01" min="0">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="bidIncrement" class="form-label required">Min Bid Increment (RS)</label>
+                      <input type="number" id="bidIncrement" name="bidIncrement" class="form-input" placeholder="100.00"
+                        step="0.01" min="0">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="auctionDuration" class="form-label required">Duration</label>
+                      <select id="auctionDuration" name="auctionDuration" class="form-select">
+                        <option value="1">1 Day</option>
+                        <option value="3">3 Days</option>
+                        <option value="5">5 Days</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Stock Quantity -->
+                  <div class="form-group">
+                    <label for="productStock" class="form-label required">Stock Quantity</label>
+                    <input type="number" id="productStock" name="stock" class="form-input" placeholder="1" min="0"
+                      required>
+                  </div>
+
+                  <!-- Location -->
+                  <div class="form-group">
+                    <label for="productLocation" class="form-label">Location</label>
+                    <input type="text" id="productLocation" name="location" class="form-input" placeholder="City, State"
+                      maxlength="100">
+                    <div class="form-hint">Optional: Helps buyers understand shipping costs</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Price Comparison Sidebar -->
+              <aside class="upload-sidebar">
+                <div class="comparison-card">
+                  <div class="card-header">
+                    <h2>Price Comparison</h2>
+                    <p class="card-subtitle">Real-time prices from other markets</p>
+                  </div>
+                  <div id="comparisonResults" class="comparison-results">
+                    <div class="comparison-placeholder">
+                      <p>Enter a product name to see prices from Daraz and OLX.</p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <!-- Description Card -->
+            <div class="form-card">
+              <div class="card-header">
+                <h2>Product Description</h2>
+                <p class="card-subtitle">Detailed information about your product</p>
+              </div>
+
+              <div class="form-group">
+                <label for="productDescription" class="form-label required">Description</label>
+                <textarea id="productDescription" name="description" class="form-textarea"
+                  placeholder="Provide a detailed description of your product. Include features, specifications, and any important details buyers should know."
+                  rows="6" maxlength="2000" required></textarea>
+                <div class="form-hint">
+                  <span id="descriptionCount">0</span>/2000 characters
+                </div>
+              </div>
+
+              <!-- Tags -->
+              <div class="form-group">
+                <label for="productTags" class="form-label">Tags</label>
+                <input type="text" id="productTags" name="tags" class="form-input"
+                  placeholder="Enter tags separated by commas (e.g., smartphone, android, unlocked)">
+                <div class="form-hint">Add relevant keywords to help buyers find your product</div>
+                <div id="tagPreview" class="tag-preview"></div>
+              </div>
+            </div>
+
+            <!-- Images Card -->
+            <div class="form-card">
+              <div class="card-header">
+                <h2>Product Images</h2>
+                <p class="card-subtitle">Upload high-quality images of your product</p>
+              </div>
+
+              <div class="image-upload-section">
+                <!-- Main Image Upload -->
+                <div class="form-group">
+                  <label class="form-label required">Main Product Image</label>
+                  <div class="image-upload-area" id="mainImageUpload">
+                    <div class="upload-placeholder">
+                      <svg class="upload-icon" viewBox="0 0 24 24">
+                        <path
+                          d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                      </svg>
+                      <p class="upload-text">Click to upload main image</p>
+                      <p class="upload-subtext">PNG, JPG up to 10MB</p>
+                    </div>
+                  </div>
+                  <input type="file" id="mainImage" name="mainImage" accept="image/*" class="hidden-input" required>
+                  <div class="form-hint">This will be the primary image shown in search results</div>
+                </div>
+
+                <!-- Additional Images -->
+                <div class="form-group">
+                  <label class="form-label">Additional Images</label>
+                  <div class="image-upload-area" id="additionalImagesUpload">
+                    <div class="upload-placeholder">
+                      <svg class="upload-icon" viewBox="0 0 24 24">
+                        <path
+                          d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                      </svg>
+                      <p class="upload-text">Click to upload additional images</p>
+                      <p class="upload-subtext">Up to 5 images, PNG, JPG up to 10MB each</p>
+                    </div>
+                  </div>
+                  <input type="file" id="additionalImages" name="additionalImages" accept="image/*" multiple
+                    class="hidden-input">
+                  <div class="form-hint">Show different angles and details of your product</div>
+                </div>
+
+                <!-- Image Preview -->
+                <div id="imagePreview" class="image-preview"></div>
+              </div>
+            </div>
+
+            <!-- Specifications Card -->
+            <div class="form-card">
+              <div class="card-header">
+                <h2>Product Specifications</h2>
+                <p class="card-subtitle">Technical details and specifications</p>
+              </div>
+
+              <div id="specificationsContainer" class="specifications-container">
+                <div class="spec-row">
+                  <input type="text" placeholder="Specification name" class="spec-name">
+                  <input type="text" placeholder="Value" class="spec-value">
+                  <button type="button" class="btn btn-secondary btn-small remove-spec">Remove</button>
+                </div>
+              </div>
+
+              <button type="button" id="addSpecification" class="btn btn-outline">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                  <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                </svg>
+                Add Specification
+              </button>
+            </div>
+
+            <!-- Shipping & Policies Card -->
+            <div class="form-card">
+              <div class="card-header">
+                <h2>Shipping & Policies</h2>
+                <p class="card-subtitle">Shipping information and return policies</p>
+              </div>
+
+              <div class="form-grid">
+                <!-- Shipping Method -->
+                <div class="form-group">
+                  <label for="shippingMethod" class="form-label">Shipping Method</label>
+                  <select id="shippingMethod" name="shippingMethod" class="form-select">
+                    <option value="standard">Standard Shipping</option>
+                    <option value="express">Express Shipping</option>
+                    <option value="pickup">Local Pickup Only</option>
+                    <option value="both">Both Shipping & Pickup</option>
+                  </select>
+                </div>
+
+                <!-- Shipping Cost -->
+                <div class="form-group">
+                  <label for="shippingCost" class="form-label">Shipping Cost ($)</label>
+                  <input type="number" id="shippingCost" name="shippingCost" class="form-input" placeholder="0.00"
+                    step="0.01" min="0">
+                </div>
+
+                <!-- Return Policy -->
+                <div class="form-group full-width">
+                  <label for="returnPolicy" class="form-label">Return Policy</label>
+                  <textarea id="returnPolicy" name="returnPolicy" class="form-textarea"
+                    placeholder="Describe your return policy, including time limits and conditions..."
+                    rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Terms & Conditions -->
+            <div class="form-card">
+              <div class="card-header">
+                <h2>Terms & Conditions</h2>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
+                  <span class="checkbox-custom"></span>
+                  I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Seller
+                    Agreement</a>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="confirmAccuracy" name="confirmAccuracy" required>
+                  <span class="checkbox-custom"></span>
+                  I confirm that all information provided is accurate and the product is as described
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="confirmOwnership" name="confirmOwnership" required>
+                  <span class="checkbox-custom"></span>
+                  I confirm that I own this product and have the right to sell it
+                </label>
+              </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+              <button type="button" id="saveDraft" class="btn btn-secondary">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                  <path
+                    d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                </svg>
+                Save as Draft
+              </button>
+
+              <button type="submit" id="submitProduct" class="btn btn-primary">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                  <path
+                    d="M2,3H22C23.05,3 24,3.95 24,5V19C24,20.05 23.05,21 22,21H2C0.95,21 0,20.05 0,19V5C0,3.95 0.95,3 2,3M14,6V7H22V6H14M14,8V9H21.5L22,9V8H14M14,10V11H21V10H14M8,13.91C6,13.91 2,15 2,17V18H14V17C14,15 10,13.91 8,13.91M8,6A3,3 0 0,0 5,9A3,3 0 0,0 8,12A3,3 0 0,0 11,9A3,3 0 0,0 8,6Z" />
+                </svg>
+                List Product
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Uploading product...</p>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Product Listed Successfully!</h3>
+        <button class="modal-close" onclick="closeSuccessModal()">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
+          </svg>
+        </div>
+        <p>Your product has been successfully listed and is now live on SafeTradeHub!</p>
+        <div class="success-actions">
+          <a href="product-management.html" class="btn btn-primary">Manage Products</a>
+          <a href="dashboard.html" class="btn btn-secondary">Go to Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unsafe Items Modal -->
+  <div id="unsafeItemsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #ef4444;">Unsafe Items Detected</h3>
+        <button class="modal-close" onclick="closeUnsafeModal()">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="success-icon" style="background: #fee2e2;">
+          <svg viewBox="0 0 24 24" style="fill: #ef4444;">
+            <path
+              d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+          </svg>
+        </div>
+        <p>The following items were detected as unsafe and cannot be listed:</p>
+        <ul id="unsafeItemsList"
+          style="text-align: left; margin: 16px 0; padding-left: 20px; color: #ef4444; font-weight: 500;">
+          <!-- Items will be injected here -->
+        </ul>
+        <p style="font-size: 0.875rem; color: #6b7280;">Please remove these images to proceed with your listing.</p>
+        <div class="success-actions">
+          <button onclick="closeUnsafeModal()" class="btn btn-primary"
+            style="background: #ef4444; border-color: #ef4444;">I Understand</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/js/product-upload.js"></script>
+</body>
+
+</html>

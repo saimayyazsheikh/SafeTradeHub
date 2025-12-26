@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Status – Safe Trade Hub</title>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <style>
+    /* Custom styles for order status page */
+    .status-page-container {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .status-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .status-header h1 {
+      font-size: 2rem;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .status-header p {
+      color: var(--text-secondary);
+    }
+
+    .order-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+
+    .order-header {
+      background: #f8fafc;
+      padding: 20px 30px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .order-id {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+    }
+
+    .order-date {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .status-timeline {
+      padding: 40px 30px;
+      position: relative;
+    }
+
+    /* Timeline Styles */
+    .timeline-steps {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .timeline-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #e2e8f0;
+      z-index: 0;
+      transform: translateY(-50%);
+    }
+
+    .timeline-step {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      flex: 1;
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      background: white;
+      border: 4px solid #e2e8f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      color: #94a3b8;
+      transition: all 0.3s ease;
+    }
+
+    .timeline-step.active .step-icon {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .timeline-step.completed .step-icon {
+      border-color: var(--success-color);
+      background: var(--success-color);
+      color: white;
+    }
+
+    .step-label {
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .timeline-step.active .step-label,
+    .timeline-step.completed .step-label {
+      color: var(--text-primary);
+    }
+
+    .step-date {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    /* Progress Bar for Timeline Background */
+    .progress-bar-bg {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      height: 4px;
+      background: var(--success-color);
+      z-index: 0;
+      transform: translateY(-50%);
+      transition: width 0.5s ease;
+      width: 0%;
+      /* Dynamic width */
+    }
+
+    .order-details-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 30px;
+      padding: 30px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    @media (max-width: 768px) {
+      .order-details-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-steps {
+        flex-direction: column;
+        gap: 20px;
+        padding-left: 20px;
+      }
+
+      .timeline-steps::before {
+        width: 4px;
+        height: 100%;
+        left: 20px;
+        top: 0;
+        transform: none;
+      }
+
+      .progress-bar-bg {
+        width: 4px;
+        height: 0%;
+        /* Dynamic height */
+        left: 20px;
+        top: 0;
+        transform: none;
+        transition: height 0.5s ease;
+      }
+
+      .timeline-step {
+        display: flex;
+        align-items: flex-start;
+        text-align: left;
+        gap: 15px;
+      }
+
+      .step-icon {
+        margin: 0;
+      }
+    }
+
+    .detail-section h3 {
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      color: var(--text-primary);
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 10px;
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .order-item {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .item-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #f1f5f9;
+    }
+
+    .item-info {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .item-meta {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .item-price {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .summary-row.total {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .escrow-status-card {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .escrow-status-card h4 {
+      color: #166534;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .escrow-details {
+      font-size: 0.9rem;
+      color: #15803d;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+
+    .loading-container {
+      text-align: center;
+      padding: 60px;
+    }
+
+    .error-container {
+      text-align: center;
+      padding: 40px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      color: #991b1b;
+    }
+  </style>
+
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script src="/static/js/firebase-config.js"></script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+</head>
+
+<body>
+  <!-- Header will be injected by header-manager.js -->
+  <div id="header-placeholder"></div>
+
+  <div class="status-page-container">
+    <div class="status-header">
+      <h1>Order Status</h1>
+      <p>Track your order and escrow protection status</p>
+    </div>
+
+    <div id="orderContent">
+      <div class="loading-container">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--primary-color); margin-bottom: 20px;"></i>
+        <p>Loading order details...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let currentOrder = null;
+    let currentEscrow = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // Initialize header
+      if (window.HeaderManager) {
+        window.HeaderManager.init();
+      }
+
+      initializeOrderStatus();
+    });
+
+    async function initializeOrderStatus() {
+      try {
+        // Wait for Auth
+        await new Promise(resolve => {
+          const unsubscribe = firebase.auth().onAuthStateChanged(user => {
+            unsubscribe();
+            resolve(user);
+          });
+        });
+
+        const user = firebase.auth().currentUser;
+        if (!user) {
+          window.location.href = 'auth.html?redirect=' + encodeURIComponent(window.location.href);
+          return;
+        }
+
+        // Get order ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+
+        if (!orderId) {
+          showError('Order ID not provided');
+          return;
+        }
+
+        loadOrderData(orderId);
+
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showError('Failed to initialize page');
+      }
+    }
+
+    function loadOrderData(orderId) {
+      const db = firebase.database();
+
+      const timeoutCtx = setTimeout(() => {
+        showError('Request timed out. Please check your connection.');
+      }, 10000);
+
+      // Listen for order updates
+      db.ref(`orders/${orderId}`).on('value', (snapshot) => {
+        clearTimeout(timeoutCtx);
+        const order = snapshot.val();
+
+        if (!order) {
+          showError('Order not found');
+          return;
+        }
+
+        currentOrder = order;
+
+        // Load escrow data if exists
+        if (order.escrowId) {
+          db.ref(`escrows/${order.escrowId}`).once('value').then(escrowSnap => {
+            currentEscrow = escrowSnap.val();
+            renderOrder(order, currentEscrow);
+          }).catch(e => renderOrder(order, null));
+        } else {
+          renderOrder(order, null);
+        }
+      }, (error) => {
+        clearTimeout(timeoutCtx);
+        console.error('Error loading order:', error);
+        showError('Permission denied or error loading data: ' + (error.message || error.code));
+      });
+    }
+
+    function renderOrder(order, escrow) {
+      const container = document.getElementById('orderContent');
+
+      const timeline = getTimeline(order.status);
+      const progressPercentage = getProgressPercentage(order.status);
+
+      container.innerHTML = `
+        <div class="order-card">
+          <div class="order-header">
+            <div>
+              <div class="order-id">Order #${order.id}</div>
+              <div class="order-date">Placed on ${formatDate(order.createdAt)}</div>
+            </div>
+            <div class="badge badge-${getStatusBadgeClass(order.status)}">
+              ${formatStatus(order.status)}
+            </div>
+          </div>
+
+          <div class="status-timeline">
+            <div class="timeline-steps">
+              <div class="progress-bar-bg" style="width: ${progressPercentage}%"></div>
+              ${timeline.map((step, index) => `
+                <div class="timeline-step ${step.state}">
+                  <div class="step-icon">
+                    <i class="${step.icon}"></i>
+                  </div>
+                  <div class="step-label">${step.label}</div>
+                  <div class="step-date">${step.date || ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="order-details-grid">
+            <div class="detail-section">
+              <h3>Items Ordered</h3>
+              <div class="item-list">
+                ${(order.items || []).map(item => `
+                  <div class="order-item">
+                    <img src="${item.img || '/static/images/placeholder.jpg'}" alt="${item.title}" class="item-image" onerror="this.src='/static/images/placeholder.jpg'">
+                    <div class="item-info">
+                      <div class="item-name">${item.title || item.name}</div>
+                      <div class="item-meta">Qty: ${item.qty}</div>
+                    </div>
+                    <div class="item-price">${formatCurrency(item.price * item.qty)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <h3>Order Summary</h3>
+              
+              <div class="escrow-status-card">
+                <h4><i class="fas fa-shield-alt"></i> Escrow Protection</h4>
+                <div class="escrow-details">
+                  Funds are currently <strong>${escrow ? escrow.status.toUpperCase() : 'SECURED'}</strong> in SafeTradeHub Escrow.
+                  <br>
+                  <small>Location: ${order.escrowLocation || 'Central Hub'}</small>
+                </div>
+              </div>
+
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span>${formatCurrency(order.subtotal)}</span>
+              </div>
+              <div class="summary-row">
+                <span>Shipping</span>
+                <span>${formatCurrency(order.shippingTotal || 0)}</span>
+              </div>
+              <div class="summary-row">
+                <span>Escrow Fee (2%)</span>
+                <span>${formatCurrency(order.escrowFee)}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Total</span>
+                <span>${formatCurrency(order.total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <a href="dashboard.html" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+          </a>
+          <a href="wallet.html" class="btn btn-primary">
+            <i class="fas fa-wallet"></i> View Wallet
+          </a>
+          ${order.status === 'shipped_to_escrow' ? `
+            <button onclick="confirmReceipt()" class="btn btn-success">
+              <i class="fas fa-check-circle"></i> Confirm Receipt
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function getTimeline(currentStatus) {
+      const steps = [
+        { id: 'pending', label: 'Order Placed', icon: 'fas fa-shopping-cart' },
+        { id: 'confirmed', label: 'Payment Secured', icon: 'fas fa-shield-alt' },
+        { id: 'shipped_to_escrow', label: 'Shipped to Hub', icon: 'fas fa-truck' },
+        { id: 'at_escrow', label: 'Verified at Hub', icon: 'fas fa-search' },
+        { id: 'completed', label: 'Delivered', icon: 'fas fa-check' }
+      ];
+
+      const statusOrder = ['pending', 'confirmed', 'shipped_to_escrow', 'at_escrow', 'completed'];
+      const currentIndex = statusOrder.indexOf(currentStatus);
+
+      return steps.map((step, index) => {
+        let state = '';
+        if (index < currentIndex) state = 'completed';
+        else if (index === currentIndex) state = 'active';
+
+        return { ...step, state };
+      });
+    }
+
+    function getProgressPercentage(status) {
+      const statusOrder = ['pending', 'confirmed', 'shipped_to_escrow', 'at_escrow', 'completed'];
+      const index = statusOrder.indexOf(status);
+      if (index === -1) return 0;
+      return (index / (statusOrder.length - 1)) * 100;
+    }
+
+    function getStatusBadgeClass(status) {
+      const map = {
+        'pending': 'warning',
+        'confirmed': 'info',
+        'completed': 'success',
+        'cancelled': 'danger'
+      };
+      return map[status] || 'secondary';
+    }
+
+    function formatStatus(status) {
+      return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(amount).replace('PKR', 'RS');
+    }
+
+    function formatDate(timestamp) {
+      if (!timestamp) return '';
+      return new Date(timestamp).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function showError(message) {
+      const container = document.getElementById('orderContent');
+      container.innerHTML = `
+        <div class="error-container">
+          <i class="fas fa-exclamation-circle fa-3x" style="margin-bottom: 15px;"></i>
+          <h3>Oops! Something went wrong</h3>
+          <p>${message}</p>
+          <a href="dashboard.html" class="btn btn-primary" style="margin-top: 20px; display: inline-block;">
+            Go to Dashboard
+          </a>
+        </div>
+      `;
+    }
+  </script>
+</body>
+
+</html>
