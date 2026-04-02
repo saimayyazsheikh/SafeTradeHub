@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function initializeProductManagement() {
   try {
-    console.log('🛍️ Product Management: Starting initialization...');
+    
 
     // Wait for AuthManager
     if (window.AuthManager) {
@@ -31,7 +31,7 @@ async function initializeProductManagement() {
         return;
       }
 
-      console.log('✅ Product Management: User authenticated:', currentUser.name);
+      
     }
 
     // Temporarily allow all authenticated users for testing
@@ -46,7 +46,7 @@ async function initializeProductManagement() {
     await loadProducts();
     updateStatistics();
 
-    console.log('✅ Product Management: Initialization complete');
+    
 
   } catch (error) {
     console.error('❌ Product Management: Initialization error:', error);
@@ -88,7 +88,7 @@ function setupEventListeners() {
 }
 
 function setupModalEventListeners() {
-  console.log('🔧 Setting up modal event listeners');
+  
 
   // Product actions modal
   const editProductBtn = document.getElementById('editProduct');
@@ -109,42 +109,42 @@ function setupModalEventListeners() {
 
   if (editProductBtn) {
     editProductBtn.addEventListener('click', () => {
-      console.log('✏️ Edit Product clicked');
+      
       editProduct();
     });
   }
 
   if (markAsSoldBtn) {
     markAsSoldBtn.addEventListener('click', () => {
-      console.log('💰 Mark as Sold clicked');
+      
       markAsSold();
     });
   }
 
   if (toggleStatusBtn) {
     toggleStatusBtn.addEventListener('click', () => {
-      console.log('🔄 Toggle Status clicked');
+      
       toggleProductStatus();
     });
   }
 
   if (viewAnalyticsBtn) {
     viewAnalyticsBtn.addEventListener('click', () => {
-      console.log('📊 View Analytics clicked');
+      
       viewProductAnalytics();
     });
   }
 
   if (duplicateProductBtn) {
     duplicateProductBtn.addEventListener('click', () => {
-      console.log('📋 Duplicate Product clicked');
+      
       duplicateProduct();
     });
   }
 
   if (deleteProductBtn) {
     deleteProductBtn.addEventListener('click', () => {
-      console.log('🗑️ Delete Product clicked');
+      
       deleteProduct();
     });
   }
@@ -155,7 +155,7 @@ function setupModalEventListeners() {
     confirmActionBtn.addEventListener('click', executeConfirmedAction);
   }
 
-  console.log('✅ Modal event listeners setup complete');
+  
 }
 
 // Data Loading
@@ -169,7 +169,7 @@ async function loadProducts() {
       return;
     }
 
-    console.log('🔄 Loading products for seller:', currentUser.id);
+    
 
     // Fetch products from Firebase RTDB
     const productsRef = firebase.database().ref('products');
@@ -188,7 +188,7 @@ async function loadProducts() {
       });
     }
 
-    console.log(`✅ Found ${productsData.length} products for seller`);
+    
 
     // Sort by createdAt desc (newest first)
     productsData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -256,9 +256,9 @@ function renderProductCard(product) {
   const statusClass = getStatusClass(product.status);
   const statusText = getStatusText(product.status);
 
-  console.log('🖼️ Rendering product card for:', product.name);
-  console.log('   Product images:', product.images);
-  console.log('   Images length:', product.images ? product.images.length : 'undefined');
+  
+  
+  
 
   // Get main image with better fallback
   let mainImage = '';
@@ -266,7 +266,7 @@ function renderProductCard(product) {
     // Find main image or use first image
     const mainImg = product.images.find(img => img.isMain) || product.images[0];
     mainImage = mainImg.url;
-    console.log('   Using image:', mainImg.url, 'isMain:', mainImg.isMain);
+    
   } else {
     // Create a simple placeholder
     mainImage = `data:image/svg+xml;base64,${btoa(`
@@ -277,10 +277,10 @@ function renderProductCard(product) {
         <text x="200" y="140" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="12">400x300</text>
       </svg>
     `)}`;
-    console.log('   Using placeholder image');
+    
   }
 
-  console.log('   Final image URL:', mainImage);
+  
 
   return `
     <div class="product-card" data-product-id="${product.id}">
@@ -437,7 +437,7 @@ function updateStatistics() {
 function handleSearch(e) {
   const query = e.target.value.toLowerCase().trim();
 
-  console.log('🔍 Searching for:', query);
+  
 
   if (!query) {
     filteredProducts = [...products];
@@ -449,7 +449,7 @@ function handleSearch(e) {
     );
   }
 
-  console.log('📋 Filtered products:', filteredProducts.length);
+  
   currentPage = 1;
   renderProducts();
 }
@@ -537,7 +537,7 @@ function switchView(view) {
 
 // Product Actions
 function openProductActions(productId) {
-  console.log('🎯 Opening product actions for:', productId);
+  
 
   currentProduct = products.find(p => p.id === productId);
   if (!currentProduct) {
@@ -545,7 +545,7 @@ function openProductActions(productId) {
     return;
   }
 
-  console.log('📦 Current product:', currentProduct);
+  
 
   const modal = document.getElementById('productActionsModal');
   const productName = document.getElementById('modalProductName');
@@ -553,18 +553,18 @@ function openProductActions(productId) {
 
   if (productName) {
     productName.textContent = currentProduct.name;
-    console.log('📝 Modal title set to:', currentProduct.name);
+    
   }
 
   if (toggleStatusText) {
     const statusText = currentProduct.isActive ? 'Deactivate' : 'Activate';
     toggleStatusText.textContent = statusText;
-    console.log('🔄 Toggle status text set to:', statusText);
+    
   }
 
   if (modal) {
     modal.classList.add('show');
-    console.log('✅ Modal opened successfully');
+    
   } else {
     console.error('❌ Modal element not found');
   }
@@ -582,7 +582,7 @@ function editProduct(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('✏️ Editing product:', product.name);
+  
 
   // Redirect to edit page with product ID
   window.location.href = `product-edit.html?id=${product.id}`;
@@ -592,7 +592,7 @@ function markAsSold(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('💰 Marking as sold:', product.name);
+  
 
   showConfirmationModal(
     'Mark as Sold',
@@ -605,7 +605,7 @@ function toggleProductStatus(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('🔄 Toggling product status for:', product.name);
+  
 
   const newStatus = product.isActive ? 'inactive' : 'active';
   const action = product.isActive ? 'deactivate' : 'activate';
@@ -621,7 +621,7 @@ function viewProductAnalytics(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('📊 Viewing analytics for:', product.name);
+  
 
   // Redirect to analytics page
   window.location.href = `product-analytics.html?id=${product.id}`;
@@ -631,7 +631,7 @@ function duplicateProduct(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('📋 Duplicating product:', product.name);
+  
 
   showConfirmationModal(
     'Duplicate Product',
@@ -644,7 +644,7 @@ function deleteProduct(productId = null) {
   const product = productId ? products.find(p => p.id === productId) : currentProduct;
   if (!product) return;
 
-  console.log('🗑️ Deleting product:', product.name);
+  
 
   showConfirmationModal(
     'Delete Product',
@@ -659,7 +659,7 @@ async function updateProductStatus(productId, status) {
   try {
     showLoading(true, 'Updating product status...');
 
-    console.log('🔄 Updating product status:', productId, 'to', status);
+    
 
     // TEMPORARY: Update localStorage for testing
     const testProducts = JSON.parse(localStorage.getItem('testProducts') || '[]');
@@ -681,7 +681,7 @@ async function updateProductStatus(productId, status) {
       showToast('Product status updated successfully', 'success');
       closeProductActionsModal();
 
-      console.log('✅ Product status updated in localStorage');
+      
     } else {
       throw new Error('Product not found');
     }
@@ -730,7 +730,7 @@ async function createProductCopy(productId) {
   try {
     showLoading(true, 'Creating product copy...');
 
-    console.log('📋 Creating copy of product:', productId);
+    
 
     // TEMPORARY: Duplicate in localStorage for testing
     const testProducts = JSON.parse(localStorage.getItem('testProducts') || '[]');
@@ -767,7 +767,7 @@ async function createProductCopy(productId) {
     showToast('Product copied successfully', 'success');
     closeProductActionsModal();
 
-    console.log('✅ Product duplicated in localStorage:', duplicateProduct.id);
+    
 
     /* ORIGINAL API CODE - COMMENTED OUT FOR TESTING
     const originalProduct = products.find(p => p.id === productId);
@@ -821,7 +821,7 @@ async function performDeleteProduct(productId) {
   try {
     showLoading(true, 'Deleting product...');
 
-    console.log('🗑️ Deleting product:', productId);
+    
 
     // TEMPORARY: Delete from localStorage for testing
     const testProducts = JSON.parse(localStorage.getItem('testProducts') || '[]');
@@ -840,7 +840,7 @@ async function performDeleteProduct(productId) {
       showToast('Product deleted successfully', 'success');
       closeProductActionsModal();
 
-      console.log('✅ Product deleted from localStorage');
+      
     } else {
       throw new Error('Product not found');
     }
@@ -883,7 +883,7 @@ async function performDeleteProduct(productId) {
 let pendingAction = null;
 
 function showConfirmationModal(title, message, action, type = 'warning') {
-  console.log('⚠️ Showing confirmation modal:', title);
+  
 
   const modal = document.getElementById('confirmationModal');
   const titleEl = document.getElementById('confirmationTitle');
@@ -907,7 +907,7 @@ function showConfirmationModal(title, message, action, type = 'warning') {
 
   if (modal) {
     modal.classList.add('show');
-    console.log('✅ Confirmation modal shown');
+    
   }
 }
 
@@ -920,7 +920,7 @@ function closeConfirmationModal() {
 }
 
 function executeConfirmedAction() {
-  console.log('✅ Confirmation action executed');
+  
 
   if (pendingAction) {
     pendingAction();

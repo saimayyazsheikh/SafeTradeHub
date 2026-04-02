@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize escrow management
 function initializeEscrowManagement() {
-  console.log('Initializing Escrow Management System');
+  
   
   // Update cart count
   updateCartCount();
@@ -102,7 +102,7 @@ function switchTab(tabId) {
 function loadEscrowData() {
   try {
     escrowData = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
-    console.log('Loaded escrow data:', escrowData.length, 'transactions');
+    
     renderEscrowTable();
   } catch (error) {
     console.error('Error loading escrow data:', error);
@@ -114,7 +114,7 @@ function loadEscrowData() {
 function loadDisputeData() {
   try {
     disputeData = JSON.parse(localStorage.getItem(DISPUTES_KEY) || '[]');
-    console.log('Loaded dispute data:', disputeData.length, 'disputes');
+    
     renderDisputesGrid();
   } catch (error) {
     console.error('Error loading dispute data:', error);

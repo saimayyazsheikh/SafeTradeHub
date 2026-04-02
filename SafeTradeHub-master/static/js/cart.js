@@ -12,7 +12,7 @@ function updateCartCount() { const b = document.getElementById('cartCount'); if 
 
 function addToCart(product, qty = 1) {
   // Enhanced authentication check with logging
-  console.log('🛍️ Cart: Attempting to add product to cart:', product.title);
+  
 
   if (!isUserAuthenticated()) {
     console.warn('❌ Cart: User not authenticated, showing login prompt');
@@ -20,7 +20,7 @@ function addToCart(product, qty = 1) {
     return false;
   }
 
-  console.log('✅ Cart: User authenticated, adding to cart');
+  
   const cart = getCart();
   const i = cart.findIndex(x => x.id === product.id);
   if (i > -1) cart[i].qty += qty; else cart.push({ ...product, qty });
@@ -32,7 +32,7 @@ function addToCart(product, qty = 1) {
 
 /* Authentication helper functions - Ultimate robust authentication check */
 function isUserAuthenticated() {
-  console.log('🔎 Cart: Starting comprehensive authentication check...');
+  
 
   try {
     // Method 1: Check localStorage directly first (most reliable)
@@ -43,7 +43,7 @@ function isUserAuthenticated() {
       try {
         const parsedUser = JSON.parse(userData);
         if (parsedUser && (parsedUser.id || parsedUser.uid || parsedUser.email)) {
-          console.log('✅ Cart: User authenticated via localStorage:', parsedUser.name || parsedUser.email);
+          
           return true;
         }
       } catch (parseError) {
@@ -56,7 +56,7 @@ function isUserAuthenticated() {
       try {
         const authResult = window.AuthManager.isAuthenticated();
         const currentUser = window.AuthManager.getCurrentUser();
-        console.log('🔐 Cart: AuthManager check - authenticated:', authResult, 'user:', currentUser);
+        
         if (authResult && currentUser) {
           return true;
         }
@@ -70,7 +70,7 @@ function isUserAuthenticated() {
       try {
         const firebaseUser = firebase.auth().currentUser;
         if (firebaseUser) {
-          console.log('✅ Cart: User authenticated via Firebase:', firebaseUser.email);
+          
           return true;
         }
       } catch (firebaseError) {
@@ -78,7 +78,7 @@ function isUserAuthenticated() {
       }
     }
 
-    console.log('❌ Cart: User not authenticated by any method');
+    
     return false;
 
   } catch (error) {
@@ -103,13 +103,13 @@ document.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-add-to-cart]');
   if (!btn) return;
 
-  console.log('🔘 Cart: Add to cart button clicked');
+  
 
   // WAIT for authentication to be properly initialized
   if (window.AuthManager) {
     try {
       await window.AuthManager.waitForInit();
-      console.log('✅ Cart: AuthManager initialization confirmed');
+      
     } catch (error) {
       console.warn('⚠️ Cart: AuthManager wait error:', error);
     }
@@ -126,7 +126,7 @@ document.addEventListener('click', async (e) => {
       await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms
       attempts++;
     } else {
-      console.log('✅ Cart: Authentication confirmed on attempt', attempts + 1);
+      
       break;
     }
   }
@@ -138,7 +138,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  console.log('✅ Cart: Authentication passed, processing add to cart');
+  
 
   const product = {
     id: btn.dataset.id,
@@ -150,7 +150,7 @@ document.addEventListener('click', async (e) => {
     sellerName: btn.dataset.sellerName || 'SafeTradeHub'
   };
 
-  console.log('📦 Cart: Product data:', product);
+  
   addToCart(product, 1);
 });
 
@@ -159,7 +159,7 @@ updateCartCount();
 
 /* Global cart clearing function for logout scenarios */
 window.clearCartOnLogout = function () {
-  console.log('🛒 Cart: Clearing cart due to logout');
+  
   localStorage.removeItem(CART_KEY);
   updateCartCount();
 
@@ -168,5 +168,5 @@ window.clearCartOnLogout = function () {
     renderCart();
   }
 
-  console.log('✅ Cart: Cart cleared successfully');
+  
 };

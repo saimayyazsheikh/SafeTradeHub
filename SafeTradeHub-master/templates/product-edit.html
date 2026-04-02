@@ -5,38 +5,33 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Edit Product – Safe Trade Hub</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
   <link rel="stylesheet" href="/static/css/style.css" />
-  <link rel="stylesheet" href="/static/css/product-upload.css" />
+  <link rel="stylesheet" href="/static/css/product-edit.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
   <!-- Firebase Configuration -->
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
-      authDomain: "safetradehub-def1d.firebaseapp.com",
-      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
-      projectId: "safetradehub-def1d",
-      storageBucket: "safetradehub-def1d.firebasestorage.app",
-      messagingSenderId: "633146502278",
-      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
-      measurementId: "G-1857Q7JPKZ"
-    };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-  </script>
+  <script src="/static/js/firebase-config.js"></script>
 
   <!-- Load authentication system -->
   <script src="/static/js/auth-manager.js"></script>
   <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
 </head>
 
-<body>
+<body class="product-edit-page">
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="logo">SafeTradeHub</a>
@@ -47,253 +42,349 @@
   </header>
 
   <main class="main-content">
-    <!-- Breadcrumb -->
-    <section class="breadcrumb-section">
+    <!-- Header Section: Vibrant Gradient -->
+    <section class="edit-header-section">
       <div class="container">
-        <nav class="breadcrumb">
-          <a href="index.html">Home</a>
-          <span class="breadcrumb-separator">›</span>
+        <h1>Edit Product</h1>
+        <p>Refine your listing details for maximum visibility and sales.</p>
+        
+        <div class="breadcrumb-glass">
           <a href="dashboard.html">Dashboard</a>
-          <span class="breadcrumb-separator">›</span>
+          <span>/</span>
           <a href="product-management.html">Product Management</a>
-          <span class="breadcrumb-separator">›</span>
-          <span class="breadcrumb-current">Edit Product</span>
-        </nav>
-      </div>
-    </section>
-
-    <!-- Edit Form Section -->
-    <section class="upload-section">
-      <div class="container">
-        <div class="upload-header">
-          <h1>Edit Product</h1>
-          <p class="upload-subtitle">Update your product information</p>
+          <span>/</span>
+          <span style="opacity: 0.6;">Edit product</span>
         </div>
+      </div>
 
-        <form id="productEditForm" class="upload-form" enctype="multipart/form-data">
-          <!-- Basic Information Card -->
-          <div class="form-card">
-            <div class="card-header">
-              <h2>Basic Information</h2>
-              <p class="card-subtitle">Essential details about your product</p>
-            </div>
-
-            <div class="form-grid">
-              <!-- Product Name -->
-              <div class="form-group full-width">
-                <label for="productName" class="form-label required">Product Name</label>
-                <input type="text" id="productName" name="name" class="form-input"
-                  placeholder="Enter a clear, descriptive product name" maxlength="100" required>
-                <div class="form-hint">Be specific and descriptive. This helps buyers find your product.</div>
-              </div>
-
-              <!-- Category -->
-              <div class="form-group">
-                <label for="productCategory" class="form-label required">Category</label>
-                <select id="productCategory" name="category" class="form-select" required>
-                  <option value="">Select a category</option>
-                  <option value="mobile">Mobile Phones & Accessories</option>
-                  <option value="camera">Cameras & Photography</option>
-                  <option value="computers">Computers & Laptops</option>
-                  <option value="fashion">Fashion & Clothing</option>
-                  <option value="beauty">Beauty & Cosmetics</option>
-                  <option value="books">Books & Education</option>
-                  <option value="furniture">Furniture & Home Decor</option>
-                  <option value="gym">Gym & Fitness Equipment</option>
-                  <option value="home">Home & Garden</option>
-                  <option value="services">Professional Services</option>
-                  <option value="sports">Sports & Outdoor Equipment</option>
-                  <option value="pets">Pet Care Products</option>
-                </select>
-              </div>
-
-              <!-- Condition -->
-              <div class="form-group">
-                <label for="productCondition" class="form-label required">Condition</label>
-                <select id="productCondition" name="condition" class="form-select" required>
-                  <option value="">Select condition</option>
-                  <option value="new">New</option>
-                  <option value="used">Used - Good</option>
-                  <option value="refurbished">Refurbished</option>
-                </select>
-              </div>
-
-              <!-- Price -->
-              <div class="form-group">
-                <label for="productPrice" class="form-label required">Price ($)</label>
-                <input type="number" id="productPrice" name="price" class="form-input" placeholder="0.00" step="0.01"
-                  min="0" required>
-              </div>
-
-              <!-- Stock Quantity -->
-              <div class="form-group">
-                <label for="productStock" class="form-label required">Stock Quantity</label>
-                <input type="number" id="productStock" name="stock" class="form-input" placeholder="1" min="0" required>
-              </div>
-
-              <!-- Location -->
-              <div class="form-group">
-                <label for="productLocation" class="form-label">Location</label>
-                <input type="text" id="productLocation" name="location" class="form-input" placeholder="City, State"
-                  maxlength="100">
-                <div class="form-hint">Optional: Helps buyers understand shipping costs</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Description Card -->
-          <div class="form-card">
-            <div class="card-header">
-              <h2>Product Description</h2>
-              <p class="card-subtitle">Detailed information about your product</p>
-            </div>
-
-            <div class="form-group">
-              <label for="productDescription" class="form-label required">Description</label>
-              <textarea id="productDescription" name="description" class="form-textarea"
-                placeholder="Provide a detailed description of your product. Include features, specifications, and any important details buyers should know."
-                rows="6" maxlength="2000" required></textarea>
-              <div class="form-hint">
-                <span id="descriptionCount">0</span>/2000 characters
-              </div>
-            </div>
-
-            <!-- Tags -->
-            <div class="form-group">
-              <label for="productTags" class="form-label">Tags</label>
-              <input type="text" id="productTags" name="tags" class="form-input"
-                placeholder="Enter tags separated by commas (e.g., smartphone, android, unlocked)">
-              <div class="form-hint">Add relevant keywords to help buyers find your product</div>
-              <div id="tagPreview" class="tag-preview"></div>
-            </div>
-          </div>
-
-          <!-- Current Images Card -->
-          <div class="form-card">
-            <div class="card-header">
-              <h2>Current Images</h2>
-              <p class="card-subtitle">Manage your product images</p>
-            </div>
-
-            <div id="currentImages" class="current-images">
-              <!-- Current images will be loaded here -->
-            </div>
-          </div>
-
-          <!-- Specifications Card -->
-          <div class="form-card">
-            <div class="card-header">
-              <h2>Product Specifications</h2>
-              <p class="card-subtitle">Technical details and specifications</p>
-            </div>
-
-            <div id="specificationsContainer" class="specifications-container">
-              <!-- Specifications will be loaded here -->
-            </div>
-
-            <button type="button" id="addSpecification" class="btn btn-outline">
-              <svg class="btn-icon" viewBox="0 0 24 24">
-                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-              </svg>
-              Add Specification
-            </button>
-          </div>
-
-          <!-- Shipping & Policies Card -->
-          <div class="form-card">
-            <div class="card-header">
-              <h2>Shipping & Policies</h2>
-              <p class="card-subtitle">Shipping information and return policies</p>
-            </div>
-
-            <div class="form-grid">
-              <!-- Shipping Method -->
-              <div class="form-group">
-                <label for="shippingMethod" class="form-label">Shipping Method</label>
-                <select id="shippingMethod" name="shippingMethod" class="form-select">
-                  <option value="standard">Standard Shipping</option>
-                  <option value="express">Express Shipping</option>
-                  <option value="pickup">Local Pickup Only</option>
-                  <option value="both">Both Shipping & Pickup</option>
-                </select>
-              </div>
-
-              <!-- Shipping Cost -->
-              <div class="form-group">
-                <label for="shippingCost" class="form-label">Shipping Cost ($)</label>
-                <input type="number" id="shippingCost" name="shippingCost" class="form-input" placeholder="0.00"
-                  step="0.01" min="0">
-              </div>
-
-              <!-- Return Policy -->
-              <div class="form-group full-width">
-                <label for="returnPolicy" class="form-label">Return Policy</label>
-                <textarea id="returnPolicy" name="returnPolicy" class="form-textarea"
-                  placeholder="Describe your return policy, including time limits and conditions..."
-                  rows="3"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- Form Actions -->
-          <div class="form-actions">
-            <button type="button" id="cancelEdit" class="btn btn-secondary">
-              <svg class="btn-icon" viewBox="0 0 24 24">
-                <path
-                  d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-              </svg>
-              Cancel
-            </button>
-
-            <button type="submit" id="updateProduct" class="btn btn-primary">
-              <svg class="btn-icon" viewBox="0 0 24 24">
-                <path
-                  d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
-              </svg>
-              Update Product
-            </button>
-          </div>
-        </form>
+      <!-- Wave Divider -->
+      <div class="wave-divider">
+        <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path d="M1200 120L0 120 0 0C161.45 27.2 329.13 42 491.4 42 679.5 42 863 15.65 1060.5 15.65 1106.6 15.65 1153.21 17.5 1200 21.19V120z" class="wave-fill"></path>
+        </svg>
       </div>
     </section>
+
+    <!-- Main Layout -->
+    <div class="edit-layout-container">
+      
+      <!-- Sticky Navigation Rail -->
+      <aside class="edit-nav-rail">
+        <button class="nav-item active" data-section="general">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          General Info
+        </button>
+        <button class="nav-item" data-section="details">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Description & Tags
+        </button>
+        <button class="nav-item" data-section="media">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Images
+        </button>
+        <button class="nav-item" data-section="specs">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Specifications
+        </button>
+        <button class="nav-item" data-section="shipping">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1zM13 16l5 2V8l-5 2M6 21v-2M10 21v-2" />
+          </svg>
+          Shipping & Policy
+        </button>
+      </aside>
+
+      <!-- Content Area -->
+      <main class="edit-content-pane">
+        <form id="productEditForm">
+          
+          <!-- Section: General -->
+          <section id="section-general" class="form-section active">
+            <div class="general-info-layout">
+              <!-- Main Form Card -->
+              <div class="axiom-card">
+                <h2 class="card-title">General Information</h2>
+                <p class="card-desc">The primary identifying details of your product.</p>
+                
+                <div class="axiom-group">
+                  <label for="productName" class="axiom-label">Product Title</label>
+                  <input type="text" id="productName" name="name" class="axiom-input" placeholder="e.g., iPhone 15 Pro Max - Silver - 256GB" required>
+                  <div class="axiom-hint">Include brand, model, and key variants.</div>
+                </div>
+
+                <div class="input-grid">
+                  <div class="axiom-group">
+                    <label for="productCategory" class="axiom-label">Category</label>
+                    <select id="productCategory" name="category" class="axiom-select" required>
+                      <option value="">Choose category</option>
+                      <option value="mobile">Mobiles & Tablets</option>
+                      <option value="camera">Photography</option>
+                      <option value="computers">Laptops & PCs</option>
+                      <option value="fashion">Fashion</option>
+                      <option value="beauty">Beauty & Care</option>
+                      <option value="books">Education</option>
+                      <option value="furniture">Furniture</option>
+                      <option value="gym">Fitness</option>
+                      <option value="home">Home Appliances</option>
+                      <option value="services">Services</option>
+                      <option value="sports">Sports</option>
+                      <option value="pets">Pet Supplies</option>
+                    </select>
+                  </div>
+                  <div class="axiom-group">
+                    <label for="productCondition" class="axiom-label">Item Condition</label>
+                    <select id="productCondition" name="condition" class="axiom-select" required>
+                      <option value="new">Brand New</option>
+                      <option value="used">Pre-owned - Good</option>
+                      <option value="refurbished">Certified Refurbished</option>
+                    </select>
+                  </div>
+                  <div class="axiom-group" id="fixedPriceGroup">
+                    <label for="productPrice" class="axiom-label">Fixed Listing Price (RS)</label>
+                    <div style="position: relative;">
+                      <input type="number" id="productPrice" name="price" class="axiom-input" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                  </div>
+                  <div class="axiom-group">
+                    <label for="productStock" class="axiom-label">Inventory Level</label>
+                    <input type="number" id="productStock" name="stock" class="axiom-input" placeholder="1" min="0" required>
+                  </div>
+                </div>
+
+                <div class="axiom-group" style="margin-bottom: 0;">
+                  <label for="productLocation" class="axiom-label">Item Location</label>
+                  <input type="text" id="productLocation" name="location" class="axiom-input" placeholder="City, Country">
+                </div>
+              </div>
+
+              <!-- Price Comparison Sidebar (NEW) -->
+              <aside class="comparison-card">
+                <div class="card-header" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                  <h2 class="card-title" style="font-size: 1.1rem; margin-bottom: 4px;">Market Insight</h2>
+                  <p class="card-desc" style="font-size: 0.8rem; margin-bottom: 0;">Real-time prices from other markets</p>
+                </div>
+                <div id="comparisonResults" class="comparison-results">
+                  <div class="comparison-placeholder">
+                    <i class="fas fa-search-dollar" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+                    <p>Enter a product name to see prices from Daraz and OLX.</p>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <!-- Pricing & Auction Strategy Module (Axiom Soft Elite) -->
+            <div class="axiom-card auction-card" style="margin-top: 24px;">
+              <div class="card-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                <i class="fas fa-gavel" style="font-size: 1.5rem;"></i>
+                <div>
+                  <h2 class="card-title" style="margin-bottom: 0;">Pricing & Auction Strategy</h2>
+                  <p class="card-desc">Choose between a fixed price or a dynamic bidding system.</p>
+                </div>
+              </div>
+
+              <div class="auction-toggle-container">
+                <div class="auction-toggle-label">
+                  <i class="fas fa-bolt"></i>
+                  <span>Enable Auction Mode</span>
+                  <div class="auction-badge"><i class="fas fa-star"></i> ELITE FEATURE</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="auctionEnabled" name="auctionEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div id="auctionFields" class="auction-fields-grid" style="display: none;">
+                <div class="auction-input-group">
+                  <label>Starting Price (RS)</label>
+                  <div class="input-wrapper">
+                    <i class="fas fa-tag"></i>
+                    <input type="number" id="auctionStartingPrice" placeholder="0.00" min="1">
+                  </div>
+                </div>
+                <div class="auction-input-group">
+                  <label>Min. Bid Increment (RS)</label>
+                  <div class="input-wrapper">
+                    <i class="fas fa-plus-circle"></i>
+                    <input type="number" id="auctionMinIncrement" placeholder="100.00" min="1">
+                  </div>
+                </div>
+                <div class="auction-input-group">
+                  <label>Auction Duration</label>
+                  <div class="input-wrapper">
+                    <i class="fas fa-history"></i>
+                    <select id="auctionDuration">
+                      <option value="3">3 Days (Fast Sale)</option>
+                      <option value="7" selected>7 Days (Recommended)</option>
+                      <option value="14">14 Days (Maximum Reach)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section: Details -->
+          <section id="section-details" class="form-section">
+            <div class="axiom-card">
+              <h2 class="card-title">Description & Discovery</h2>
+              <p class="card-desc">Help customers understand what they are buying with detailed info.</p>
+              
+              <div class="axiom-group">
+                <label for="productDescription" class="axiom-label">Detailed Description</label>
+                <textarea id="productDescription" name="description" class="axiom-textarea" rows="10" placeholder="Describe features, flaws, dimensions, etc." required></textarea>
+                <div class="axiom-hint">
+                  <span id="descriptionCount">0</span>/2000 characters used
+                </div>
+              </div>
+
+              <div class="axiom-group" style="margin-bottom: 0;">
+                <label for="productTags" class="axiom-label">Search Tags</label>
+                <input type="text" id="productTags" name="tags" class="axiom-input" placeholder="e.g. apple, phone, gaming (separate with commas)">
+                <div id="tagPreview" class="tag-preview" style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section: Media -->
+          <section id="section-media" class="form-section">
+            <div class="axiom-card">
+              <h2 class="card-title">Media & Visuals</h2>
+              <p class="card-desc">High-quality images sell products faster.</p>
+              
+              <div class="axiom-group">
+                <label class="axiom-label">Current Product Images</label>
+                <div id="currentImages" class="current-images-grid">
+                  <!-- JS Injection of current images -->
+                  <div class="empty-media-state" style="grid-column: span 3; text-align: center; padding: 40px; background: rgba(0,0,0,0.02); border-radius: 15px;">
+                    <i class="fas fa-images" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 10px; display: block;"></i>
+                    <p style="color: #94a3b8; font-size: 0.9rem;">Fetching existing media...</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="upload-new-trigger" style="border: 2px dashed #e2e8f0; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#4f46e5'; this.style.backgroundColor='rgba(79, 70, 229, 0.02)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.backgroundColor='transparent'" onclick="document.getElementById('newImagesInput').click()">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 1.5rem; color: #4f46e5; margin-bottom: 10px; display: block;"></i>
+                <span style="font-weight: 700; color: #1e293b;">Upload New Images</span>
+                <p style="color: #64748b; font-size: 0.85rem; margin-top: 4px;">JPG, PNG or WebP. Max 10MB per file.</p>
+                <input type="file" id="newImagesInput" multiple accept="image/*" style="display: none;">
+              </div>
+              <div id="newImagesPreview" class="current-images-grid" style="margin-top: 20px;"></div>
+            </div>
+          </section>
+
+          <!-- Section: Specs -->
+          <section id="section-specs" class="form-section">
+            <div class="axiom-card">
+              <h2 class="card-title">Technical Specifications</h2>
+              <p class="card-desc">Define key attributes like RAM, Storage, Material, or Weight.</p>
+              
+              <div id="specificationsContainer" class="specs-list" style="margin-bottom: 20px;">
+                <!-- JS Dynamic entries -->
+              </div>
+
+              <button type="button" id="addSpecification" class="btn-add-spec">
+                <i class="fas fa-plus-circle" style="margin-right: 8px;"></i> New Specification Row
+              </button>
+            </div>
+          </section>
+
+          <!-- Section: Shipping -->
+          <section id="section-shipping" class="form-section">
+            <div class="axiom-card">
+              <h2 class="card-title">Logistics & Policy</h2>
+              <p class="card-desc">Define how buyers will receive the item and return rules.</p>
+              
+              <div class="input-grid">
+                <div class="axiom-group">
+                  <label for="shippingMethod" class="axiom-label">Shipping Profile</label>
+                  <select id="shippingMethod" name="shippingMethod" class="axiom-select">
+                    <option value="standard">Standard Carrier</option>
+                    <option value="express">Express Priority</option>
+                    <option value="pickup">Local Handover Only</option>
+                    <option value="both">All Options Available</option>
+                  </select>
+                </div>
+                <div class="axiom-group">
+                  <label for="shippingCost" class="axiom-label">Handling Fee (RS)</label>
+                  <input type="number" id="shippingCost" name="shippingCost" class="axiom-input" placeholder="0.00" step="0.01" min="0">
+                </div>
+              </div>
+
+              <div class="axiom-group" style="margin-bottom: 0;">
+                <label for="returnPolicy" class="axiom-label">Cancellation & Returns</label>
+                <textarea id="returnPolicy" name="returnPolicy" class="axiom-textarea" rows="4" placeholder="Detail your return policies here..."></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- Form Action Bar (Integrated) -->
+          <div class="floating-actions">
+            <div class="actions-inner">
+              <button type="button" id="cancelEdit" class="btn-axiom btn-axiom-ghost">
+                Discard Changes
+              </button>
+              <button type="submit" form="productEditForm" class="btn-axiom btn-axiom-primary">
+                <i class="fas fa-save"></i> Save Product Changes
+              </button>
+            </div>
+          </div>
+
+        </form>
+      </main>
+    </div>
+
   </main>
 
   <!-- Loading Overlay -->
-  <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner">
-      <div class="spinner"></div>
-      <p>Updating product...</p>
+  <div id="loadingOverlay" class="loading-glass-overlay">
+    <div style="text-align: center;">
+      <div class="loading-spinner" style="border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+      <p id="loadingText" style="font-family: 'Outfit', sans-serif; font-weight: 600; color: #1e293b;">Synchronizing changes...</p>
     </div>
   </div>
 
-  <!-- Success Modal -->
-  <div id="successModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Product Updated Successfully!</h3>
-        <button class="modal-close" onclick="closeSuccessModal()">
-          <svg viewBox="0 0 24 24">
-            <path
-              d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-          </svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="success-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z" />
-          </svg>
-        </div>
-        <p>Your product has been successfully updated!</p>
-        <div class="success-actions">
-          <a href="product-management.html" class="btn btn-primary">Back to Management</a>
-          <a href="dashboard.html" class="btn btn-secondary">Go to Dashboard</a>
-        </div>
-      </div>
-    </div>
-  </div>
+  <style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid #e2e8f0; }
+  </style>
 
   <!-- Scripts -->
+  <!-- Unsafe Items Modal -->
+  <div id="unsafeItemsModal" class="modal">
+    <div class="modal-content">
+      <header class="modal-header">
+        <div class="success-icon alert">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <h3>Unsafe Content Blocked</h3>
+      </header>
+      <div class="modal-body">
+        <p style="color: #64748b; margin-bottom: 10px;">Our AI has detected restricted items in your new uploads:</p>
+        <ul id="unsafeItemsList">
+          <!-- Items will be injected here -->
+        </ul>
+        <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">
+          To maintain platform safety, please remove the flagged images before saving your product changes.
+        </p>
+      </div>
+      <footer class="modal-footer" style="margin-top: 25px;">
+        <button type="button" class="btn-axiom btn-axiom-primary" style="width: 100%; border-radius: 12px;" onclick="closeUnsafeModal()">
+          I Understand
+        </button>
+      </footer>
+    </div>
+  </div>
+
   <script src="/static/js/product-edit.js"></script>
 </body>
 

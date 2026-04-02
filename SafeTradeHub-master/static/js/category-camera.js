@@ -34,7 +34,7 @@ function isUserLoggedIn() {
     try {
       const parsedUser = JSON.parse(userData);
       if (parsedUser && (parsedUser.id || parsedUser.uid || parsedUser.email)) {
-        console.log('✅ Category-Camera: User authenticated via localStorage:', parsedUser.name || parsedUser.email);
+        
         return true;
       }
     } catch (parseError) {
@@ -48,7 +48,7 @@ function isUserLoggedIn() {
       const authResult = window.AuthManager.isAuthenticated();
       const currentUser = window.AuthManager.getCurrentUser();
       if (authResult && currentUser) {
-        console.log('✅ Category-Camera: User authenticated via AuthManager:', currentUser.name || currentUser.email);
+        
         return true;
       }
     } catch (authError) {
@@ -61,7 +61,7 @@ function isUserLoggedIn() {
     try {
       const firebaseUser = firebase.auth().currentUser;
       if (firebaseUser) {
-        console.log('✅ Category-Camera: User authenticated via Firebase:', firebaseUser.email);
+        
         return true;
       }
     } catch (firebaseError) {
@@ -69,7 +69,7 @@ function isUserLoggedIn() {
     }
   }
   
-  console.log('❌ Category-Camera: User not authenticated');
+  
   return false;
 }
 
@@ -84,7 +84,7 @@ document.addEventListener('click', async (e)=>{
   const btn=e.target.closest('[data-add-to-cart]'); 
   if(!btn) return; 
   
-  console.log('📷 Category-Camera: Add to cart clicked');
+  
   
   // Wait for authentication systems to be ready
   if (window.AuthManager) {
@@ -115,7 +115,7 @@ document.addEventListener('click', async (e)=>{
     return;
   }
   
-  console.log('✅ Category-Camera: Authentication confirmed, adding to cart');
+  
   
   const product={ 
     id:btn.dataset.id, 

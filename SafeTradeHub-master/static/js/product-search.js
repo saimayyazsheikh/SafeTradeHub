@@ -17,7 +17,7 @@ class ProductSearchManager {
      * Initialize the search manager
      */
     async init() {
-        console.log('🔍 ProductSearchManager: Initializing...');
+        
 
         // Wait for Firebase to be ready
         await this.waitForFirebase();
@@ -28,7 +28,7 @@ class ProductSearchManager {
         // Set up event listeners
         this.setupEventListeners();
 
-        console.log('✅ ProductSearchManager: Ready');
+        
     }
 
     /**
@@ -64,9 +64,9 @@ class ProductSearchManager {
                     ...productsData[key]
                 }));
 
-                console.log(`📦 Loaded ${this.allProducts.length} products from Firebase`);
+                
             } else {
-                console.log('📦 No products found in Firebase');
+                
                 this.allProducts = [];
             }
         } catch (error) {
@@ -137,7 +137,7 @@ class ProductSearchManager {
         const location = document.getElementById('locationFilter')?.value.trim().toLowerCase() || '';
         const sortBy = document.getElementById('sortFilter')?.value || 'recent';
 
-        console.log('🔍 Searching with:', { searchQuery, category, location, sortBy });
+        
 
         // Start with all products
         let results = [...this.allProducts];

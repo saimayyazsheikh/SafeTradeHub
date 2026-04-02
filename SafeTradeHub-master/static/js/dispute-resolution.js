@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize dispute resolution
 function initializeDisputeResolution() {
-  console.log('Initializing Dispute Resolution System');
+  
   
   // Update cart count
   updateCartCount();
@@ -61,7 +61,7 @@ function setupEventListeners() {
 function loadDisputeData() {
   try {
     disputeData = JSON.parse(localStorage.getItem(DISPUTES_KEY) || '[]');
-    console.log('Loaded dispute data:', disputeData.length, 'disputes');
+    
     filteredDisputes = [...disputeData];
     renderDisputesGrid();
   } catch (error) {
@@ -333,7 +333,7 @@ function exportDisputes() {
 
 function updateTimelineChart() {
   const timelineFilter = document.getElementById('timelineFilter')?.value || 'week';
-  console.log('Updating timeline chart for:', timelineFilter);
+  
   // Implement chart update logic here
 }
 

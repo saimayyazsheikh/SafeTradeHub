@@ -13,6 +13,10 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/user-auth-guard.js"></script>
 </head>
 
 <body>
@@ -91,6 +95,11 @@
         <h1>Profile Management</h1>
         <p>Manage your personal information and account settings</p>
       </div>
+            <div class="topbar-actions" style="display:flex; align-items:center; gap:15px;">
+                <button class="icon-btn" id="notificationBtn" aria-label="Notifications" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#64748b; padding:8px; border-radius:50%; transition:all 0.2s;">
+                    <i class="fas fa-bell"></i>
+                </button>
+            </div>
     </div>
 
     <div id="dashboardContent">
@@ -168,126 +177,7 @@
           </div>
         </div>
 
-        <!-- Address Information -->
-        <div class="profile-card">
-          <div class="card-header">
-            <h3>Address Information</h3>
-            <button class="edit-btn" id="editAddressBtn">Edit</button>
-          </div>
-          <div class="card-content">
-            <form id="addressForm" class="profile-form">
-              <div class="form-row">
-                <label>Street Address</label>
-                <input type="text" id="streetAddress" name="streetAddress" placeholder="123 Main Street">
-              </div>
-              <div class="form-row two">
-                <div>
-                  <label>City</label>
-                  <input type="text" id="city" name="city" placeholder="Karachi">
-                </div>
-                <div>
-                  <label>State/Province</label>
-                  <input type="text" id="state" name="state" placeholder="Sindh">
-                </div>
-              </div>
-              <div class="form-row two">
-                <div>
-                  <label>Postal Code</label>
-                  <input type="text" id="postalCode" name="postalCode" placeholder="75000">
-                </div>
-                <div>
-                  <label>Country</label>
-                  <select id="country" name="country">
-                    <option value="PK">Pakistan</option>
-                    <option value="US">United States</option>
-                    <option value="UK">United Kingdom</option>
-                    <option value="CA">Canada</option>
-                    <option value="AU">Australia</option>
-                    <option value="IN">India</option>
-                    <option value="BD">Bangladesh</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <label>Address Type</label>
-                <div class="radio-group">
-                  <label class="radio">
-                    <input type="radio" name="addressType" value="home" checked>
-                    <span>Home</span>
-                  </label>
-                  <label class="radio">
-                    <input type="radio" name="addressType" value="work">
-                    <span>Work</span>
-                  </label>
-                  <label class="radio">
-                    <input type="radio" name="addressType" value="other">
-                    <span>Other</span>
-                  </label>
-                </div>
-              </div>
-              <div class="form-actions">
-                <button type="button" class="btn secondary" id="cancelAddressBtn">Cancel</button>
-                <button type="submit" class="btn primary">Save Address</button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- Account Settings -->
-        <div class="profile-card">
-          <div class="card-header">
-            <h3>Account Settings</h3>
-          </div>
-          <div class="card-content">
-            <div class="settings-list">
-              <div class="setting-item">
-                <div class="setting-info">
-                  <h4>Change Password</h4>
-                  <p>Update your account password</p>
-                </div>
-                <button class="btn secondary" id="changePasswordBtn">Change</button>
-              </div>
-              <div class="setting-item">
-                <div class="setting-info">
-                  <h4>Two-Factor Authentication</h4>
-                  <p>Add an extra layer of security</p>
-                </div>
-                <button class="btn secondary" id="setup2FABtn">Setup</button>
-              </div>
-              <div class="setting-item">
-                <div class="setting-info">
-                  <h4>Notification Preferences</h4>
-                  <p>Manage how you receive notifications</p>
-                </div>
-                <button class="btn secondary" id="notificationSettingsBtn">Manage</button>
-              </div>
-              <div class="setting-item">
-                <div class="setting-info">
-                  <h4>Privacy Settings</h4>
-                  <p>Control your privacy and data sharing</p>
-                </div>
-                <button class="btn secondary" id="privacySettingsBtn">Manage</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Transaction History -->
-        <div class="profile-card">
-          <div class="card-header">
-            <h3>Transaction History</h3>
-            <a href="orders.html" class="view-all">View All</a>
-          </div>
-          <div class="card-content">
-            <div id="transactionHistory" class="transaction-list">
-              <div class="loading-skeleton">
-                <div class="skeleton-line"></div>
-                <div class="skeleton-line"></div>
-                <div class="skeleton-line"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Account Status -->
 
         <!-- Account Status -->
         <div class="profile-card">
@@ -319,38 +209,6 @@
     </div>
   </main>
 
-  <!-- Change Password Modal -->
-  <div id="passwordModal" class="modal">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h3>Change Password</h3>
-        <button class="close-btn" id="closePasswordModal">×</button>
-      </div>
-      <div class="modal-content">
-        <form id="passwordForm">
-          <div class="form-row">
-            <label>Current Password</label>
-            <input type="password" id="currentPassword" required>
-          </div>
-          <div class="form-row">
-            <label>New Password</label>
-            <input type="password" id="newPassword" required minlength="6">
-            <div class="password-strength" id="passwordStrength"></div>
-          </div>
-          <div class="form-row">
-            <label>Confirm New Password</label>
-            <input type="password" id="confirmPassword" required>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn secondary" id="cancelPasswordBtn">Cancel</button>
-            <button type="submit" class="btn primary">Update Password</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
   <script>
     // Firebase Configuration
     const firebaseConfig = {
@@ -380,7 +238,6 @@
 
       currentUser = user;
       await loadUserData();
-      await loadTransactionHistory();
     });
 
     // Load user data from Firestore
@@ -506,52 +363,6 @@
       document.getElementById('phone').value = userData.phone || '';
       document.getElementById('dateOfBirth').value = userData.dateOfBirth || '';
       document.getElementById('gender').value = userData.gender || '';
-
-      // Address form
-      const address = userData.address || {};
-      document.getElementById('streetAddress').value = address.street || '';
-      document.getElementById('city').value = address.city || '';
-      document.getElementById('state').value = address.state || '';
-      document.getElementById('postalCode').value = address.postalCode || '';
-      document.getElementById('country').value = address.country || 'PK';
-
-      const addressType = address.type || 'home';
-      document.querySelector(`input[name="addressType"][value="${addressType}"]`).checked = true;
-    }
-
-    // Load transaction history
-    async function loadTransactionHistory() {
-      try {
-        const orders = JSON.parse(localStorage.getItem('sthub_orders') || '[]');
-        const recentOrders = orders.slice(0, 5);
-
-        const historyDiv = document.getElementById('transactionHistory');
-
-        if (recentOrders.length === 0) {
-          historyDiv.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">📊</div>
-            <div class="empty-text">No transactions yet</div>
-            <a href="index.html" class="btn primary">Start Shopping</a>
-          </div>
-        `;
-          return;
-        }
-
-        historyDiv.innerHTML = recentOrders.map(order => `
-        <div class="transaction-item">
-          <div class="transaction-info">
-            <div class="transaction-id">Order #${order.id}</div>
-            <div class="transaction-date">${new Date(order.createdAt).toLocaleDateString()}</div>
-          </div>
-          <div class="transaction-amount">RS ${order.total?.toFixed(2) || '0.00'}</div>
-          <div class="transaction-status ${order.status}">${order.status}</div>
-        </div>
-      `).join('');
-
-      } catch (error) {
-        console.error('Error loading transaction history:', error);
-      }
     }
 
     // Form submission handlers
@@ -575,129 +386,6 @@
         await loadUserData();
       } catch (error) {
         showError('Failed to update personal information. Please try again.');
-      }
-    });
-
-    document.getElementById('addressForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const formData = new FormData(e.target);
-      const address = {
-        street: formData.get('streetAddress'),
-        city: formData.get('city'),
-        state: formData.get('state'),
-        postalCode: formData.get('postalCode'),
-        country: formData.get('country'),
-        type: formData.get('addressType'),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-      };
-
-      try {
-        await db.ref('users/' + currentUser.uid).update({ address });
-        showSuccess('Address updated successfully!');
-      } catch (error) {
-        showError('Failed to update address. Please try again.');
-      }
-    });
-
-    // Password change modal
-    document.getElementById('changePasswordBtn').addEventListener('click', () => {
-      document.getElementById('passwordModal').classList.add('show');
-    });
-
-    document.getElementById('closePasswordModal').addEventListener('click', () => {
-      document.getElementById('passwordModal').classList.remove('show');
-    });
-
-    document.getElementById('cancelPasswordBtn').addEventListener('click', () => {
-      document.getElementById('passwordModal').classList.remove('show');
-    });
-
-    // Password form submission
-    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const currentPassword = document.getElementById('currentPassword').value;
-      const newPassword = document.getElementById('newPassword').value;
-      const confirmPassword = document.getElementById('confirmPassword').value;
-
-      if (newPassword !== confirmPassword) {
-        showError('New passwords do not match.');
-        return;
-      }
-
-      if (newPassword.length < 6) {
-        showError('Password must be at least 6 characters long.');
-        return;
-      }
-
-      try {
-        // Re-authenticate user
-        const credential = firebase.auth.EmailAuthProvider.credential(
-          currentUser.email,
-          currentPassword
-        );
-
-        await currentUser.reauthenticateWithCredential(credential);
-        await currentUser.updatePassword(newPassword);
-
-        showSuccess('Password updated successfully!');
-        document.getElementById('passwordModal').classList.remove('show');
-        document.getElementById('passwordForm').reset();
-      } catch (error) {
-        if (error.code === 'auth/wrong-password') {
-          showError('Current password is incorrect.');
-        } else {
-          showError('Failed to update password. Please try again.');
-        }
-      }
-    });
-
-    // Password strength indicator
-    document.getElementById('newPassword').addEventListener('input', function () {
-      const password = this.value;
-      const strengthDiv = document.getElementById('passwordStrength');
-
-      let strength = 0;
-      let strengthText = '';
-      let strengthColor = '';
-
-      if (password.length >= 6) strength++;
-      if (password.length >= 8) strength++;
-      if (/[A-Z]/.test(password)) strength++;
-      if (/[a-z]/.test(password)) strength++;
-      if (/[0-9]/.test(password)) strength++;
-      if (/[^A-Za-z0-9]/.test(password)) strength++;
-
-      switch (strength) {
-        case 0:
-        case 1:
-          strengthText = 'Very Weak';
-          strengthColor = '#dc2626';
-          break;
-        case 2:
-          strengthText = 'Weak';
-          strengthColor = '#ea580c';
-          break;
-        case 3:
-          strengthText = 'Fair';
-          strengthColor = '#d97706';
-          break;
-        case 4:
-          strengthText = 'Good';
-          strengthColor = '#059669';
-          break;
-        case 5:
-        case 6:
-          strengthText = 'Strong';
-          strengthColor = '#16a34a';
-          break;
-      }
-
-      if (password.length > 0) {
-        strengthDiv.innerHTML = `<div style="color: ${strengthColor}; font-size: 12px; margin-top: 4px;">Password strength: ${strengthText}</div>`;
-      } else {
-        strengthDiv.innerHTML = '';
       }
     });
 
@@ -912,8 +600,15 @@
     /* Profile Styles */
     .profile-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      grid-template-columns: 1.5fr 1fr; /* Give Personal Info more space, Account Status less */
       gap: 24px;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      .profile-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .profile-card {
@@ -1196,93 +891,9 @@
       background: #f1f5f9;
     }
 
-    .settings-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .setting-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .setting-info h4 {
-      margin: 0 0 4px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-
-    .setting-info p {
-      margin: 0;
-      font-size: 14px;
-      color: #64748b;
-    }
-
-    .transaction-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .transaction-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .transaction-info {
-      flex: 1;
-    }
-
-    .transaction-id {
-      font-weight: 600;
-      color: #1e293b;
-      margin-bottom: 4px;
-    }
-
-    .transaction-date {
-      font-size: 14px;
-      color: #64748b;
-    }
-
-    .transaction-amount {
-      font-weight: 700;
-      color: #1e293b;
-      margin-right: 16px;
-    }
-
-    .transaction-status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .transaction-status.completed {
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .transaction-status.pending {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
     .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 16px;
     }
 

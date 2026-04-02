@@ -114,11 +114,18 @@
         <h1>Token Wallet</h1>
         <p>Manage your tokens, add funds, and track transactions</p>
       </div>
-      <button class="action-btn" onclick="openDepositModal()"
-        style="flex-direction: row; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--primary-color); color: white; border: none;">
-        <i class="fas fa-plus" style="color: white; font-size: 1rem; margin: 0;"></i>
-        <span>Add Tokens</span>
-      </button>
+      <div style="display: flex; align-items: center; gap: 15px;" id="walletActionContainer">
+        <button class="action-btn" onclick="openWithdrawModal()" id="mainActionBtn"
+          style="flex-direction: row; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--danger); color: white; border: none;">
+          <i class="fas fa-paper-plane" style="color: white; font-size: 1rem; margin: 0;"></i>
+          <span>Withdraw Tokens</span>
+        </button>
+        <div class="topbar-actions">
+            <button class="icon-btn" id="notificationBtn" aria-label="Notifications" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#64748b; padding:8px; border-radius:50%; transition:all 0.2s;">
+                <i class="fas fa-bell"></i>
+            </button>
+        </div>
+      </div>
     </div>
 
     <div class="content-grid" style="grid-template-columns: 1fr;">
@@ -134,27 +141,28 @@
             <h3 id="walletBalance">RS 0.00</h3>
             <p>Available Balance</p>
           </div>
+
         </div>
 
-        <!-- Total Deposited -->
+        <!-- Total Withdrawn -->
         <div class="stat-card">
           <div class="stat-icon green">
-            <i class="fas fa-arrow-down"></i>
-          </div>
-          <div class="stat-info">
-            <h3 id="totalDeposited">RS 0.00</h3>
-            <p>Total Deposited</p>
-          </div>
-        </div>
-
-        <!-- Total Spent -->
-        <div class="stat-card">
-          <div class="stat-icon orange">
             <i class="fas fa-arrow-up"></i>
           </div>
           <div class="stat-info">
-            <h3 id="totalSpent">RS 0.00</h3>
-            <p>Total Spent</p>
+            <h3 id="totalWithdrawn">RS 0.00</h3>
+            <p>Total Withdrawn</p>
+          </div>
+        </div>
+
+        <!-- Locked Balance -->
+        <div class="stat-card">
+          <div class="stat-icon orange">
+            <i class="fas fa-lock"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="lockedBalance">RS 0.00</h3>
+            <p>Locked Balance (Bids)</p>
           </div>
         </div>
 
@@ -181,6 +189,7 @@
               <select id="transactionTypeFilter" style="padding: 6px; border-radius: 6px; border: 1px solid #ddd;">
                 <option value="all">All</option>
                 <option value="deposit">Deposits</option>
+                <option value="withdrawal">Withdrawals</option>
                 <option value="escrow_hold">Escrow Holds</option>
                 <option value="escrow_release">Escrow Releases</option>
                 <option value="refund">Refunds</option>
@@ -220,11 +229,11 @@
             </div>
             <div class="card-body">
               <div style="display: grid; gap: 1rem;">
-                <button class="action-btn" onclick="openDepositModal()"
+                <button class="action-btn" onclick="openWithdrawModal()" id="sideActionBtn"
                   style="width: 100%; text-align: left; align-items: flex-start;">
-                  <i class="fas fa-credit-card"></i>
-                  <span>Add Tokens</span>
-                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Deposit funds instantly</small>
+                  <i class="fas fa-hand-holding-usd"></i>
+                  <span>Withdraw</span>
+                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Request payout</small>
                 </button>
                 <button class="action-btn" onclick="viewEscrowTransactions()"
                   style="width: 100%; text-align: left; align-items: flex-start;">
@@ -353,6 +362,71 @@
     </div>
   </div>
 
+  <!-- Withdrawal Modal -->
+  <div id="withdrawModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Withdraw Tokens</h3>
+        <button class="modal-close" onclick="closeWithdrawModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; background: #eff6ff; border: 1px solid #dbeafe; color: #1e40af; font-size: 0.9rem;">
+            <i class="fas fa-info-circle"></i> Withdrawals are processed within 24-48 business hours. Please ensure your bank details are 100% correct.
+        </div>
+        <form id="withdrawForm" onsubmit="return false;">
+          <div class="form-group">
+            <label for="withdrawAmount">Amount to Withdraw (RS)</label>
+            <input type="number" id="withdrawAmount" min="500" step="1" required placeholder="Min RS 500">
+            <div id="withdrawError" class="error-text" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px; display: none;"></div>
+            <small id="maxWithdrawHint" style="color: var(--text-secondary);">Max available: RS 0.00</small>
+          </div>
+          <div class="form-grid">
+              <div class="form-group">
+                <label for="bankName">Bank Name</label>
+                <input type="text" id="bankName" required placeholder="e.g. Meezan Bank">
+              </div>
+              <div class="form-group">
+                <label for="accountTitle">Account Title</label>
+                <input type="text" id="accountTitle" required placeholder="Full Name">
+              </div>
+          </div>
+          <div class="form-group">
+            <label for="accountNumber">Account Number / IBAN</label>
+            <input type="text" id="accountNumber" required placeholder="Enter Full Account Number">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeWithdrawModal()">Cancel</button>
+        <button class="btn btn-primary" id="proceedWithdrawBtn" onclick="processWithdrawal()" style="background: var(--danger);">
+          <i class="fas fa-paper-plane"></i> Request Withdrawal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip Viewer Modal -->
+  <div id="slipViewerModal" class="modal" style="display: none; background: rgba(0,0,0,0.85); z-index: 10001;">
+    <div class="modal-content" style="max-width: 600px; padding: 0; background: transparent; box-shadow: none;">
+      <div style="text-align: right; margin-bottom: 15px;">
+        <button onclick="closeSlipViewer()" style="background: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+            <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div style="background: white; padding: 20px; border-radius: 12px; text-align: center;">
+        <h3 style="margin-bottom: 15px;">Withdrawal Proof (Slip)</h3>
+        <img id="slipImage" src="" alt="Payment Slip" style="width: 100%; border-radius: 8px; border: 1px solid #ddd; max-height: 70vh; object-fit: contain;">
+        <div style="margin-top: 15px;">
+            <a id="slipDownloadBtn" href="" download class="btn btn-secondary btn-full" style="display: inline-flex; width: auto; padding: 0.6rem 1.5rem;">
+                <i class="fas fa-download"></i> Download Slip
+            </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Loading Overlay -->
   <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner"></div>
@@ -399,6 +473,10 @@
     }
   </script>
   <script src="/static/js/wallet.js"></script>
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/user-auth-guard.js"></script>
 </body>
 
 </html>

@@ -113,6 +113,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             sellerNameEl.textContent = 'User Not Found';
         }
+
+        // Start Reputation & Review Engine
+        listenToUserReputation(sellerId);
+        fetchUserReviews(sellerId);
+
+        // Setup User Reporting
+        const reportBtn = document.getElementById('reportSellerBtn');
+        if (reportBtn) {
+            reportBtn.onclick = () => submitUserReport(sellerId);
+        }
+
     } catch (error) {
         console.error("Error fetching user:", error);
         sellerNameEl.textContent = 'Error loading user';
@@ -218,23 +229,162 @@ function addToCart(id, name, price, img) {
     }
 
     localStorage.setItem('cart', JSON.stringify(cart));
-
+ 
     // Dispatch event to update header
     window.dispatchEvent(new Event('storage'));
-    alert('Product added to cart!');
+    
+    if (window.NotificationManager) {
+        window.NotificationManager.showToast('Cart Updated', 'Product added to cart!', 'success');
+    } else {
+        alert('Product added to cart!');
+    }
 }
 
 function renderStars(rating) {
     const starsContainer = document.getElementById('sellerStars');
     starsContainer.innerHTML = '';
+    const rounded = Math.round(rating * 2) / 2;
 
     for (let i = 1; i <= 5; i++) {
-        if (i <= rating) {
+        if (i <= rounded) {
             starsContainer.innerHTML += '<i class="fas fa-star"></i>';
-        } else if (i - 0.5 <= rating) {
+        } else if (i - 0.5 <= rounded) {
             starsContainer.innerHTML += '<i class="fas fa-star-half-alt"></i>';
         } else {
             starsContainer.innerHTML += '<i class="far fa-star"></i>';
+        }
+    }
+}
+
+/* --- REPUTATION & REVIEWS ENGINE --- */
+
+function listenToUserReputation(uid) {
+    const db = firebase.database();
+    db.ref(`users/${uid}/reputation`).on('value', (snap) => {
+        const rep = snap.val();
+        if (!rep) return;
+
+        const avg = rep.averageRating || 0;
+        const total = rep.totalReviews || 0;
+        const trust = rep.trustScore || 100;
+
+        renderStars(avg);
+        document.getElementById('sellerRatingCount').textContent = `${parseFloat(avg).toFixed(1)} (${total} reviews)`;
+        
+        const trustBadge = document.getElementById('trustScoreBadge');
+        const trustVal = document.getElementById('trustScoreValue');
+        if (trustBadge && trustVal) {
+            trustVal.textContent = trust;
+            trustBadge.style.display = 'flex';
+        }
+    });
+}
+
+function fetchUserReviews(uid) {
+    const db = firebase.database();
+    const list = document.getElementById('reviewsList');
+    const badge = document.getElementById('reviewCount');
+
+    db.ref('reviews').orderByChild('targetId').equalTo(uid).on('value', async (snap) => {
+        const reviews = snap.val();
+        if (!reviews) {
+            badge.textContent = '0 reviews';
+            list.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                    <i class="fas fa-comment-slash fa-2x" style="margin-bottom: 10px;"></i>
+                    <p>No reviews yet for this user.</p>
+                </div>`;
+            return;
+        }
+
+        const items = Object.values(reviews);
+        badge.textContent = `${items.length} review${items.length !== 1 ? 's' : ''}`;
+
+        // Sort by timestamp DESC
+        items.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Fetch reviewer names
+        const reviewerPromises = items.map(async (r) => {
+            const nameSnap = await db.ref(`users/${r.reviewerId}/displayName`).once('value');
+            return {
+                ...r,
+                reviewerName: nameSnap.val() || 'Anonymous'
+            };
+        });
+
+        const detailedItems = await Promise.all(reviewerPromises);
+
+        list.innerHTML = detailedItems.map(r => `
+            <div class="review-item">
+                <div class="review-meta">
+                    <span class="review-author">${r.reviewerName}</span>
+                    <span class="review-stars">
+                        ${Array(5).fill(0).map((_, i) => `<i class="${i < r.rating ? 'fas' : 'far'} fa-star"></i>`).join('')}
+                    </span>
+                </div>
+                <div class="review-text">${r.comment || 'No comment provided.'}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 10px;">
+                    ${new Date(r.timestamp).toLocaleDateString()} • ${r.type.replace(/-/g, ' ')}
+                </div>
+            </div>
+        `).join('');
+    });
+}
+
+async function submitUserReport(uid) {
+    const auth = firebase.auth();
+    if (!auth.currentUser) {
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast('Auth Required', 'Please login to report users.', 'info');
+        } else {
+            alert('Please login to report users.');
+        }
+        return;
+    }
+ 
+    const reason = prompt('Reason for reporting this user?');
+    if (!reason) return;
+ 
+    const desc = prompt('Detailed description:');
+    if (!desc) return;
+ 
+    try {
+        const idToken = await auth.currentUser.getIdToken();
+        const response = await fetch('/api/v1/reports/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+                reportedById: auth.currentUser.uid,
+                targetId: uid,
+                targetType: 'User',
+                reason: reason,
+                description: desc
+            })
+        });
+ 
+        const result = await response.json();
+        if (result.success) {
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast('Report Received', 'Thank you for keeping the hub safe.', 'success');
+            } else {
+                alert('Your report has been received and will be investigated by SafeTradeHub staff.');
+            }
+        } else {
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast('Submission Error', result.error, 'error');
+            } else {
+                alert('Failed: ' + result.error);
+            }
+        }
+    } catch (err) {
+        console.error('Report error:', err);
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast('Error', 'An unexpected error occurred.', 'error');
+        } else {
+            alert('An unexpected error occurred.');
         }
     }
 }

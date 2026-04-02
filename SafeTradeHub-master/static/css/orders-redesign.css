@@ -1,0 +1,259 @@
+/* ORDERS-REDESIGN.CSS - Axiom Protocol Style */
+:root {
+    --axiom-primary: #474bff;
+    --axiom-secondary: #000235;
+    --axiom-accent: #ff007f;
+    --axiom-surface: rgba(255, 255, 255, 0.72);
+    --axiom-border: rgba(255, 255, 255, 0.2);
+    --axiom-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --status-pending: linear-gradient(135deg, #ff9d00 0%, #ff6b00 100%);
+    --status-completed: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+    --status-shipped: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+}
+
+.orders-filter-strip {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    background: var(--axiom-surface);
+    backdrop-filter: blur(10px);
+    padding: 8px;
+    border-radius: 16px;
+    border: 1px solid var(--axiom-border);
+    box-shadow: var(--axiom-shadow);
+    width: fit-content;
+}
+
+.filter-tab {
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    background: transparent;
+}
+
+.filter-tab:hover {
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--axiom-primary);
+}
+
+.filter-tab.active {
+    background: var(--axiom-primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(71, 75, 255, 0.3);
+}
+
+.order-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.premium-order-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 24px;
+    padding: 20px;
+    background: var(--axiom-surface);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    border: 1px solid var(--axiom-border);
+    box-shadow: var(--axiom-shadow);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.premium-order-card:hover {
+    transform: translateY(-4px) scale(1.01);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 12px 40px 0 rgba(71, 75, 255, 0.15);
+}
+
+.order-media {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f1f5f9;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.order-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.order-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.order-id {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--axiom-primary);
+    letter-spacing: 1px;
+}
+
+.order-participant {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--axiom-secondary);
+}
+
+.order-meta {
+    font-size: 0.85rem;
+    color: #64748b;
+    display: flex;
+    gap: 12px;
+}
+
+.order-pricing {
+    text-align: right;
+    padding-right: 20px;
+    border-right: 1px solid rgba(0,0,0,0.05);
+}
+
+.total-amount {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--axiom-secondary);
+}
+
+.item-count {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.order-status-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.axiom-status-badge {
+    padding: 6px 16px;
+    border-radius: 100px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.badge-pending { background: var(--status-pending); }
+.badge-completed { background: var(--status-completed); }
+.badge-shipped { background: var(--status-shipped); }
+.badge-cancelled { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); }
+
+.action-strip {
+    display: flex;
+    gap: 8px;
+}
+
+.axiom-mini-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.axiom-mini-btn:hover {
+    background: var(--axiom-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Tracking Stepper */
+.tracking-stepper {
+    display: flex;
+    justify-content: space-between;
+    margin: 30px 0;
+    position: relative;
+}
+
+.tracking-stepper::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+.step {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    border: 3px solid white;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-icon {
+    background: var(--axiom-primary);
+    color: white;
+    box-shadow: 0 0 15px rgba(71, 75, 255, 0.4);
+}
+
+.step.completed .step-icon {
+    background: #10b981;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.step.active .step-label { color: var(--axiom-primary); }
+
+@media (max-width: 900px) {
+    .premium-order-card {
+        grid-template-columns: auto 1fr auto;
+    }
+    .order-status-section {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 15px;
+        border-top: 1px solid rgba(0,0,0,0.05);
+    }
+}

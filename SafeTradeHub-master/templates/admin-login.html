@@ -239,11 +239,19 @@
         try {
           const snapshot = await db.ref('users/' + user.uid).once('value');
           const userData = snapshot.val();
+          
           if (userData && userData.role === 'Admin') {
+            localStorage.setItem('userData', JSON.stringify(userData));
             window.location.href = 'admin-dashboard.html';
+          } else {
+            console.warn('Unauthorized access attempt by:', user.email);
+            await auth.signOut();
+            errorMessage.textContent = 'Access Denied: unauthorized portal.';
+            document.getElementById('loginError').style.display = 'flex';
           }
         } catch (e) {
           console.error('Auth check error:', e);
+          await auth.signOut();
         }
       }
     });

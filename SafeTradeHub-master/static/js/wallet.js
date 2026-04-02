@@ -4,6 +4,7 @@
 // We can use them directly.
 
 let currentUser = null;
+let cachedBalance = 0;
 
 // Account Details Configuration
 const accountDetails = {
@@ -27,11 +28,17 @@ const accountDetails = {
 // Make functions globally available
 window.openDepositModal = openDepositModal;
 window.closeDepositModal = closeDepositModal;
+window.openWithdrawModal = openWithdrawModal;
+window.closeWithdrawModal = closeWithdrawModal;
 window.setAmount = setAmount;
 window.showPaymentDetails = showPaymentDetails;
 window.copyAccountDetails = copyAccountDetails;
 window.previewScreenshot = previewScreenshot;
 window.processDeposit = processDeposit;
+window.processWithdrawal = processWithdrawal;
+window.viewSlip = viewSlip;
+window.closeSlipViewer = closeSlipViewer;
+window.applyFilters = applyFilters;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,50 +52,129 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = 'auth.html';
             }
         });
+
+        // Validation listener
+        const amountInput = document.getElementById('withdrawAmount');
+        if (amountInput) {
+            amountInput.addEventListener('input', validateWithdrawalAmount);
+        }
     } else {
         console.error('Firebase Auth not initialized');
     }
 });
 
 // Load Wallet Data (Balance & Transactions)
-function loadWalletData() {
+async function loadWalletData() {
     if (!currentUser) return;
 
+    // Fetch Role for UI Swapping
+    const userSnap = await db.ref(`users/${currentUser.uid}`).once('value');
+    const userData = userSnap.val() || {};
+    toggleRoleUI(userData.role);
+
     // Listen for wallet balance changes
-    db.ref(`users/${currentUser.uid}/wallet`).on('value', snapshot => {
+    db.ref(`wallets/${currentUser.uid}`).on('value', snapshot => {
         const wallet = snapshot.val() || {};
+        cachedBalance = wallet.available_balance || 0;
         updateWalletUI(wallet);
+        
+        // Update max withdraw hint if applicable
+        const hint = document.getElementById('maxWithdrawHint');
+        if (hint) hint.textContent = `Max available: RS ${cachedBalance.toLocaleString()}`;
+        
+        // Trigger validation if modal is open
+        if (document.getElementById('withdrawModal').style.display === 'flex') {
+            validateWithdrawalAmount();
+        }
     });
 
-    // Load Transactions (Deposits for now)
+    // Load Transactions
     loadTransactions();
 }
 
+function toggleRoleUI(role) {
+    const mainBtn = document.getElementById('mainActionBtn');
+    const sideBtn = document.getElementById('sideActionBtn');
+    
+    if (role === 'Seller') {
+        if (mainBtn) {
+            mainBtn.onclick = openWithdrawModal;
+            mainBtn.style.background = 'var(--danger)';
+            mainBtn.innerHTML = '<i class="fas fa-paper-plane" style="color:white;"></i><span>Withdraw Tokens</span>';
+        }
+        if (sideBtn) {
+            sideBtn.onclick = openWithdrawModal;
+            sideBtn.innerHTML = '<i class="fas fa-hand-holding-usd"></i><span>Withdraw</span><small style="color:var(--text-secondary);font-size:0.8rem;">Request payout</small>';
+        }
+    } else {
+        // Buyer logic - switch back to deposits
+        if (mainBtn) {
+            mainBtn.onclick = openDepositModal;
+            mainBtn.style.background = 'var(--primary-color)';
+            mainBtn.innerHTML = '<i class="fas fa-plus" style="color:white;"></i><span>Add Tokens</span>';
+        }
+        if (sideBtn) {
+            sideBtn.onclick = openDepositModal;
+            sideBtn.innerHTML = '<i class="fas fa-credit-card"></i><span>Add Tokens</span><small style="color:var(--text-secondary);font-size:0.8rem;">Deposit funds instantly</small>';
+        }
+    }
+}
+
 function updateWalletUI(wallet) {
-    const balance = wallet.balance || 0;
-    const deposited = wallet.totalDeposited || 0;
-    const spent = wallet.totalSpent || 0;
-    const escrow = wallet.escrow || 0;
+    const balance = wallet.available_balance || 0;
+    const withdrawn = wallet.total_withdrawn || 0;
+    const escrow = wallet.in_escrow || 0;
+    const locked = wallet.locked_balance || 0;
 
     document.getElementById('walletBalance').textContent = `RS ${balance.toLocaleString()}`;
-    document.getElementById('totalDeposited').textContent = `RS ${deposited.toLocaleString()}`;
-    document.getElementById('totalSpent').textContent = `RS ${spent.toLocaleString()}`;
+    const tw = document.getElementById('totalWithdrawn');
+    if (tw) tw.textContent = `RS ${withdrawn.toLocaleString()}`;
     document.getElementById('escrowHeld').textContent = `RS ${escrow.toLocaleString()}`;
+    
+    const lb = document.getElementById('lockedBalance');
+    if (lb) lb.textContent = `RS ${locked.toLocaleString()}`;
 }
 
 function loadTransactions() {
-    // Fetch deposits
-    db.ref('deposits').orderByChild('userId').equalTo(currentUser.uid).on('value', snapshot => {
-        const deposits = [];
-        snapshot.forEach(child => {
-            deposits.push({ id: child.key, ...child.val(), type: 'Deposit' });
+    const filterType = document.getElementById('transactionTypeFilter')?.value || 'all';
+    
+    // Listen to multiple nodes and merge
+    const depositsRef = db.ref('deposits').orderByChild('userId').equalTo(currentUser.uid);
+    const withdrawalsRef = db.ref('withdrawal_requests').orderByChild('userId').equalTo(currentUser.uid);
+    const walletInternalRef = db.ref(`transactions/${currentUser.uid}`);
+
+    Promise.all([
+        depositsRef.once('value'),
+        withdrawalsRef.once('value'),
+        walletInternalRef.once('value')
+    ]).then(([depSnap, witSnap, intSnap]) => {
+        const list = [];
+        
+        depSnap.forEach(c => list.push({ id: c.key, ...c.val(), type: 'Deposit' }));
+        witSnap.forEach(c => list.push({ id: c.key, ...c.val(), type: 'Withdrawal' }));
+        intSnap.forEach(c => {
+            const data = c.val();
+            // Avoid duplicates if already in witSnap
+            if (data.type !== 'Withdrawal') {
+                list.push({ id: c.key, ...data });
+            }
         });
 
-        // Sort by date desc
-        deposits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Filter
+        let filtered = list;
+        if (filterType !== 'all') {
+            filtered = list.filter(t => t.type.toLowerCase() === filterType.toLowerCase());
+        }
 
-        renderTransactions(deposits);
+        // Sort by date desc
+        filtered.sort((a, b) => (b.createdAt || b.timestamp) - (a.createdAt || a.timestamp));
+
+        renderTransactions(filtered);
     });
+}
+
+function applyFilters() {
+    loadTransactions();
 }
 
 function renderTransactions(transactions) {
@@ -96,17 +182,42 @@ function renderTransactions(transactions) {
     tbody.innerHTML = '';
 
     if (transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No transactions found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No transactions found</td></tr>';
         return;
     }
 
     transactions.forEach(t => {
         const tr = document.createElement('tr');
+        const date = new Date(t.createdAt || t.timestamp).toLocaleDateString();
+        const type = t.type;
+        const method = t.method || (t.bankDetails ? t.bankDetails.bankName : 'System');
+        const amount = parseFloat(t.amount).toLocaleString();
+        const status = t.status;
+        
+        let actionHtml = '';
+        if (t.slipUrl) {
+            actionHtml = `<button class="btn-sm btn-outline-success" onclick="viewSlip('${t.slipUrl}')" style="padding: 2px 8px; font-size: 0.75rem;">
+                            <i class="fas fa-file-invoice"></i> View Slip
+                          </button>`;
+        }
+
         tr.innerHTML = `
-            <td>${new Date(t.createdAt).toLocaleDateString()}</td>
-            <td>${t.type} (${t.method})</td>
-            <td>RS ${parseFloat(t.amount).toLocaleString()}</td>
-            <td><span class="badge badge-${getStatusBadge(t.status)}">${t.status}</span></td>
+            <td>${date}</td>
+            <td>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:600;">${type}</span>
+                    <small style="color:var(--text-secondary);">${method}</small>
+                </div>
+            </td>
+            <td style="color: ${type === 'Withdrawal' || type === 'Escrow Hold' ? '#ef4444' : '#10b981'}; font-weight:600;">
+                ${type === 'Withdrawal' || type === 'Escrow Hold' ? '-' : '+'} RS ${amount}
+            </td>
+            <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge badge-${getStatusBadge(status)}">${status.toUpperCase()}</span>
+                    ${actionHtml}
+                </div>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -132,6 +243,55 @@ function closeDepositModal() {
     document.getElementById('accountDetailsSection').style.display = 'none';
     document.getElementById('screenshotPreview').style.display = 'none';
     document.getElementById('uploadPlaceholder').style.display = 'block';
+}
+
+function openWithdrawModal() {
+    document.getElementById('withdrawModal').style.display = 'flex';
+    validateWithdrawalAmount(); // Initialize state
+}
+
+function closeWithdrawModal() {
+    document.getElementById('withdrawModal').style.display = 'none';
+    document.getElementById('withdrawForm').reset();
+}
+
+function viewSlip(url) {
+    document.getElementById('slipImage').src = url;
+    document.getElementById('slipDownloadBtn').href = url;
+    document.getElementById('slipViewerModal').style.display = 'flex';
+}
+
+function closeSlipViewer() {
+    document.getElementById('slipViewerModal').style.display = 'none';
+}
+
+function validateWithdrawalAmount() {
+    const input = document.getElementById('withdrawAmount');
+    const btn = document.getElementById('proceedWithdrawBtn');
+    const error = document.getElementById('withdrawError');
+    const val = parseFloat(input.value) || 0;
+
+    if (val > cachedBalance) {
+        input.style.borderColor = '#ef4444';
+        error.textContent = `Insufficient balance. You only have RS ${cachedBalance.toLocaleString()} available.`;
+        error.style.display = 'block';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    } else if (val <= 0 || val < 500) {
+        input.style.borderColor = '#d1d5db';
+        error.textContent = val > 0 ? 'Minimum withdrawal is RS 500.' : '';
+        error.style.display = val > 0 ? 'block' : 'none';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+    } else {
+        input.style.borderColor = '#10b981';
+        error.style.display = 'none';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    }
 }
 
 function setAmount(amount) {
@@ -228,6 +388,15 @@ async function processDeposit() {
         };
 
         await db.ref('deposits').push(depositData);
+        
+        // Notify User
+        await db.ref(`users/${currentUser.uid}/notifications`).push({
+            title: 'Deposit Submitted',
+            message: `Your deposit request for RS ${parseFloat(amount).toLocaleString()} has been received and is pending verification.`,
+            type: 'payment',
+            read: false,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
 
         showLoading(false);
         closeDepositModal();
@@ -239,6 +408,61 @@ async function processDeposit() {
         console.error('Deposit Error:', error);
         showLoading(false);
         showToast('Failed to submit deposit: ' + error.message, 'error');
+    }
+}
+
+// Process Withdrawal
+async function processWithdrawal() {
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    const bankName = document.getElementById('bankName').value.trim();
+    const accountTitle = document.getElementById('accountTitle').value.trim();
+    const accountNumber = document.getElementById('accountNumber').value.trim();
+
+    if (!amount || amount < 500) {
+        showToast('Minimum withdrawal is RS 500', 'error');
+        return;
+    }
+    if (!bankName || !accountTitle || !accountNumber) {
+        showToast('Please fill all bank details', 'error');
+        return;
+    }
+
+    try {
+        showLoading(true);
+        const idToken = await currentUser.getIdToken();
+
+        const response = await fetch('/api/v1/wallet/withdraw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+                amount: amount,
+                userName: currentUser.displayName || 'Seller',
+                userEmail: currentUser.email,
+                bankDetails: {
+                    bankName: bankName,
+                    title: accountTitle,
+                    accountNumber: accountNumber
+                }
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast('Withdrawal request submitted successfully!');
+            closeWithdrawModal();
+            loadTransactions(); // Refresh list
+        } else {
+            showToast(result.error || 'Withdrawal failed', 'error');
+        }
+    } catch (error) {
+        console.error('Withdrawal Error:', error);
+        showToast('System error processing withdrawal', 'error');
+    } finally {
+        showLoading(false);
     }
 }
 

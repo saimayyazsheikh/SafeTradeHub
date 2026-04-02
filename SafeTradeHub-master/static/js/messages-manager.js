@@ -31,7 +31,7 @@ class MessagesManager {
                 }
 
                 this.currentUser = { uid: user.uid, ...userData };
-                console.log('Messages Manager initialized for user:', this.currentUser.uid);
+                
 
                 // Load conversations
                 this.loadConversations();
@@ -82,17 +82,17 @@ class MessagesManager {
             const chatsRef = db.ref('chats');
 
             chatsRef.on('value', async (snapshot) => {
-                console.log('Chats snapshot received:', snapshot.exists());
+                
                 this.conversations = [];
 
                 if (!snapshot.exists()) {
-                    console.log('No chats found in database');
+                    
                     listDiv.innerHTML = '<div class="empty-conversations"><i class="fas fa-inbox"></i><p>No conversations yet</p><p style="font-size: 0.85rem; margin-top: 8px;">Start chatting with sellers from product pages!</p></div>';
                     return;
                 }
 
                 const chatsData = snapshot.val();
-                console.log('Total chats in database:', Object.keys(chatsData).length);
+                
 
                 // Filter chats where current user is a participant
                 const chatPromises = [];
@@ -106,7 +106,7 @@ class MessagesManager {
                 const processedChats = await Promise.all(chatPromises);
                 this.conversations = processedChats.filter(chat => chat !== null);
 
-                console.log('User conversations:', this.conversations.length);
+                
 
                 if (this.conversations.length === 0) {
                     listDiv.innerHTML = '<div class="empty-conversations"><i class="fas fa-inbox"></i><p>No conversations yet</p><p style="font-size: 0.85rem; margin-top: 8px;">Start chatting with sellers from product pages!</p></div>';
@@ -402,6 +402,17 @@ class MessagesManager {
             const otherUserId = this.activeChat.otherUser.uid;
             await chatRef.child(`unreadCounts/${otherUserId}`).transaction((current) => {
                 return (current || 0) + 1;
+            });
+
+            // Send System Notification to the recipient
+            const notificationRef = db.ref(`users/${otherUserId}/notifications`);
+            await notificationRef.push({
+                title: `New Message from ${this.currentUser.name || 'User'}`,
+                message: text.length > 50 ? text.substring(0, 47) + '...' : text,
+                type: 'order', // Using 'order' icon (blue) for chats
+                read: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                link: 'messages.html' // Link directly to the chat page
             });
 
         } catch (error) {

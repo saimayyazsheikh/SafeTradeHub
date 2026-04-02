@@ -553,29 +553,45 @@
 
       if (type === 'email') {
         const step = document.getElementById('emailStep');
+        const info = step.querySelector('.step-info');
         const actions = step.querySelector('.step-actions');
-        if (actions) {
-          actions.style.display = 'none';
-          if (!step.querySelector('.verified-message')) {
-            const msg = document.createElement('div');
-            msg.className = 'verified-message';
-            msg.innerHTML = '✅ Email Verified Successfully';
-            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
-            step.querySelector('.step-body').appendChild(msg);
-          }
+        const help = step.querySelector('.step-help');
+
+        if (info) info.style.display = 'none';
+        if (actions) actions.style.display = 'none';
+        if (help) help.style.display = 'none';
+
+        if (!step.querySelector('.verified-message')) {
+          const msg = document.createElement('div');
+          msg.className = 'verified-message';
+          msg.innerHTML = `
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">✅</div>
+            <div style="font-size: 1.3rem; font-weight: 800; color: #065f46; letter-spacing: -0.01em;">Email Verified Successfully</div>
+            <p style="color: #047857; margin-top: 10px; font-weight: 500; font-size: 0.95rem;">Your account root identity has been confirmed. Please proceed with the remaining verification steps.</p>
+          `;
+          msg.style.cssText = 'background: #ecfdf5; border: 2px solid #a7f3d0; padding: 40px 20px; border-radius: 16px; margin-top: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); animation: fadeIn 0.5s ease-out;';
+          step.querySelector('.step-body').appendChild(msg);
         }
       } else if (type === 'phone') {
-        const step = document.getElementById('phoneStep');
+        const step = document.getElementById('emailStep').closest('.steps-card').querySelector('#phoneStep');
+        const info = step.querySelector('.step-info');
+        const help = step.querySelector('.step-help');
         const form = step.querySelector('.phone-form');
-        if (form) {
-          form.style.display = 'none';
-          if (!step.querySelector('.verified-message')) {
-            const msg = document.createElement('div');
-            msg.className = 'verified-message';
-            msg.innerHTML = '✅ Phone Verified Successfully';
-            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
-            step.querySelector('.step-body').appendChild(msg);
-          }
+
+        if (info) info.style.display = 'none';
+        if (help) help.style.display = 'none';
+        if (form) form.style.display = 'none';
+
+        if (!step.querySelector('.verified-message')) {
+          const msg = document.createElement('div');
+          msg.className = 'verified-message';
+          msg.innerHTML = `
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">✅</div>
+            <div style="font-size: 1.3rem; font-weight: 800; color: #065f46; letter-spacing: -0.01em;">Phone Verified Successfully</div>
+            <p style="color: #047857; margin-top: 10px; font-weight: 500; font-size: 0.95rem;">Your mobile credentials have been linked. You are now authorized for transaction alerts.</p>
+          `;
+          msg.style.cssText = 'background: #ecfdf5; border: 2px solid #a7f3d0; padding: 40px 20px; border-radius: 16px; margin-top: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); animation: fadeIn 0.5s ease-out;';
+          step.querySelector('.step-body').appendChild(msg);
         }
       } else if (type === 'identity') {
         const step = document.getElementById('identityStep');
@@ -1683,7 +1699,22 @@
         updatedAt: firebase.database.ServerValue.TIMESTAMP
       });
 
-      console.log('CNIC uploaded');
+      
+      
+      // Global Administrative Alert
+      try {
+          const userSnap = await db.ref('users/' + uid).once('value');
+          const name = userSnap.val()?.name || userSnap.val()?.displayName || 'A user';
+          await db.ref('global_notifications/admin_alerts').push({
+              title: 'Identity Verification Submitted',
+              message: `${name} has submitted Identity documents (CNIC/Selfie) for review.`,
+              timestamp: firebase.database.ServerValue.TIMESTAMP,
+              userId: uid,
+              type: 'verification'
+          });
+      } catch (err) {
+          console.warn('Global alert failed:', err);
+      }
     }
 
     async function handleSelfieUpload(selfieFile, uid) {
@@ -1696,7 +1727,7 @@
         updatedAt: firebase.database.ServerValue.TIMESTAMP
       });
 
-      console.log('Selfie uploaded');
+      
     }
 
     async function handleShopUpload(photoFiles, docFiles, uid) {
@@ -1722,6 +1753,23 @@
         },
         updatedAt: firebase.database.ServerValue.TIMESTAMP
       });
+
+      
+
+      // Global Administrative Alert
+      try {
+          const userSnap = await db.ref('users/' + uid).once('value');
+          const userName = userSnap.val()?.name || userSnap.val()?.displayName || 'A user';
+          await db.ref('global_notifications/admin_alerts').push({
+              title: 'Business Verification Submitted',
+              message: `${userName} has submitted Business documents for review.`,
+              timestamp: firebase.database.ServerValue.TIMESTAMP,
+              userId: uid,
+              type: 'shop'
+          });
+      } catch (err) {
+          console.warn('Global alert failed:', err);
+      }
 
       showNotification('Shop documents submitted successfully', 'success');
       setTimeout(() => location.reload(), 1500);
@@ -1927,7 +1975,7 @@
             successLabel.style.display = 'flex';
           }
 
-          console.log('Photo captured successfully, blob size:', blob.size);
+          
         }, 'image/jpeg', 0.9);
 
         // Stop camera stream
