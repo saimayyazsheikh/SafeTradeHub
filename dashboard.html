@@ -27,6 +27,7 @@
             <a href="profile.html">Profile</a>
             <a href="verify.html">Verification</a>
             <a href="orders.html">My Orders</a>
+            <a href="escrow-management.html">Escrow Management</a>
             <a href="settings.html">Settings</a>
             <hr>
             <button id="signOutBtn">Sign Out</button>
@@ -167,6 +168,48 @@
                 <div class="action-icon">🔐</div>
                 <div class="action-text">Complete KYC</div>
               </a>
+              <a href="escrow-management.html" class="action-btn">
+                <div class="action-icon">🛡️</div>
+                <div class="action-text">Escrow Management</div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Escrow Management -->
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2>Escrow Management</h2>
+            <a href="escrow-management.html" class="view-all">Manage</a>
+          </div>
+          <div class="card-content">
+            <div class="escrow-overview">
+              <div class="escrow-stat">
+                <div class="stat-value" id="dashboardEscrowAmount">$0.00</div>
+                <div class="stat-label">Total in Escrow</div>
+              </div>
+              <div class="escrow-stat">
+                <div class="stat-value" id="dashboardPendingTransactions">0</div>
+                <div class="stat-label">Pending Transactions</div>
+              </div>
+              <div class="escrow-stat">
+                <div class="stat-value" id="dashboardActiveDisputes">0</div>
+                <div class="stat-label">Active Disputes</div>
+              </div>
+            </div>
+            <div class="escrow-actions">
+              <a href="escrow-management.html" class="btn btn-primary">
+                <i class="fas fa-shield-alt"></i>
+                View Escrow Dashboard
+              </a>
+              <a href="payment-processing.html" class="btn btn-secondary">
+                <i class="fas fa-credit-card"></i>
+                Payment Processing
+              </a>
+              <a href="dispute-resolution.html" class="btn btn-secondary">
+                <i class="fas fa-gavel"></i>
+                Dispute Resolution
+              </a>
             </div>
           </div>
         </div>
@@ -300,6 +343,7 @@
       // Load orders from localStorage (in real app, this would be from Firestore)
       const orders = JSON.parse(localStorage.getItem('sthub_orders') || '[]');
       const escrows = JSON.parse(localStorage.getItem('sthub_escrows') || '[]');
+      const disputes = JSON.parse(localStorage.getItem('sthub_disputes') || '[]');
       
       const totalOrders = orders.length;
       const totalSpent = orders.reduce((sum, order) => sum + (order.total || 0), 0);
@@ -311,6 +355,19 @@
       
       // User rating (mock data)
       document.getElementById('userRating').textContent = '5.0';
+      
+      // Update escrow dashboard stats
+      document.getElementById('dashboardEscrowAmount').textContent = `$${escrowFunds.toFixed(2)}`;
+      
+      const pendingTransactions = escrows.filter(escrow => 
+        ['held', 'shipped_to_escrow', 'at_escrow', 'awaiting_confirmation'].includes(escrow.status)
+      ).length;
+      document.getElementById('dashboardPendingTransactions').textContent = pendingTransactions;
+      
+      const activeDisputes = disputes.filter(dispute => 
+        ['open', 'under_review'].includes(dispute.status)
+      ).length;
+      document.getElementById('dashboardActiveDisputes').textContent = activeDisputes;
       
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -897,6 +954,83 @@
     .quick-actions {
       grid-template-columns: 1fr;
     }
+
+    .escrow-overview {
+      grid-template-columns: 1fr;
+    }
+
+    .escrow-actions {
+      flex-direction: column;
+    }
+  }
+
+  /* Escrow Management Styles */
+  .escrow-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .escrow-stat {
+    text-align: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+  }
+
+  .escrow-stat .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+  }
+
+  .escrow-stat .stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .escrow-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .escrow-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+
+  .escrow-actions .btn-primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .escrow-actions .btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .escrow-actions .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+  }
+
+  .escrow-actions .btn-secondary:hover {
+    background: #e5e7eb;
   }
   </style>
 </body>
