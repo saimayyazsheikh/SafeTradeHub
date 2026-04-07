@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function initializeProductAnalytics() {
   try {
-    console.log('📊 Product Analytics: Starting initialization...');
+    
     
     // Wait for AuthManager
     if (window.AuthManager) {
@@ -29,7 +29,7 @@ async function initializeProductAnalytics() {
         return;
       }
       
-      console.log('✅ Product Analytics: User authenticated:', currentUser.name);
+      
     }
     
     // Get product ID from URL
@@ -45,7 +45,7 @@ async function initializeProductAnalytics() {
       return;
     }
     
-    console.log('📦 Loading analytics for product:', productId);
+    
     
     // Load product and analytics data
     await loadProductData(productId);
@@ -56,7 +56,7 @@ async function initializeProductAnalytics() {
     setupCharts();
     setupEventListeners();
     
-    console.log('✅ Product Analytics: Initialization complete');
+    
     
   } catch (error) {
     console.error('❌ Product Analytics: Initialization error:', error);
@@ -66,7 +66,7 @@ async function initializeProductAnalytics() {
 
 async function loadProductData(productId) {
   try {
-    console.log('📥 Loading product data for:', productId);
+    
     
     // TEMPORARY: Load from localStorage for testing
     const testProducts = JSON.parse(localStorage.getItem('testProducts') || '[]');
@@ -76,7 +76,7 @@ async function loadProductData(productId) {
       throw new Error('Product not found');
     }
     
-    console.log('✅ Product loaded:', currentProduct);
+    
     
   } catch (error) {
     console.error('❌ Product Analytics: Load product error:', error);
@@ -87,12 +87,12 @@ async function loadProductData(productId) {
 
 async function loadAnalyticsData(productId) {
   try {
-    console.log('📈 Loading analytics data for:', productId);
+    
     
     // TEMPORARY: Generate simulated analytics data
     analyticsData = generateSimulatedAnalytics(currentProduct);
     
-    console.log('✅ Analytics data generated:', analyticsData);
+    
     
     /* ORIGINAL API CODE - COMMENTED OUT FOR TESTING
     const token = localStorage.getItem('authToken');
@@ -275,7 +275,7 @@ function getActivityDescription(type, product) {
 function populatePage() {
   if (!currentProduct || !analyticsData) return;
   
-  console.log('📝 Populating page with data');
+  
   
   // Update header
   document.getElementById('productName').textContent = currentProduct.name;
@@ -299,7 +299,7 @@ function populatePage() {
   // Update activity list
   updateActivityList();
   
-  console.log('✅ Page populated successfully');
+  
 }
 
 function updateFunnelChart() {
@@ -362,7 +362,7 @@ function formatTimeAgo(date) {
 }
 
 function setupCharts() {
-  console.log('📊 Setting up charts');
+  
   
   // Views Over Time Chart
   setupViewsChart();
@@ -370,7 +370,7 @@ function setupCharts() {
   // Orders Status Chart
   setupOrdersChart();
   
-  console.log('✅ Charts setup complete');
+  
 }
 
 function setupViewsChart() {
@@ -483,7 +483,7 @@ function setupEventListeners() {
 
 function handleTimeRangeChange(e) {
   const days = parseInt(e.target.value);
-  console.log('📅 Time range changed to:', days, 'days');
+  
   
   // Regenerate views data for the selected time range
   const newViewsData = generateViewsOverTime(analyticsData.totalViews).slice(-days);
@@ -504,7 +504,7 @@ function handleTimeRangeChange(e) {
 
 function handleActivityFilter(e) {
   const filter = e.target.value;
-  console.log('🔍 Activity filter changed to:', filter);
+  
   
   const container = document.getElementById('activityList');
   if (!container) return;

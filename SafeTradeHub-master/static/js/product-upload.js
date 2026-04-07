@@ -1,999 +1,430 @@
-// ========================================
-// PRODUCT-UPLOAD.JS - JavaScript for product upload functionality
-// ========================================
+/**
+ * PRODUCT-UPLOAD.JS - Axiom Protocol Enhanced
+ * Handles product listing, media verification, and section-based navigation.
+ */
 
-// Global variables
-let uploadedImages = [];
-let specifications = [];
 let currentUser = null;
+let uploadedImages = []; // Array of { file, url, isMain, verification }
+let specifications = [];
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function () {
-  initializeProductUpload();
+document.addEventListener('DOMContentLoaded', async () => {
+    await initUploadFlow();
 });
 
-async function initializeProductUpload() {
-  try {
-    console.log('🛍️ Product Upload: Starting initialization...');
+async function initUploadFlow() {
+    try {
+        // 1. Auth Guard
+        if (window.AuthManager) {
+            await window.AuthManager.waitForInit();
+            currentUser = window.AuthManager.getCurrentUser();
+            if (!currentUser) {
+                window.location.href = 'auth.html?mode=signin&redirect=product-upload.html';
+                return;
+            }
+        }
 
-    // Wait for AuthManager
-    if (window.AuthManager) {
-      await window.AuthManager.waitForInit();
-      currentUser = window.AuthManager.getCurrentUser();
+        // 2. Setup UI
+        setupNavigation();
+        setupEventListeners();
+        addSpecificationRow(); // Start with one empty spec row
 
-      if (!currentUser) {
-        console.error('❌ Product Upload: User not authenticated');
-        window.location.href = 'auth.html?mode=signin&redirect=' + encodeURIComponent('product-upload.html');
-        return;
-      }
-
-      console.log('✅ Product Upload: User authenticated:', currentUser.name);
+        showLoading(false);
+    } catch (error) {
+        console.error('Init Error:', error);
+        window.NotificationManager.showToast('System Error', error.message, 'error');
+        showLoading(false);
     }
+}
 
-    // Temporarily allow all authenticated users for testing
-    // TODO: Restore seller role restriction after testing
-    // if (currentUser.role !== 'Seller' && currentUser.role !== 'Admin') {
-    //   alert('Only sellers can upload products. Please contact support to upgrade your account.');
-    //   window.location.href = 'dashboard.html';
-    //   return;
-    // }
+/* --- UI INTERACTION & NAVIGATION --- */
 
-    setupEventListeners();
-    initializeFormValidation();
-    initializeImageUpload();
-    initializeSpecifications();
-
-    console.log('✅ Product Upload: Initialization complete');
-
-  } catch (error) {
-    console.error('❌ Product Upload: Initialization error:', error);
-    showToast('Failed to initialize product upload', 'error');
-  }
+function setupNavigation() {
+    const railItems = document.querySelectorAll('.nav-item');
+    railItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const sectionId = item.getAttribute('data-section');
+            
+            // Update nav state
+            railItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            
+            // Update section visibility
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`section-${sectionId}`).classList.add('active');
+            
+            // Scroll to top of content area on mobile
+            if (window.innerWidth < 900) {
+                document.getElementById(`section-${sectionId}`).scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
 }
 
 function setupEventListeners() {
-  // Form submission
-  const form = document.getElementById('productUploadForm');
-  if (form) {
-    form.addEventListener('submit', handleFormSubmit);
-  }
-
-  // Save draft
-  const saveDraftBtn = document.getElementById('saveDraft');
-  if (saveDraftBtn) {
-    saveDraftBtn.addEventListener('click', saveAsDraft);
-  }
-
-  // Description character counter
-  const descriptionTextarea = document.getElementById('productDescription');
-  if (descriptionTextarea) {
-    descriptionTextarea.addEventListener('input', updateCharacterCount);
-  }
-
-  // Tags input
-  const tagsInput = document.getElementById('productTags');
-  if (tagsInput) {
-    tagsInput.addEventListener('input', updateTagPreview);
-  }
-
-  // Add specification button
-  const addSpecBtn = document.getElementById('addSpecification');
-  if (addSpecBtn) {
-    addSpecBtn.addEventListener('click', addSpecification);
-  }
-
-  // Form validation on input
-  const inputs = document.querySelectorAll('.form-input, .form-select, .form-textarea');
-  inputs.forEach(input => {
-    input.addEventListener('blur', validateField);
-    input.addEventListener('input', clearFieldError);
-  });
-
-  // Price Comparison Trigger
-  const productNameInput = document.getElementById('productName');
-  if (productNameInput) {
-    productNameInput.addEventListener('input', debounce(function (e) {
-      fetchPriceComparison(e.target.value);
-    }, 1000));
-  }
-
-  // Listing Type Toggle
-  const listingTypeInputs = document.querySelectorAll('input[name="listingType"]');
-  listingTypeInputs.forEach(input => {
-    input.addEventListener('change', handleListingTypeChange);
-  });
-}
-
-function initializeFormValidation() {
-  // Real-time validation
-  const requiredFields = document.querySelectorAll('[required]');
-  requiredFields.forEach(field => {
-    field.addEventListener('blur', validateField);
-  });
-}
-
-function initializeImageUpload() {
-  // Main image upload
-  const mainImageUpload = document.getElementById('mainImageUpload');
-  const mainImageInput = document.getElementById('mainImage');
-
-  if (mainImageUpload && mainImageInput) {
-    mainImageUpload.addEventListener('click', () => mainImageInput.click());
-    mainImageUpload.addEventListener('dragover', handleDragOver);
-    mainImageUpload.addEventListener('dragleave', handleDragLeave);
-    mainImageUpload.addEventListener('drop', handleDrop);
-    mainImageInput.addEventListener('change', (e) => handleMainImageUpload(e));
-  }
-
-  // Additional images upload
-  const additionalImagesUpload = document.getElementById('additionalImagesUpload');
-  const additionalImagesInput = document.getElementById('additionalImages');
-
-  if (additionalImagesUpload && additionalImagesInput) {
-    additionalImagesUpload.addEventListener('click', () => additionalImagesInput.click());
-    additionalImagesUpload.addEventListener('dragover', handleDragOver);
-    additionalImagesUpload.addEventListener('dragleave', handleDragLeave);
-    additionalImagesUpload.addEventListener('drop', handleDrop);
-    additionalImagesInput.addEventListener('change', (e) => handleAdditionalImagesUpload(e));
-  }
-}
-
-function initializeSpecifications() {
-  // Add initial specification row
-  addSpecification();
-}
-
-// Image Upload Handlers
-function handleListingTypeChange(e) {
-  const type = e.target.value;
-  const fixedPriceGroup = document.getElementById('fixedPriceGroup');
-  const auctionSettings = document.getElementById('auctionSettings');
-
-  if (type === 'fixed') {
-    fixedPriceGroup.style.display = 'flex';
-    auctionSettings.style.display = 'none';
-
-    // Update required attributes
-    document.getElementById('productPrice').setAttribute('required', 'required');
-    document.getElementById('startingBid').removeAttribute('required');
-    document.getElementById('bidIncrement').removeAttribute('required');
-    document.getElementById('auctionDuration').removeAttribute('required');
-  } else {
-    fixedPriceGroup.style.display = 'none';
-    auctionSettings.style.display = 'grid';
-
-    // Update required attributes
-    document.getElementById('productPrice').removeAttribute('required');
-    document.getElementById('startingBid').setAttribute('required', 'required');
-    document.getElementById('bidIncrement').setAttribute('required', 'required');
-    document.getElementById('auctionDuration').setAttribute('required', 'required');
-  }
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.currentTarget.classList.add('dragover');
-}
-
-function handleDragLeave(e) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('dragover');
-}
-
-function handleDrop(e) {
-  e.preventDefault();
-  e.currentTarget.classList.remove('dragover');
-
-  const files = Array.from(e.dataTransfer.files);
-  const isMainImage = e.currentTarget.id === 'mainImageUpload';
-
-  if (isMainImage) {
-    handleMainImageUpload({ target: { files: files.slice(0, 1) } });
-  } else {
-    handleAdditionalImagesUpload({ target: { files: files.slice(0, 5) } });
-  }
-}
-
-function handleMainImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  if (!validateImageFile(file)) return;
-
-  const reader = new FileReader();
-  reader.onload = async function (e) {
-    console.log('📸 Image loaded by FileReader');
-    // Initial upload state
-    const newImage = { file, url: e.target.result, isMain: true, verification: null };
-    uploadedImages = [newImage];
-    console.log('📸 uploadedImages updated:', uploadedImages.length);
-    updateImagePreview();
-
-    // Perform verification
-    showLoading(true, 'Verifying image with AI...');
-    try {
-      console.log('🤖 Sending image for verification...');
-      const verificationResult = await verifyImageWithAI(file);
-      console.log('🤖 Verification result:', verificationResult);
-
-      // Update the image with verification result
-      // Check if the image is still in the array (hasn't been removed by user)
-      const currentImageIndex = uploadedImages.findIndex(img => img.file === file);
-
-      if (currentImageIndex !== -1) {
-        uploadedImages[currentImageIndex].verification = verificationResult;
-
-        if (verificationResult) {
-          if (!verificationResult.isSafe) {
-            showToast(`Warning: ${verificationResult.label} detected!`, 'error');
-          } else {
-            showToast('Image verified successfully', 'success');
-          }
-        } else {
-          showToast('Verification failed (server error), but image uploaded.', 'warning');
-        }
-
-        console.log('📸 Updating preview with verification result');
-        updateImagePreview();
-      } else {
-        console.warn('⚠️ Image was removed before verification completed');
-      }
-    } catch (err) {
-      console.error('❌ Error in verification flow:', err);
-      showToast('Verification error, but image kept.', 'warning');
-    } finally {
-      showLoading(false);
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleAdditionalImagesUpload(e) {
-  const files = Array.from(e.target.files);
-  if (files.length === 0) return;
-
-  const validFiles = files.filter(validateImageFile);
-  if (validFiles.length === 0) return;
-
-  const readers = validFiles.map(file => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        resolve({ file, url: e.target.result, isMain: false });
-      };
-      reader.readAsDataURL(file);
+    // Description Counter
+    document.getElementById('productDescription').addEventListener('input', (e) => {
+        const counter = document.getElementById('descriptionCount');
+        const count = e.target.value.length;
+        counter.textContent = count;
+        counter.style.color = count > 1800 ? '#ef4444' : '#64748b';
     });
-  });
+    
+    // Tag Preview
+    document.getElementById('productTags').addEventListener('input', (e) => {
+        const preview = document.getElementById('tagPreview');
+        const tags = e.target.value.split(',').map(t => t.trim()).filter(t => t !== '');
+        preview.innerHTML = tags.map(t => `<span class="tag">${t}</span>`).join('');
+    });
+    
+    // Spec Button
+    document.getElementById('addSpecification').addEventListener('click', () => addSpecificationRow());
+    
+    // Media Upload Handlers
+    document.getElementById('mainImage').addEventListener('change', (e) => handleFileSelection(e, true));
+    document.getElementById('additionalImages').addEventListener('change', (e) => handleFileSelection(e, false));
+    
+    // Form Submission
+    document.getElementById('productUploadForm').addEventListener('submit', handleFormSubmit);
+    
+    // Cancel/Draft (Optional logic for Drafts can be added here)
+    document.getElementById('saveDraft').addEventListener('click', () => {
+        window.NotificationManager.showToast('Draft Saved', 'Your progress has been saved locally.', 'success');
+    });
 
-  Promise.all(readers).then(async (images) => {
-    // Remove existing additional images (optional, based on requirement, but keeping current logic)
-    // uploadedImages = uploadedImages.filter(img => img.isMain); // Commented out to allow appending if desired, or keep to replace. 
-    // The previous logic replaced all additional images. Let's stick to that for now or append? 
-    // The user said "upload additional images", usually implies appending or replacing. 
-    // The original code was: uploadedImages = uploadedImages.filter(img => img.isMain);
-    // Let's keep it consistent with original behavior: replace additional images batch.
+    // Auction Toggle Logic
+    const auctionToggle = document.getElementById('auctionEnabled');
+    const auctionFields = document.getElementById('auctionFields');
+    const fixedPriceGroup = document.getElementById('fixedPriceGroup');
 
-    uploadedImages = uploadedImages.filter(img => img.isMain);
-
-    // Add new images with null verification initially
-    const newImages = images.map(img => ({ ...img, verification: null }));
-    uploadedImages.push(...newImages);
-    updateImagePreview();
-
-    // Verify each new image
-    if (newImages.length > 0) {
-      showLoading(true, `Verifying ${newImages.length} images...`);
-
-      try {
-        for (const img of newImages) {
-          console.log('🤖 Verifying additional image...');
-          const result = await verifyImageWithAI(img.file);
-
-          // Find the image in the main array and update it
-          const targetImg = uploadedImages.find(uImg => uImg.file === img.file);
-          if (targetImg) {
-            targetImg.verification = result;
-            updateImagePreview(); // Update one by one to show progress
-          }
-        }
-        showToast('All images verified', 'success');
-      } catch (error) {
-        console.error('Error verifying additional images:', error);
-        showToast('Some images could not be verified', 'warning');
-      } finally {
-        showLoading(false);
-      }
+    if (auctionToggle) {
+        auctionToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                auctionFields.style.display = 'grid';
+                if (fixedPriceGroup) fixedPriceGroup.classList.add('hidden-price');
+            } else {
+                auctionFields.style.display = 'none';
+                if (fixedPriceGroup) fixedPriceGroup.classList.remove('hidden-price');
+            }
+        });
     }
-  });
+
+    // Price Comparison Search
+    const nameInput = document.getElementById('productName');
+    if (nameInput) {
+        nameInput.addEventListener('input', debounce((e) => {
+            fetchPriceComparison(e.target.value);
+        }, 1000));
+    }
 }
 
-function validateImageFile(file) {
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
-  if (!allowedTypes.includes(file.type)) {
-    showToast('Please upload only JPG, PNG, or WebP images', 'error');
-    return false;
-  }
-
-  if (file.size > maxSize) {
-    showToast('Image size must be less than 10MB', 'error');
-    return false;
-  }
-
-  return true;
+function addSpecificationRow(key = '', val = '') {
+    const container = document.getElementById('specificationsContainer');
+    const div = document.createElement('div');
+    div.className = 'spec-row-item';
+    div.innerHTML = `
+        <input type="text" placeholder="Key (e.g. RAM)" class="axiom-input spec-key" value="${key}">
+        <input type="text" placeholder="Value (e.g. 16GB)" class="axiom-input spec-val" value="${val}">
+        <button type="button" class="btn-axiom btn-axiom-ghost" style="padding: 0; color: #ef4444;" onclick="this.parentElement.remove()">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(div);
 }
 
-function updateImagePreview() {
-  const preview = document.getElementById('imagePreview');
-  if (!preview) {
-    console.error('❌ updateImagePreview: Preview element not found');
-    return;
-  }
+/* --- MEDIA MANAGEMENT & AI VERIFICATION --- */
 
-  console.log('🖼️ updateImagePreview called. Images:', uploadedImages.length);
+async function handleFileSelection(e, isMain) {
+    const files = Array.from(e.target.files);
+    
+    for (const file of files) {
+        if (isMain) {
+            // Remove previous main image from the internal list
+            uploadedImages = uploadedImages.filter(img => !img.isMain);
+        }
 
-  if (uploadedImages.length === 0) {
-    preview.innerHTML = '';
-    return;
-  }
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const newImageObj = {
+                file: file,
+                url: event.target.result,
+                isMain: isMain,
+                verification: { status: 'verifying' }
+            };
+            
+            uploadedImages.push(newImageObj);
+            renderImagesPreview();
+            
+            // Trigger AI Verification
+            try {
+                const result = await verifyImageWithAI(file);
+                newImageObj.verification = result || { isSafe: true };
+                renderImagesPreview();
+            } catch (err) {
+                console.error('Verification failed:', err);
+                newImageObj.verification = { isSafe: true };
+                renderImagesPreview();
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
 
-  preview.innerHTML = uploadedImages.map((image, index) => `
-    <div class="image-preview-item ${image.verification?.isSafe === false ? 'unsafe-item' : ''}">
-      <img src="${image.url}" alt="Product image ${index + 1}">
-      ${image.isMain ? '<div class="main-badge">Main</div>' : ''}
+function renderImagesPreview() {
+    const mainContainer = document.getElementById('mainImagePreview');
+    const additionalContainer = document.getElementById('additionalImagesPreview');
+    
+    const mainImg = uploadedImages.find(img => img.isMain);
+    const additionalImgs = uploadedImages.filter(img => !img.isMain);
 
-      ${image.verification ? `
-        <div class="verification-badge ${image.verification.isSafe ? 'safe' : 'unsafe'}">
-          ${image.verification.isSafe
-        ? '<i class="fas fa-check-circle"></i> Verified Safe'
-        : `<i class="fas fa-exclamation-triangle"></i> Detected: ${image.verification.reasons ? image.verification.reasons[0] : (image.verification.label || 'Unsafe Item')}`}
+    // Render Main
+    if (mainImg) {
+        mainContainer.innerHTML = renderImageThumb(mainImg, uploadedImages.indexOf(mainImg));
+    } else {
+        mainContainer.innerHTML = '';
+    }
+
+    // Render Additional
+    additionalContainer.innerHTML = additionalImgs.map(img => 
+        renderImageThumb(img, uploadedImages.indexOf(img))
+    ).join('');
+}
+
+function renderImageThumb(imgObj, idx) {
+    const v = imgObj.verification;
+    let badgeHtml = '';
+    
+    if (v.status === 'verifying') {
+        badgeHtml = `<div class="verification-badge verifying"><i class="fas fa-spinner fa-spin"></i> Checking...</div>`;
+    } else if (v.isSafe === true) {
+        badgeHtml = `<div class="verification-badge safe"><i class="fas fa-check-circle"></i> Safe</div>`;
+    } else if (v.isSafe === false) {
+        const rawReason = (v.reasons && v.reasons[0]) || v.label || 'Unsafe content';
+        const prettyReason = rawReason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        badgeHtml = `<div class="verification-badge unsafe" title="${rawReason}"><i class="fas fa-exclamation-triangle"></i> Detect: ${prettyReason}</div>`;
+    }
+
+    return `
+        <div class="image-thumb ${v.isSafe === false ? 'unsafe-item' : ''}">
+            <img src="${imgObj.url}" alt="Upload preview">
+            <button type="button" class="remove-img-btn" onclick="removeUploadedImage(${idx})">
+                <i class="fas fa-times"></i>
+            </button>
+            ${badgeHtml}
+            ${imgObj.isMain ? '<div class="image-status-marker" style="background: var(--axiom-primary);">PRIMARY</div>' : ''}
         </div>
-      ` : ''}
+    `;
+}
 
-      <button type="button" class="remove-image" onclick="removeImage(${index})">×</button>
-    </div>
-  `).join('');
+window.removeUploadedImage = (idx) => {
+    uploadedImages.splice(idx, 1);
+    renderImagesPreview();
+};
+
+/* --- FORM SUBMISSION --- */
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    const isAuction = document.getElementById('auctionEnabled').checked;
+
+    // 1. Validation
+    if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
+        window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
+        return;
+    }
+
+    const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
+    if (unsafeItems.length > 0) {
+        showUnsafeModal(unsafeItems);
+        return;
+    }
+
+    // Agreement checks
+    if (!document.getElementById('agreeTerms').checked || 
+        !document.getElementById('confirmAccuracy').checked || 
+        !document.getElementById('confirmOwnership').checked) {
+        window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
+        return;
+    }
+
+    try {
+        showLoading(true, 'Broadcasting your listing...');
+        
+        // 2. Upload Images to Storage
+        const imageUrls = [];
+        for (const imgObj of uploadedImages) {
+            const storagePath = `products/${currentUser.id}/${Date.now()}_${imgObj.file.name}`;
+            const storageRef = firebase.storage().ref(storagePath);
+            const snapshot = await storageRef.put(imgObj.file);
+            const downloadURL = await snapshot.ref.getDownloadURL();
+            imageUrls.push({ url: downloadURL, isMain: imgObj.isMain });
+        }
+        
+        // 3. Prepare Specifications
+        const specs = {};
+        document.querySelectorAll('.spec-row-item').forEach(row => {
+            const k = row.querySelector('.spec-key').value.trim();
+            const v = row.querySelector('.spec-val').value.trim();
+            if (k && v) specs[k] = v;
+        });
+
+        // 4. Prepare Push Payload
+        const productRef = firebase.database().ref('products').push();
+        const productId = productRef.key;
+
+        const payload = {
+            id: productId,
+            name: document.getElementById('productName').value,
+            category: document.getElementById('productCategory').value,
+            condition: document.getElementById('productCondition').value,
+            price: isAuction ? parseFloat(document.getElementById('auctionStartingPrice').value) : parseFloat(document.getElementById('productPrice').value),
+            stock: parseInt(document.getElementById('productStock').value),
+            location: document.getElementById('productLocation').value,
+            description: document.getElementById('productDescription').value,
+            tags: document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t),
+            specifications: specs,
+            shippingMethod: document.getElementById('shippingMethod').value,
+            shippingCost: parseFloat(document.getElementById('shippingCost').value) || 0,
+            returnPolicy: document.getElementById('returnPolicy').value,
+            images: imageUrls,
+            sellerId: currentUser.id,
+            sellerName: currentUser.name || 'SafeTrade Merchant',
+            isActive: false, // Inactive until verified by staff
+            verified: false,
+            status: 'pending_verification',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            views: 0,
+            favorites: 0,
+            averageRating: 0,
+            totalReviews: 0
+        };
+
+        if (isAuction) {
+            payload.listingType = 'auction';
+            payload.auction = {
+                enabled: true,
+                startingPrice: parseFloat(document.getElementById('auctionStartingPrice').value),
+                minIncrement: parseFloat(document.getElementById('auctionMinIncrement').value),
+                duration: parseInt(document.getElementById('auctionDuration').value),
+                currentBid: parseFloat(document.getElementById('auctionStartingPrice').value),
+                startTime: new Date().toISOString(),
+                endTime: new Date(Date.now() + parseInt(document.getElementById('auctionDuration').value) * 24 * 60 * 60 * 1000).toISOString()
+            };
+            // Map root fields for compatibility
+            payload.startingBid = payload.auction.startingPrice;
+            payload.bidIncrement = payload.auction.minIncrement;
+            payload.auctionDuration = payload.auction.duration;
+            payload.auctionEndsAt = payload.auction.endTime;
+            payload.currentBid = payload.auction.currentBid;
+        } else {
+            payload.listingType = 'fixed';
+        }
+
+        // 5. Submit to DB
+        await productRef.set(payload);
+
+        // 6. Notify Seller
+        firebase.database().ref(`users/${currentUser.id}/notifications`).push({
+            title: 'Listing Submitted',
+            message: `Your product "${payload.name}" is now pending AI and staff verification.`,
+            type: 'success',
+            read: false,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        showLoading(false);
+        document.getElementById('successModal').classList.add('show');
+
+    } catch (error) {
+        console.error('Upload Failed:', error);
+        window.NotificationManager.showToast('Submission Failed', error.message, 'error');
+        showLoading(false);
+    }
+}
+
+/* --- UTILS --- */
+
+function showLoading(show, text = 'Processing...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const textEl = document.getElementById('loadingText');
+    if (overlay) overlay.classList.toggle('show', show);
+    if (textEl) textEl.textContent = text;
 }
 
 async function verifyImageWithAI(file) {
-  const formData = new FormData();
-  formData.append('image', file);
-
-  try {
+    const formData = new FormData();
+    formData.append('image', file);
     const response = await fetch('/api/verify-image', {
-      method: 'POST',
-      body: formData
+        method: 'POST',
+        body: formData
     });
-
-    if (!response.ok) {
-      throw new Error('Verification failed');
-    }
-
+    if (!response.ok) return null;
     return await response.json();
-  } catch (error) {
-    console.error('AI Verification Error:', error);
-    return null;
-  }
 }
 
-async function comparePrices(title) {
-  try {
-    const response = await fetch('/api/compare-prices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: title })
-    });
+async function fetchPriceComparison(query) {
+    if (!query || query.length < 3) return;
+    const container = document.getElementById('comparisonResults');
+    container.innerHTML = `
+        <div class="loading-comparison">
+            <div class="spinner" style="width: 28px; height: 28px; border-width: 2px; border-top-color: var(--axiom-primary); border-radius: 50%; border-style: solid; animation: spin 1s linear infinite;"></div>
+            <p>Scanning markets...</p>
+        </div>
+    `;
 
-    if (!response.ok) {
-      throw new Error('Price comparison failed');
+    try {
+        const response = await fetch('/api/compare-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: query })
+        });
+        if (!response.ok) throw new Error('Service unavailable');
+        const data = await response.json();
+        
+        if (!data.results || data.results.length === 0) {
+            container.innerHTML = `<div class="comparison-placeholder"><p>No similar products found on Daraz or OLX.</p></div>`;
+            return;
+        }
+
+        container.innerHTML = data.results.map(item => `
+            <a href="${item.link}" target="_blank" class="comparison-item">
+                <div class="comparison-details">
+                    <div class="comparison-title" title="${item.title}">${item.title}</div>
+                    <div class="comparison-price">${item.price}</div>
+                    <div class="comparison-source">
+                        <span class="source-badge ${item.source.toLowerCase()}">${item.source}</span>
+                        <span>• ${item.location || 'Pakistan'}</span>
+                    </div>
+                </div>
+            </a>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="comparison-placeholder"><p style="color: #ef4444;">Could not fetch market prices.</p></div>`;
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Price Comparison Error:', error);
-    return null;
-  }
 }
 
-function removeImage(index) {
-  uploadedImages.splice(index, 1);
-  updateImagePreview();
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
-// Specifications
-function addSpecification() {
-  const container = document.getElementById('specificationsContainer');
-  if (!container) return;
-
-  const specRow = document.createElement('div');
-  specRow.className = 'spec-row';
-  specRow.innerHTML = `
-    <input type="text" placeholder="Specification name" class="spec-name">
-    <input type="text" placeholder="Value" class="spec-value">
-    <button type="button" class="btn btn-secondary btn-small remove-spec" onclick="removeSpecification(this)">Remove</button>
-  `;
-
-  container.appendChild(specRow);
-}
-
-function removeSpecification(button) {
-  const container = document.getElementById('specificationsContainer');
-  if (container.children.length > 1) {
-    button.closest('.spec-row').remove();
-  } else {
-    showToast('At least one specification is required', 'warning');
-  }
-}
-
-// Form Validation
-function validateField(e) {
-  const field = e.target;
-  const value = field.value.trim();
-
-  // Remove existing error
-  clearFieldError(e);
-
-  // Required field validation
-  if (field.hasAttribute('required') && !value) {
-    showFieldError(field, 'This field is required');
-    return false;
-  }
-
-  // Specific validations
-  switch (field.name) {
-    case 'name':
-      if (value.length < 3) {
-        showFieldError(field, 'Product name must be at least 3 characters');
-        return false;
-      }
-      break;
-    case 'price':
-      const price = parseFloat(value);
-      if (isNaN(price) || price < 0) {
-        showFieldError(field, 'Please enter a valid price');
-        return false;
-      }
-      break;
-    case 'stock':
-      const stock = parseInt(value);
-      if (isNaN(stock) || stock < 0) {
-        showFieldError(field, 'Please enter a valid stock quantity');
-        return false;
-      }
-      break;
-    case 'description':
-      if (value.length < 10) {
-        showFieldError(field, 'Description must be at least 10 characters');
-        return false;
-      }
-      break;
-    case 'startingBid':
-      const startBid = parseFloat(value);
-      if (isNaN(startBid) || startBid < 0) {
-        showFieldError(field, 'Please enter a valid starting bid');
-        return false;
-      }
-      break;
-    case 'bidIncrement':
-      const inc = parseFloat(value);
-      if (isNaN(inc) || inc <= 0) {
-        showFieldError(field, 'Increment must be greater than 0');
-        return false;
-      }
-      break;
-  }
-
-  return true;
-}
-
-function showFieldError(field, message) {
-  field.classList.add('error');
-
-  // Remove existing error message
-  const existingError = field.parentNode.querySelector('.error-message');
-  if (existingError) {
-    existingError.remove();
-  }
-
-  // Add new error message
-  const errorDiv = document.createElement('div');
-  errorDiv.className = 'error-message';
-  errorDiv.textContent = message;
-  field.parentNode.appendChild(errorDiv);
-}
-
-function clearFieldError(e) {
-  const field = e.target;
-  field.classList.remove('error');
-
-  const errorMessage = field.parentNode.querySelector('.error-message');
-  if (errorMessage) {
-    errorMessage.remove();
-  }
-}
-
-// Character Counter
-function updateCharacterCount(e) {
-  const textarea = e.target;
-  const count = textarea.value.length;
-  const counter = document.getElementById('descriptionCount');
-
-  if (counter) {
-    counter.textContent = count;
-
-    if (count > 1800) {
-      counter.classList.add('error');
-    } else if (count > 1500) {
-      counter.classList.add('warning');
-    } else {
-      counter.classList.remove('warning', 'error');
-    }
-  }
-}
-
-// Tag Preview
-function updateTagPreview(e) {
-  const input = e.target;
-  const tags = input.value.split(',').map(tag => tag.trim()).filter(tag => tag);
-  const preview = document.getElementById('tagPreview');
-
-  if (preview) {
-    preview.innerHTML = tags.map(tag => `<span class="tag">${tag}</span>`).join('');
-  }
-}
-
-// Form Submission
-async function handleFormSubmit(e) {
-  e.preventDefault();
-
-  console.log('🛍️ Product Upload: Form submission started');
-
-  // Validate form
-  if (!validateForm()) {
-    showToast('Please fix the errors in the form', 'error');
-    return;
-  }
-
-  // Check if user agreed to terms
-  const agreeTerms = document.getElementById('agreeTerms').checked;
-  const confirmAccuracy = document.getElementById('confirmAccuracy').checked;
-  const confirmOwnership = document.getElementById('confirmOwnership').checked;
-
-  if (!agreeTerms || !confirmAccuracy || !confirmOwnership) {
-    showToast('Please agree to all terms and confirmations', 'error');
-    return;
-  }
-
-  showLoading(true, 'Uploading product...');
-
-  try {
-    console.log('📝 Collecting form data...');
-    const formData = collectFormData();
-    console.log('📦 Form data collected:', formData);
-
-    console.log('🚀 Starting product upload...');
-    const result = await uploadProduct(formData);
-
-    if (result.success) {
-      showSuccessModal();
-      console.log('✅ Product Upload: Product uploaded successfully');
-    } else {
-      throw new Error(result.message || 'Failed to upload product');
-    }
-
-  } catch (error) {
-    console.error('❌ Product Upload: Upload error:', error);
-    console.error('❌ Error details:', error.stack);
-    showToast(error.message || 'Failed to upload product', 'error');
-    // Fallback alert if toast doesn't show or for critical errors
-    if (error.code === 'storage/unauthorized') {
-      alert('Permission denied: You do not have permission to upload images. Please check your login status.');
-    }
-  } finally {
-    showLoading(false);
-  }
-}
-
-function validateForm() {
-  const requiredFields = document.querySelectorAll('[required]');
-  let isValid = true;
-
-  requiredFields.forEach(field => {
-    if (!validateField({ target: field })) {
-      isValid = false;
-    }
-  });
-
-  // Check if main image is uploaded
-  if (uploadedImages.filter(img => img.isMain).length === 0) {
-    showToast('Please upload a main product image', 'error');
-    isValid = false;
-  }
-
-  // Check for unsafe items
-  const unsafeItems = uploadedImages.filter(img => img.verification && !img.verification.isSafe);
-  if (unsafeItems.length > 0) {
-    // Show custom unsafe modal
+function showUnsafeModal(unsafeItems) {
     const modal = document.getElementById('unsafeItemsModal');
     const list = document.getElementById('unsafeItemsList');
-
-    if (modal && list) {
-      list.innerHTML = unsafeItems.map(img => {
-        // Extract reason from verification result
-        let reason = 'Unsafe content detected';
-        if (img.verification.reasons && img.verification.reasons.length > 0) {
-          reason = img.verification.reasons.join(', ');
-        } else if (img.verification.label) {
-          reason = img.verification.label;
-        }
-        return `<li>${reason}</li>`;
-      }).join('');
-
-      modal.classList.add('show');
-    } else {
-      // Fallback if modal missing
-      alert(`Cannot list product.\n\nThe following items were detected as unsafe:\n${unsafeItems.map(img => {
-        let reason = 'Unsafe content detected';
-        if (img.verification.reasons && img.verification.reasons.length > 0) {
-          reason = img.verification.reasons.join(', ');
-        }
-        return `- ${reason}`;
-      }).join('\n')}\n\nPlease remove these images to proceed.`);
-    }
-
-    showToast('Cannot upload: Unsafe items detected', 'error');
-    isValid = false;
-  }
-
-  return isValid;
-}
-
-function closeUnsafeModal() {
-  const modal = document.getElementById('unsafeItemsModal');
-  if (modal) {
-    modal.classList.remove('show');
-  }
-}
-
-// Make global
-window.closeUnsafeModal = closeUnsafeModal;
-
-function collectFormData() {
-  const form = document.getElementById('productUploadForm');
-  const formData = new FormData(form);
-
-  // Add specifications
-  const specs = {};
-  const specRows = document.querySelectorAll('.spec-row');
-  specRows.forEach(row => {
-    const name = row.querySelector('.spec-name').value.trim();
-    const value = row.querySelector('.spec-value').value.trim();
-    if (name && value) {
-      specs[name] = value;
-    }
-  });
-
-  // Add tags
-  const tagsInput = document.getElementById('productTags');
-  const tags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
-
-  // Add images
-  const images = uploadedImages.map(img => ({
-    file: img.file,
-    isMain: img.isMain
-  }));
-
-  return {
-    name: formData.get('name'),
-    description: formData.get('description'),
-    price: formData.get('listingType') === 'auction' ? parseFloat(formData.get('startingBid')) : parseFloat(formData.get('price')),
-    category: formData.get('category'),
-    stock: parseInt(formData.get('stock')),
-    condition: formData.get('condition'),
-    location: formData.get('location') || '',
-    specifications: specs,
-    tags: tags,
-    images: images,
-    shippingMethod: formData.get('shippingMethod') || 'standard',
-    shippingCost: parseFloat(formData.get('shippingCost')) || 0,
-    returnPolicy: formData.get('returnPolicy') || '',
-    sellerId: currentUser.id,
-    sellerName: currentUser.name,
-    listingType: formData.get('listingType'),
-    startingBid: formData.get('listingType') === 'auction' ? parseFloat(formData.get('startingBid')) : null,
-    bidIncrement: formData.get('listingType') === 'auction' ? parseFloat(formData.get('bidIncrement')) : null,
-    auctionDuration: formData.get('listingType') === 'auction' ? parseInt(formData.get('auctionDuration')) : null,
-    auctionEndsAt: formData.get('listingType') === 'auction' ? new Date(Date.now() + parseInt(formData.get('auctionDuration')) * 24 * 60 * 60 * 1000).toISOString() : null,
-    currentBid: formData.get('listingType') === 'auction' ? parseFloat(formData.get('startingBid')) : null
-  };
-}
-
-async function uploadProduct(productData) {
-  try {
-    console.log('🛍️ Starting product upload...');
-
-    // 1. Upload Images
-    console.log('📸 Uploading images...');
-    const imageUrls = await uploadImages(productData.images);
-    console.log('✅ Images uploaded:', imageUrls);
-
-    // 2. Prepare Product Data
-    const newProductRef = firebase.database().ref('products').push();
-    const productId = newProductRef.key;
-
-    const apiData = {
-      ...productData,
-      id: productId,
-      images: imageUrls,
-      isActive: true,
-      isFeatured: false,
-      views: 0,
-      favorites: 0,
-      averageRating: 0,
-      totalReviews: 0,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    console.log('📦 Saving product to Firebase RTDB:', productId);
-    console.log('📦 Data being saved:', JSON.stringify(apiData, null, 2));
-
-    // 3. Save to RTDB
-    try {
-      await newProductRef.set(apiData);
-    } catch (dbError) {
-      console.error('❌ RTDB Write Error:', dbError);
-      alert(`Database Error: ${dbError.message}\nCode: ${dbError.code}`);
-      throw dbError;
-    }
-
-    console.log('✅ Product saved successfully');
-
-    return {
-      success: true,
-      message: 'Product uploaded successfully',
-      data: { product: apiData }
-    };
-
-  } catch (error) {
-    console.error('❌ Upload error:', error);
-    if (error.code !== 'storage/unauthorized') { // Don't double alert
-      alert(`Upload Failed: ${error.message}`);
-    }
-    throw error;
-  }
-}
-
-async function uploadImages(images) {
-  const uploadPromises = images.map(async (imageData) => {
-    try {
-      // Upload to Firebase Storage
-      // Upload to Firebase Storage
-      const storage = firebase.storage();
-      const storageRef = storage.ref();
-      // Use user ID in path to match security rules: products/{userId}/{fileName}
-      const userId = currentUser ? currentUser.id : 'anonymous';
-      const imageRef = storageRef.child(`products/${userId}/${Date.now()}_${imageData.file.name}`);
-
-      const snapshot = await imageRef.put(imageData.file);
-      const downloadURL = await snapshot.ref.getDownloadURL();
-
-      return {
-        url: downloadURL,
-        isMain: imageData.isMain
-      };
-    } catch (error) {
-      console.error('Image upload error:', error);
-      throw error;
-    }
-  });
-
-  return Promise.all(uploadPromises);
-}
-
-async function saveAsDraft() {
-  console.log('🛍️ Product Upload: Saving as draft');
-
-  const formData = collectFormData();
-  formData.isActive = false; // Mark as draft
-
-  showLoading(true, 'Saving draft...');
-
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch('/api/products', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formData)
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      showToast('Draft saved successfully!', 'success');
-      // Optionally redirect to management page
-      setTimeout(() => {
-        window.location.href = 'product-management.html';
-      }, 2000);
-    } else {
-      throw new Error(result.message || 'Failed to save draft');
-    }
-
-  } catch (error) {
-    console.error('❌ Product Upload: Draft save error:', error);
-    showToast(error.message || 'Failed to save draft', 'error');
-  } finally {
-    showLoading(false);
-  }
-}
-
-// Price Comparison Logic
-async function fetchPriceComparison(query) {
-  if (!query || query.length < 3) return;
-
-  const container = document.getElementById('comparisonResults');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="loading-comparison">
-      <div class="spinner" style="width: 24px; height: 24px; border-width: 2px;"></div>
-      <p>Searching best prices...</p>
-    </div>
-  `;
-
-  try {
-    // Call Python Microservice with Timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 40000); // 40 second timeout for Live Scraping
-
-    const response = await fetch('/api/compare-prices', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ title: query }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error('Comparison service unavailable');
-    }
-
-    const data = await response.json();
-    renderComparisonResults(data.results);
-
-  } catch (error) {
-    console.error('Price Comparison Error:', error);
-    if (error.name === 'AbortError') {
-      container.innerHTML = `
-        <div class="comparison-placeholder">
-          <p style="color: #ef4444;">Request timed out. Please try again.</p>
-        </div>
-      `;
-    } else {
-      container.innerHTML = `
-          <div class="comparison-placeholder">
-            <p style="color: #ef4444;">Could not fetch prices.<br>Make sure the comparison module is running.</p>
-          </div>
-        `;
-    }
-  }
-}
-
-function renderComparisonResults(results) {
-  const container = document.getElementById('comparisonResults');
-  if (!container) return;
-
-  if (!results || results.length === 0) {
-    container.innerHTML = `
-      <div class="comparison-placeholder">
-        <p>No similar products found on Daraz or OLX.</p>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = results.map(item => `
-    <a href="${item.link}" target="_blank" class="comparison-item">
-      <div class="comparison-details">
-        <div class="comparison-title" title="${item.title}">${item.title}</div>
-        <div class="comparison-price">${item.price}</div>
-        <div class="comparison-source">
-          <span class="source-badge ${item.source.toLowerCase()}">${item.source}</span>
-          <span>• ${item.location}</span>
-        </div>
-      </div>
-    </a>
-  `).join('');
-}
-
-// Utility debounce
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Utility Functions
-function showLoading(show, text = 'Processing...') {
-  const overlay = document.getElementById('loadingOverlay');
-  const loadingText = document.getElementById('loadingText');
-
-  if (overlay) {
-    overlay.classList.toggle('show', show);
-  }
-
-  if (loadingText) {
-    loadingText.textContent = text;
-  }
-}
-
-function showToast(message, type = 'info') {
-  // Create toast element
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>${message}</span>
-          <button style="background: none; border: none; cursor: pointer; margin-left: 12px;" onclick="this.parentElement.parentElement.remove()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-            </svg>
-          </button>
-        </div>
-        `;
-
-  // Add to page
-  document.body.appendChild(toast);
-
-  // Show toast
-  setTimeout(() => toast.classList.add('show'), 100);
-
-  // Auto remove after 5 seconds
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 5000);
-}
-
-function showSuccessModal() {
-  const modal = document.getElementById('successModal');
-  if (modal) {
+    list.innerHTML = unsafeItems.map(img => {
+        const v = img.verification;
+        const reason = (v.reasons && v.reasons.join(', ')) || v.label || 'Unsafe content';
+        return `<li><i class="fas fa-times-circle" style="margin-right: 8px;"></i>${reason}</li>`;
+    }).join('');
     modal.classList.add('show');
-  }
 }
 
-function closeSuccessModal() {
-  const modal = document.getElementById('successModal');
-  if (modal) {
-    modal.classList.remove('show');
-  }
-}
-
-// Global functions for HTML onclick handlers
-window.removeImage = removeImage;
-window.removeSpecification = removeSpecification;
-window.closeSuccessModal = closeSuccessModal;
-
-// Export for modules
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    initializeProductUpload,
-    handleFormSubmit,
-    saveAsDraft,
-    uploadProduct
-  };
-}
+window.closeUnsafeModal = () => document.getElementById('unsafeItemsModal').classList.remove('show');

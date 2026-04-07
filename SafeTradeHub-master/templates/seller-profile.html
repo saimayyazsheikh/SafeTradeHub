@@ -34,9 +34,14 @@
                 <div class="seller-details">
                     <div class="seller-title-row">
                         <h1 id="sellerName">Loading...</h1>
-                        <div class="seller-rating" id="sellerRatingContainer" style="display:none;">
-                            <div class="stars" id="sellerStars"></div>
-                            <span class="rating-count" id="sellerRatingCount">(0 reviews)</span>
+                        <div class="seller-rating" id="sellerRatingContainer">
+                            <div class="stars" id="sellerStars">
+                                <!-- Dynamic Stars -->
+                            </div>
+                            <span class="rating-count" id="sellerRatingCount">0.0 (0 reviews)</span>
+                            <div class="seller-trust-score" id="trustScoreBadge" style="display: none;">
+                                <i class="fas fa-shield-halved"></i> Trust Score: <span id="trustScoreValue">100</span>
+                            </div>
                         </div>
                     </div>
 
@@ -64,23 +69,72 @@
                     <button id="chatWithSellerBtn" class="btn btn-primary chat-btn">
                         <i class="fas fa-comments"></i> Chat with Seller
                     </button>
+                    <button id="reportSellerBtn" class="btn-report-user" style="margin-top: 10px; width: 100%; border: 1px solid #fecdd3; background: #fff1f2; color: #e11d48; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fas fa-user-shield"></i> Report User
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- Seller Products Section -->
-        <section class="section">
+        <style>
+            .seller-trust-score {
+                background: #f0f9ff;
+                border: 1px solid #bae6fd;
+                color: #0369a1;
+                padding: 4px 12px;
+                border-radius: 100px;
+                font-size: 0.8rem;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 10px;
+            }
+            .reviews-container {
+                margin-top: 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+            .review-item {
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+            }
+            .review-meta {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+            }
+            .review-stars {
+                color: #fbbf24;
+            }
+            .review-author {
+                font-weight: 700;
+                color: #1e293b;
+            }
+            .review-text {
+                color: #475569;
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+        </style>
+
+        <!-- Seller Reviews Section -->
+        <section class="section" id="reviewsSection">
             <div class="container">
                 <div class="seller-products-header">
-                    <h2>Products by this Seller</h2>
-                    <span id="productCount">0 products</span>
+                    <h2>Reviews & Feedback</h2>
+                    <span id="reviewCount">0 reviews</span>
                 </div>
-
-                <div class="recs" id="sellerProductsGrid">
-                    <!-- Products will be injected here -->
-                    <div class="loading-spinner">Loading products...</div>
+                
+                <div id="reviewsList" class="reviews-container">
+                    <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                        <i class="fas fa-comment-slash fa-2x" style="margin-bottom: 10px;"></i>
+                        <p>No reviews yet for this user.</p>
+                    </div>
                 </div>
-
             </div>
         </section>
     </main>
@@ -103,6 +157,7 @@
     <script src="/static/js/firebase-config.js"></script>
     <script src="/static/js/auth-manager.js"></script>
     <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
     <script src="/static/js/seller-profile.js"></script>
 </body>
 

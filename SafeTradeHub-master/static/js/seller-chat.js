@@ -38,6 +38,14 @@ class SellerChat {
             return;
         }
 
+        if (!sellerId) {
+            console.error('No sellerId provided to openChat');
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast('Error', 'Could not start chat: Seller information is missing.', 'error');
+            }
+            return;
+        }
+
         this.sellerId = sellerId;
         this.productId = productId;
 

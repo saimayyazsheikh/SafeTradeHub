@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize payment processing
 function initializePaymentProcessing() {
-  console.log('Initializing Payment Processing System');
+  
   
   // Update cart count
   updateCartCount();
@@ -58,7 +58,7 @@ function setupEventListeners() {
 function loadPaymentData() {
   try {
     paymentData = JSON.parse(localStorage.getItem(PAYMENTS_KEY) || '[]');
-    console.log('Loaded payment data:', paymentData.length, 'payments');
+    
     renderTransactionsTable();
   } catch (error) {
     console.error('Error loading payment data:', error);
@@ -70,7 +70,7 @@ function loadPaymentData() {
 function loadEscrowData() {
   try {
     escrowData = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
-    console.log('Loaded escrow data:', escrowData.length, 'escrow transactions');
+    
     updatePaymentStats();
   } catch (error) {
     console.error('Error loading escrow data:', error);
@@ -357,7 +357,7 @@ function viewAllTransactions() {
 
 function updateVolumeChart() {
   const timeFilter = document.getElementById('volumeTimeFilter')?.value || 'today';
-  console.log('Updating volume chart for:', timeFilter);
+  
   // Implement chart update logic here
 }
 

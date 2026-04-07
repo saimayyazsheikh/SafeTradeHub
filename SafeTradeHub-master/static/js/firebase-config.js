@@ -13,9 +13,9 @@ const firebaseConfig = {
 // Initialize Firebase
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
-    console.log('🔥 Firebase initialized successfully');
+    
 } else {
-    console.log('🔥 Firebase already initialized');
+    
 }
 
 // Make services available globally if needed

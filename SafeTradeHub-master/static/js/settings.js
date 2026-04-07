@@ -9,130 +9,235 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Load User Data
-        loadUserData(user.uid);
-
         // Setup Event Listeners
-
         setupSecurityForm(user);
         setupNotificationSettings(user.uid);
+        setupAvatarSync(user.uid);
     });
 
-    // Load User Data
-    async function loadUserData(uid) {
-        try {
-            const snapshot = await db.ref('users/' + uid).once('value');
-            const userData = snapshot.val();
-
-            if (userData) {
-
-
-                // Populate Notification Settings
-                if (userData.settings && userData.settings.notifications) {
-                    document.getElementById('emailNotif').checked = userData.settings.notifications.email !== false;
-                    document.getElementById('pushNotif').checked = userData.settings.notifications.push !== false;
-                    document.getElementById('marketingNotif').checked = userData.settings.notifications.marketing === true;
-                }
-            }
-        } catch (error) {
-            console.error('Error loading user settings:', error);
-            alert('Failed to load settings. Please try again.');
-        }
-    }
-
-
-
-    // Security Form Handler
+    // 1. SECURITY: Password Update Logic
     function setupSecurityForm(user) {
         const form = document.getElementById('securityForm');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
-            const btn = form.querySelector('button');
 
             if (newPassword !== confirmPassword) {
-                alert('New passwords do not match.');
+                showToast('Error', 'New passwords do not match.', 'error');
                 return;
             }
 
             if (newPassword.length < 6) {
-                alert('Password must be at least 6 characters long.');
+                showToast('Error', 'Password must be at least 6 characters.', 'error');
                 return;
             }
 
-            const originalText = btn.textContent;
-            btn.textContent = 'Updating...';
-            btn.disabled = true;
-
             try {
+                toggleButtonState('securityForm', true, 'Updating...');
                 await user.updatePassword(newPassword);
-                alert('Password updated successfully!');
+                
+                // Update timestamp in RTDB
+                await db.ref(`users/${user.uid}/settings/lastPasswordChange`).set(firebase.database.ServerValue.TIMESTAMP);
+
+                // Push security notification
+                await db.ref(`users/${user.uid}/notifications`).push({
+                    title: 'Security Alert 🛡️',
+                    message: 'Your account password has been updated. If this wasn\'t you, secure your account immediately.',
+                    type: 'alert',
+                    read: false,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                showToast('Success', 'Password updated successfully!', 'success');
                 form.reset();
             } catch (error) {
-                console.error('Error updating password:', error);
+                console.error('Password Update Error:', error);
                 if (error.code === 'auth/requires-recent-login') {
-                    alert('For security, please sign out and sign in again to change your password.');
+                    // Trigger Re-authentication Modal
+                    handleReauthentication(user, 'password', newPassword);
                 } else {
-                    alert('Failed to update password: ' + error.message);
+                    showToast('Error', error.message, 'error');
                 }
             } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
+                toggleButtonState('securityForm', false, 'Update Password');
             }
         });
     }
 
-    // Notification Settings Handler
+    // 2. NOTIFICATIONS: Real-time Sync & Toggles
     function setupNotificationSettings(uid) {
-        const btn = document.getElementById('saveNotifBtn');
-        btn.addEventListener('click', async () => {
-            const originalText = btn.textContent;
-            btn.textContent = 'Saving...';
-            btn.disabled = true;
+        const settingsRef = db.ref(`users/${uid}/settings/notifications`);
+        const saveBtn = document.getElementById('saveNotifBtn');
 
-            const settings = {
-                email: document.getElementById('emailNotif').checked,
-                push: document.getElementById('pushNotif').checked,
-                marketing: document.getElementById('marketingNotif').checked
-            };
+        // Real-time listener for UI state
+        settingsRef.on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            document.getElementById('emailNotif').checked = data.email !== false;
+            document.getElementById('pushNotif').checked = data.push !== false;
+            document.getElementById('marketingNotif').checked = data.marketing === true;
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            try {
+                toggleButtonState('saveNotifBtn', true, 'Saving...');
+                const settings = {
+                    email: document.getElementById('emailNotif').checked,
+                    push: document.getElementById('pushNotif').checked,
+                    marketing: document.getElementById('marketingNotif').checked,
+                    lastUpdated: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                await settingsRef.set(settings);
+                showToast('Success', 'Preferences saved and synced.', 'success');
+            } catch (error) {
+                showToast('Error', 'Failed to save settings: ' + error.message, 'error');
+            } finally {
+                toggleButtonState('saveNotifBtn', false, 'Save Preferences');
+            }
+        });
+    }
+
+    // 3. RE-AUTHENTICATION FLOW
+    window.handleReauthentication = function(user, action, data) {
+        const modal = document.getElementById('reauthModal');
+        const confirmBtn = document.getElementById('confirmReauthBtn');
+        const passwordInput = document.getElementById('reauthPassword');
+
+        modal.style.display = 'block';
+
+        const performAction = async () => {
+            const password = passwordInput.value;
+            if (!password) return;
+
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Verifying...';
 
             try {
-                await db.ref('users/' + uid + '/settings/notifications').set(settings);
-                alert('Notification preferences saved!');
+                const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+                await user.reauthenticateWithCredential(credential);
+                
+                closeReauthModal();
+                showToast('Identity Verified', 'Finishing your request...', 'info');
+
+                // Retry original action
+                if (action === 'password') {
+                    await user.updatePassword(data);
+                    
+                    // Update timestamp
+                    await db.ref(`users/${user.uid}/settings/lastPasswordChange`).set(firebase.database.ServerValue.TIMESTAMP);
+                    
+                    // Push notification (Crucial fix: added to re-auth flow)
+                    await db.ref(`users/${user.uid}/notifications`).push({
+                        title: 'Security Alert 🛡️',
+                        message: 'Your account password has been updated. If this wasn\'t you, secure your account immediately.',
+                        type: 'alert',
+                        read: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    showToast('Success', 'Password updated successfully!', 'success');
+                    document.getElementById('securityForm').reset();
+                } else if (action === 'delete') {
+                    await startDeletionProcess();
+                }
             } catch (error) {
-                console.error('Error saving notifications:', error);
-                alert('Failed to save preferences: ' + error.message);
+                showToast('Error', 'Verification failed: ' + error.message, 'error');
             } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Verify & Continue';
+            }
+        };
+
+        confirmBtn.onclick = performAction;
+    };
+
+    window.closeReauthModal = function() {
+        document.getElementById('reauthModal').style.display = 'none';
+        document.getElementById('reauthPassword').value = '';
+    };
+
+    // 4. THE NUKE: Permanent Account Deletion
+    window.confirmDeleteAccount = async function() {
+        const confirmed = await window.NotificationManager.showConfirm('⚠️ Permanent Deletion?', 'This action is IRREVERSIBLE. Are you sure you want to permanently delete your account and all associated data?');
+        if (confirmed) {
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+
+            try {
+                // Check if re-auth is needed for deletion too
+                // Usually user.delete() requires recent login
+                await startDeletionProcess();
+            } catch (error) {
+                if (error.code === 'auth/requires-recent-login') {
+                    handleReauthentication(user, 'delete');
+                } else {
+                    showToast('Critical Error', error.message, 'error');
+                }
+            }
+        }
+    };
+
+    async function startDeletionProcess() {
+        showToast('System Notice', 'Initiating atomic nuke operations...', 'warning');
+        const user = firebase.auth().currentUser;
+        const idToken = await user.getIdToken();
+
+        try {
+            const response = await fetch('/api/auth/nuke-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('Success', 'Account nuked. Goodbye, friend.', 'success');
+                // Wait for toast then logout & redirect
+                setTimeout(async () => {
+                    await firebase.auth().signOut();
+                    window.location.href = 'index.html';
+                }, 2000);
+            } else {
+                showToast('Error', 'Deletion failed: ' + result.error, 'error');
+            }
+        } catch (error) {
+            showToast('Error', 'Nuke API unreachable: ' + error.message, 'error');
+        }
+    }
+
+    // UTILITIES
+    function toggleButtonState(id, isLoading, text) {
+        let btn = document.getElementById(id);
+        if (btn && btn.tagName === 'FORM') {
+            btn = btn.querySelector('button[type="submit"]');
+        }
+        if (!btn) return;
+        btn.disabled = isLoading;
+        btn.textContent = text;
+    }
+
+    function showToast(title, msg, type = 'info') {
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast(title, msg, type);
+        } else {
+            alert(title + ": " + msg);
+        }
+    }
+
+    function setupAvatarSync(uid) {
+        // Basic sidebar sync if needed beyond the flicker fix
+        db.ref(`users/${uid}`).on('value', (snapshot) => {
+            const user = snapshot.val();
+            if (user) {
+                const nameEl = document.getElementById('userName');
+                const roleEl = document.getElementById('userRole');
+                if (nameEl) nameEl.textContent = user.name || 'User';
+                if (roleEl) roleEl.textContent = user.role || 'Buyer';
             }
         });
     }
 });
-
-// Account Deletion
-async function confirmDeleteAccount() {
-    if (confirm('Are you ABSOLUTELY sure? This action cannot be undone. All your data will be permanently deleted.')) {
-        const user = firebase.auth().currentUser;
-        if (user) {
-            try {
-                // Delete user data from RTDB first
-                await firebase.database().ref('users/' + user.uid).remove();
-
-                // Delete user authentication
-                await user.delete();
-
-                alert('Your account has been deleted.');
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Error deleting account:', error);
-                if (error.code === 'auth/requires-recent-login') {
-                    alert('For security, please sign out and sign in again to delete your account.');
-                } else {
-                    alert('Failed to delete account: ' + error.message);
-                }
-            }
-        }
-    }
-}

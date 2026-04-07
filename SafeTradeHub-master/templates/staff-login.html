@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Login - Safe Trade Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --slate-900: #0f172a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--slate-50);
+            color: var(--slate-800);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .login-container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid var(--slate-200);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header i {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .login-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: var(--slate-700);
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--slate-700);
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate-700);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            border: 1px solid var(--slate-200);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+            background-color: var(--slate-50);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background-color: white;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.875rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn-login:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            display: none;
+            border: 1px solid #fecaca;
+        }
+
+        .footer-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--slate-700);
+        }
+
+        .footer-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: none;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <i class="fas fa-shield-halved"></i>
+            <h1>Safe Trade Hub</h1>
+            <p>Enterprise Staff Portal</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" class="form-input" placeholder="Username or Email Address" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" id="loginBtn" class="btn-login">
+                <i class="fas fa-spinner fa-spin loading-spinner" id="loader"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="footer-link">
+            <p>Admin Access? <a href="admin-login.html">Login as Admin</a></p>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+            authDomain: "safetradehub-def1d.firebaseapp.com",
+            databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+            projectId: "safetradehub-def1d",
+            storageBucket: "safetradehub-def1d.firebasestorage.app",
+            messagingSenderId: "633146502278",
+            appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+            measurementId: "G-1857Q7JPKZ"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('errorMessage');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.toLowerCase();
+            const password = document.getElementById('password').value;
+
+            setLoading(true);
+            hideError();
+
+            try {
+                let staffEmail = username;
+                // 1. Resolve Credentials (intelligent bypass)
+                if (!username.includes('@')) {
+                    try {
+                        const snapshot = await db.ref('staff_registry').orderByChild('username').equalTo(username).once('value');
+                        if (snapshot.exists()) {
+                            snapshot.forEach(child => { staffEmail = child.val().email; });
+                        } else {
+                            throw new Error('Username not found.');
+                        }
+                    } catch (err) {
+                        console.error('Lookup failed, using auth failover:', err);
+                        // Backend fallback if DB is slow or rules propagation delayed
+                        const response = await fetch('/api/staff/get-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: username })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            staffEmail = result.email;
+                        } else {
+                            throw new Error(result.error || 'Username not found.');
+                        }
+                    }
+                }
+
+                // 2. Sign in with Firebase Auth
+                const userCredential = await auth.signInWithEmailAndPassword(staffEmail, password);
+                const user = userCredential.user;
+
+                // 3. STRICT STAFF ROLE CHECK
+                const snapshot = await db.ref('staff_registry/' + user.uid).once('value');
+                const staffData = snapshot.val();
+
+                if (staffData) {
+                    // Logic to prioritize Role/Roles
+                    localStorage.setItem('userData', JSON.stringify({ ...staffData, uid: user.uid }));
+                    window.location.href = 'staff-dashboard.html';
+                } else {
+                    console.warn('Non-staff auth attempt:', user.email);
+                    await auth.signOut();
+                    throw new Error('Access Denied: You do not have permission to access the Staff Portal.');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                let friendlyMessage = 'Login failed. Please check your credentials.';
+                
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    friendlyMessage = 'Invalid email/username or password.';
+                } else if (error.code === 'auth/invalid-email') {
+                    friendlyMessage = 'Please enter a valid email address.';
+                } else if (error.message.includes('registry')) {
+                    friendlyMessage = error.message;
+                }
+                
+                showError(friendlyMessage);
+                setLoading(false);
+            }
+        });
+
+        function setLoading(isLoading) {
+            loginBtn.disabled = isLoading;
+            loader.style.display = isLoading ? 'inline-block' : 'none';
+        }
+
+        function showError(message) {
+            errorMessage.innerText = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        // AUTO-LOGIN GUARD: Ensure only staff can auto-login
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const snapshot = await db.ref('staff_registry/' + user.uid).once('value');
+                    const staffData = snapshot.val();
+                    if (staffData) {
+                        localStorage.setItem('userData', JSON.stringify({ ...staffData, uid: user.uid }));
+                        window.location.href = 'staff-dashboard.html';
+                    } else {
+                        console.warn('Unauthorized auto-login access attempt by:', user.email);
+                        await auth.signOut();
+                    }
+                } catch (e) {
+                    console.error('Auth check error:', e);
+                    await auth.signOut();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

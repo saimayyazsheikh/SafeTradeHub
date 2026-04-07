@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staff Profile - Safe Trade Hub</title>
+    <link rel="stylesheet" href="/static/css/admin-dashboard.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Firebase v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+    <!-- Platform Core Scripts -->
+    <script src="/static/js/firebase-config.js"></script>
+    <script src="/static/js/auth-manager.js"></script>
+
+    <style>
+        /* Profile Specific Overrides */
+        .profile-page-main {
+            padding-top: 100px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #64748b;
+            text-decoration: none;
+            margin-bottom: 24px;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #667eea;
+        }
+
+        /* Premium Modal Design */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 440px;
+            padding: 36px;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.2), 0 18px 36px -18px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .modal-text {
+            font-size: 15px;
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #f1f5f9;
+            border-radius: 12px;
+            margin-top: 8px;
+            margin-bottom: 20px;
+            background: #f8fafc;
+            transition: all 0.2s;
+            font-size: 15px;
+        }
+
+        .form-input:focus {
+            border-color: #667eea;
+            background: white;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Danger Actions */
+        .btn-danger-confirm {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger-confirm:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-cancel {
+            background: #f1f5f9;
+            color: #64748b;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+    </style>
+</head>
+
+<body class="admin-dashboard-body">
+
+    <!-- Simple Header (Premium Version) -->
+    <header class="admin-header" style="background: rgba(255, 255, 255, 0.84); backdrop-filter: blur(20px);">
+        <div class="admin-header-content">
+            <div class="admin-brand">
+                <i class="fas fa-shield-alt" style="color: #6366f1;"></i>
+                <h1 style="color: #0f172a; font-weight: 800;">Staff Command</h1>
+            </div>
+            <div class="admin-header-actions" style="display: flex; align-items: center; gap: 12px;">
+                <!-- Notification Bell -->
+                <button class="icon-btn" id="notificationBtn" aria-label="Notifications" 
+                    style="background: transparent; border: none; cursor: pointer; font-size: 1.2rem; color: #64748b; padding: 10px; border-radius: 50%; transition: all 0.2s; position: relative; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-bell"></i>
+                </button>
+
+                <a href="staff-dashboard.html" class="btn btn-secondary"
+                    style="border-radius: 10px; font-weight: 700; background: #f1f5f9; border: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px;">
+                    <i class="fas fa-th-large"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="profile-page-main">
+        <div class="container">
+
+
+            <div class="staff-profile-grid" style="gap: 32px;">
+                <!-- Sidebar: Avatar & Quick Actions -->
+                <div class="profile-sidebar-card"
+                    style="border-radius: 28px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+                    <div class="profile-avatar-large" id="avatarContainer"
+                        style="width: 160px; height: 160px; margin: 0 auto 24px auto; border: 4px solid #fff; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-radius: 50%;">
+                        <img src="/static/images/avatar-placeholder.png" id="profileImgLarge" alt="Staff Avatar"
+                            style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                        <div class="avatar-edit-overlay" onclick="triggerImageUpload()" style="border-radius: 50%;">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                    </div>
+                    <h2 id="profileNameSide"
+                        style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">...</h2>
+                    <p id="profileRoleSide"
+                        style="color: #6366f1; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 32px; background: #eef2ff; display: inline-block; padding: 4px 12px; border-radius: 20px;">
+                        ...</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        <input type="file" id="avatarInput" accept="image/*" style="display: none;"
+                            onchange="handleImageUpload(event)">
+                        <button class="btn btn-primary"
+                            style="width: 100%; justify-content: center; height: 52px; border-radius: 14px; font-weight: 700; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;"
+                            onclick="triggerImageUpload()">
+                            <i class="fas fa-image" style="margin-right: 10px;"></i> Upload New Photo
+                        </button>
+                        <button class="btn-danger-outline" id="removeAvatarBtn"
+                            style="width: 100%; display: none; height: 52px; border-radius: 14px; border: 2px solid #fee2e2; color: #ef4444; background: transparent; font-weight: 800; cursor: pointer; transition: 0.2s;"
+                            onclick="prepareRemoveAvatar()">
+                            <i class="fas fa-trash-alt" style="margin-right: 10px;"></i> Remove Photo
+                        </button>
+                    </div>
+
+                    <hr style="margin: 32px 0; border: none; border-top: 1px solid #f1f5f9;">
+
+                    <button class="btn btn-secondary"
+                        style="width: 100%; justify-content: center; height: 52px; border-radius: 14px; font-weight: 700; color: #334155; background: #f8fafc; border: 1px solid #e2e8f0;"
+                        onclick="showPasswordModal()">
+                        <i class="fas fa-fingerprint" style="margin-right: 10px;"></i> Change Password
+                    </button>
+                </div>
+
+                <!-- Main Content: Details -->
+                <div class="profile-main-card"
+                    style="border-radius: 28px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+                    <div class="profile-header-banner"
+                        style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); height: 160px; display: flex; align-items: flex-end; padding: 40px 48px;">
+                        <div>
+                            <h1
+                                style="color: white; font-size: 36px; font-weight: 900; margin: 0; letter-spacing: -0.04em;">
+                                Staff Profile</h1>
+                            <p
+                                style="color: rgba(255, 255, 255, 0.8); font-size: 14px; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">
+                                Operational Identity Record</p>
+                        </div>
+                    </div>
+                    <div class="profile-content-padding" style="padding: 48px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+                            <h3 style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+                                Registry Intelligence</h3>
+                            <div class="status-badge active"
+                                style="background: #ecfdf5; color: #059669; font-weight: 800; border-radius: 20px; padding: 6px 14px; font-size: 11px; text-transform: uppercase;">
+                                ACTIVE PERSONNEL</div>
+                        </div>
+
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px;">
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Full Name</p>
+                                <p class="info-value" id="profileName"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Username</p>
+                                <p class="info-value" id="profileUsername"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Email</p>
+                                <p class="info-value" id="profileEmail"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Role Granted</p>
+                                <p class="info-value" id="profileRoles"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Operational Hub</p>
+                                <p class="info-value" id="profileHub"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                            <div class="info-group">
+                                <p class="info-label"
+                                    style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                    Tenure Commenced</p>
+                                <p class="info-value" id="profileJoined"
+                                    style="font-size: 16px; font-weight: 700; color: #1e293b;">...</p>
+                            </div>
+                        </div>
+
+                        <div class="profile-stats"
+                            style="margin-top: 50px; background: #f8fafc; border-radius: 20px; padding: 30px; display: flex; gap: 40px; border: 1px solid #f1f5f9;">
+                            <div class="stat-item">
+                                <p
+                                    style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">
+                                    User ID</p>
+                                <p id="profileUID"
+                                    style="font-size: 13px; font-family: 'JetBrains Mono', monospace; color: #475569; margin-top: 6px; font-weight: 600;">
+                                    ...</p>
+                            </div>
+                            <div class="stat-item">
+                                <p
+                                    style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">
+                                    Authorization Status</p>
+                                <p id="profileAccess"
+                                    style="font-size: 13px; color: #475569; font-weight: 700; margin-top: 6px;">
+                                    <i class="fas fa-check-circle" style="color: #10b981; margin-right: 6px;"></i>
+                                    VERIFIED ASSET
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Professional Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="confirmTitle">Confirm Action</h3>
+            <p class="modal-text" id="confirmMessage">Are you sure you want to proceed?</p>
+            <div style="display: flex; gap: 14px;">
+                <button class="btn-cancel" style="flex: 1;" onclick="hideConfirmModal()">Cancel</button>
+                <button class="btn-danger-confirm" style="flex: 1;" id="confirmActionBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Change Password</h3>
+            <p class="modal-text">Re-authenticate your session by defining a new high-entropy password.</p>
+
+            <form id="passwordForm" onsubmit="handlePasswordChange(event)">
+                <div class="form-group">
+                    <label style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">Current
+                        Current Password</label>
+                    <input type="password" id="currentPassword" class="form-input" required
+                        placeholder="Verification required...">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">New
+                        New Password</label>
+                    <input type="password" id="newPassword" class="form-input" required minlength="6"
+                        placeholder="At least 6 characters...">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">Verify
+                        Verify New Password</label>
+                    <input type="password" id="confirmPassword" class="form-input" required minlength="6"
+                        placeholder="Repeat for confirmation...">
+                </div>
+                <div style="display: flex; gap: 14px; margin-top: 10px;">
+                    <button type="button" class="btn-cancel" style="flex: 1;"
+                        onclick="hidePasswordModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary"
+                        style="flex: 1; justify-content: center; height: 52px; border-radius: 12px; font-weight: 700; background: #6366f1;">Update
+                        Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/notification-manager.js"></script>
+    <script src="/static/js/staff-profile.js"></script>
+</body>
+
+</html>

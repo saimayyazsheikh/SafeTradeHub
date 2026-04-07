@@ -32,6 +32,7 @@
   <!-- Load authentication system -->
   <script src="/static/js/auth-manager.js"></script>
   <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/user-auth-guard.js"></script>
 
 </head>
 
@@ -117,6 +118,45 @@
       </div>
     </div>
   </section>
+
+  <!-- Track My Order Section -->
+  <section class="section tracking-quick-section" style="background: #f8fafc; padding: 40px 0; border-bottom: 1px solid #e2e8f0;">
+    <div class="container">
+      <div class="tracking-card-compact" style="display: flex; align-items: center; justify-content: space-between; gap: 30px; background: white; padding: 25px 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+        <div class="tracking-info">
+          <h2 style="font-size: 1.5rem; color: #1e293b; margin-bottom: 5px; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-truck-fast" style="color: #3b82f6;"></i>
+            Track Your Shipment
+          </h2>
+          <p style="color: #64748b; font-size: 0.95rem;">Enter your Order ID to see real-time Safe Ship tracking.</p>
+        </div>
+        <div class="tracking-form" style="display: flex; gap: 12px; flex-grow: 1; max-width: 500px;">
+          <input type="text" id="quickTrackInput" placeholder="Order ID (e.g. -On9...)" 
+                 style="flex-grow: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1rem; outline: none; transition: border-color 0.2s;">
+          <button onclick="handleQuickTrack()" class="btn primary" style="padding: 12px 24px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            Track Now
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    function handleQuickTrack() {
+      const orderId = document.getElementById('quickTrackInput').value.trim();
+      if (!orderId) {
+        alert('Please enter a valid Order ID');
+        return;
+      }
+      window.location.href = `orderstatus.html?orderId=${encodeURIComponent(orderId)}`;
+    }
+    
+    // Allow enter key
+    document.getElementById('quickTrackInput')?.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') handleQuickTrack();
+    });
+  </script>
 
   <!-- Categories -->
   <section class="section">
@@ -331,7 +371,7 @@
 
     // Initialize application on page load
     document.addEventListener('DOMContentLoaded', async function () {
-      console.log('🚀 SafeTradeHub: Starting initialization...');
+      
 
       try {
         // WAIT for AuthManager to be completely ready
@@ -342,7 +382,7 @@
             try {
               await window.AuthManager.waitForInit();
               authReady = true;
-              console.log('✅ AuthManager ready after', attempts, 'attempts');
+              
             } catch (error) {
               console.warn('⚠️ AuthManager not ready, attempt', attempts, error);
             }
@@ -357,7 +397,7 @@
         if (window.AuthManager) {
           const isAuth = window.AuthManager.isAuthenticated();
           const user = window.AuthManager.getCurrentUser();
-          console.log('🔐 Final auth state - authenticated:', isAuth, 'user:', user);
+          
 
           // Force header update
           if (window.HeaderManager) {
@@ -375,7 +415,7 @@
           updateCartCount();
         }
 
-        console.log('✅ SafeTradeHub: Initialization complete');
+        
       } catch (error) {
         console.error('❌ SafeTradeHub: Initialization error:', error);
       }

@@ -2874,3 +2874,331 @@ body {
   gap: 8px;
   margin-top: 4px;
 }
+/* ========================================
+   AUCTION HUB - Elite Indigo Styling
+   ======================================== */
+:root {
+  --auction-primary: #4F46E5;
+  --auction-secondary: #818CF8;
+  --auction-urgent: #EF4444;
+}
+
+.card-badge.auction {
+  background: linear-gradient(135deg, var(--auction-primary), var(--auction-secondary)) !important;
+  color: white !important;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 6px 12px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(79, 70, 225, 0.3);
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.card-badge.auction i {
+  font-size: 0.8rem;
+  animation: pulse-auction 1.5s infinite;
+}
+
+@keyframes pulse-auction {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.auction-timer-tag {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--auction-primary);
+  background: rgba(79, 70, 229, 0.08);
+  padding: 4px 10px;
+  border-radius: 8px;
+  display: inline-block;
+  margin-top: 8px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(79, 70, 229, 0.1);
+}
+
+.timer-urgent {
+  color: white !important;
+  background: var(--auction-urgent) !important;
+  border-color: var(--auction-urgent) !important;
+  animation: shake-auction 0.5s infinite;
+}
+
+@keyframes shake-auction {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+
+.auction-price-label {
+  color: var(--auction-primary) !important;
+  font-weight: 800 !important;
+}
+
+.btn.auction-btn, .card-btn.auction-btn {
+  background-color: var(--auction-primary) !important;
+  border-color: var(--auction-primary) !important;
+  color: white !important;
+}
+
+.btn.auction-btn:hover, .card-btn.auction-btn:hover {
+  background-color: #4338CA !important;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+}
+
+/* Modal Bidding Widget */
+.bidding-widget {
+  background: #f9faff;
+  border: 2px solid rgba(79, 70, 229, 0.1);
+  padding: 24px;
+  border-radius: 20px;
+  margin: 20px 0;
+  animation: slideUpFade 0.4s ease-out;
+}
+
+@keyframes slideUpFade {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.bid-input-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bid-input-group input {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.bid-input-group input:focus {
+  border-color: var(--auction-primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.bid-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-auction-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.auction-meta-box {
+  flex: 1;
+  background: white;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.auction-meta-box .label {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 800;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.auction-meta-box .val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.auction-meta-box.timer .val {
+  color: var(--auction-primary);
+}
+
+
+/* ========================================
+   AUCTION UI RECONSTRUCTION - Elite Expansion
+   ======================================== */
+
+.card-auction {
+    border-color: rgba(79, 70, 229, 0.3) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f9faff 100%) !important;
+}
+
+.card-fixed {
+    border-color: rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Diagonal Auction Ribbon */
+.auction-ribbon-wrapper {
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    z-index: 100;
+}
+
+.auction-ribbon {
+    font: bold 12px 'Inter', sans-serif;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    transform: rotate(45deg);
+    position: relative;
+    padding: 7px 0;
+    left: -5px;
+    top: 15px;
+    width: 150px;
+    background-color: #4F46E5;
+    background-image: linear-gradient(rgba(255,255,255,0.2) 0%, transparent 100%);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.auction-ended-ribbon {
+    background-color: #64748b !important;
+}
+
+/* High-Contrast Countdown Bar */
+.countdown-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    border-bottom-left-radius: 20px; /* match card radius if possible */
+    border-bottom-right-radius: 20px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Pulse Animation for CTA */
+.btn-pulse {
+    animation: pulse-indigo 2s infinite;
+}
+
+@keyframes pulse-indigo {
+    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+    70% { box-shadow: 0 0 0 12px rgba(79, 70, 229, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+}
+
+/* Bidding Hub Modal Enhancements */
+.bidding-box {
+    border: 2px solid #eef2ff;
+    padding: 24px;
+    border-radius: 20px;
+    background: #fff;
+    margin-top: 16px;
+    position: relative;
+}
+
+.bidding-history-link {
+    font-size: 0.8rem;
+    color: #4F46E5;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.recent-bidders {
+    margin-top: 16px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+}
+
+.recent-bidders h4 {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+}
+
+.bidder-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    padding: 4px 0;
+    color: #475569;
+}
+
+.bidder-row.winner {
+    color: #4F46E5;
+    font-weight: 700;
+}
+
+/* Countdown Timer States */
+.countdown-bar.timer-urgent {
+    background: rgba(239, 68, 68, 0.92) !important;
+    animation: countdown-pulse 1s infinite;
+}
+
+@keyframes countdown-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.countdown-bar.timer-ended {
+    background: rgba(100, 116, 139, 0.9) !important;
+    animation: none !important;
+}
+
+/* Auction Ended Card */
+.auction-ended-card {
+    opacity: 0.7;
+    filter: grayscale(20%);
+}
+
+.auction-ended-card:hover {
+    opacity: 0.85;
+}
+
+/* Auction Card Indigo Hover Enhancement */
+.card-auction:hover {
+    border-color: rgba(79, 70, 229, 0.4) !important;
+    box-shadow: 0 20px 40px rgba(79, 70, 229, 0.12), 0 4px 12px rgba(79, 70, 229, 0.08) !important;
+}
+
+/* Ensure card-img has relative positioning for ribbon/countdown overlays */
+.card-auction .card-img {
+    position: relative;
+    overflow: hidden;
+}
+
+

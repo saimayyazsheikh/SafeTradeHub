@@ -7,11 +7,12 @@
     <title>Orders - SafeTradeHub</title>
 
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/orders-redesign.css">
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -96,33 +97,28 @@
                 <h1>Orders</h1>
                 <p>Manage and track your orders</p>
             </div>
+            <div class="topbar-actions" style="display:flex; align-items:center; gap:15px;">
+                <button class="icon-btn" id="notificationBtn" aria-label="Notifications" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#64748b; padding:8px; border-radius:50%; transition:all 0.2s;">
+                    <i class="fas fa-bell"></i>
+                </button>
+            </div>
         </div>
 
         <div id="ordersContent">
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3>All Orders</h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="dashboard-table" id="ordersTable">
-                            <thead>
-                                <tr>
-                                    <th>Order ID</th>
-                                    <th>Date</th>
-                                    <th>Seller</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="6" style="text-align:center;">Loading orders...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Filter Strip -->
+            <div class="orders-filter-strip">
+                <button class="filter-tab active" data-filter="all" onclick="filterOrders('all')">All Orders</button>
+                <button class="filter-tab" data-filter="pending" onclick="filterOrders('pending')">Active</button>
+                <button class="filter-tab" data-filter="shipped" onclick="filterOrders('shipped')">In Transit</button>
+                <button class="filter-tab" data-filter="completed" onclick="filterOrders('completed')">Completed</button>
+                <button class="filter-tab" data-filter="cancelled" onclick="filterOrders('cancelled')">Cancelled</button>
+            </div>
+
+            <div id="ordersContainer" class="order-cards-container">
+                <!-- Loading State -->
+                <div class="card-loading-placeholder" style="text-align: center; padding: 60px;">
+                    <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: #474bff; margin-bottom: 15px; display: block;"></i>
+                    <p style="font-weight: 600; color: #64748b;">Loading...</p>
                 </div>
             </div>
         </div>
@@ -140,8 +136,39 @@
             </div>
         </div>
 
+        <!-- Review Modal -->
+        <div id="reviewModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2>Submit Review</h2>
+                    <span class="close-modal" onclick="closeReviewModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <p style="color: #64748b; margin-bottom: 15px;">Rate your experience with this transaction</p>
+                        <div class="rating-stars" id="starRating">
+                            <i class="fas fa-star star-btn" data-value="1" onclick="setRating(1)"></i>
+                            <i class="fas fa-star star-btn" data-value="2" onclick="setRating(2)"></i>
+                            <i class="fas fa-star star-btn" data-value="3" onclick="setRating(3)"></i>
+                            <i class="fas fa-star star-btn" data-value="4" onclick="setRating(4)"></i>
+                            <i class="fas fa-star star-btn" data-value="5" onclick="setRating(5)"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewComment" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Your Comments</label>
+                        <textarea id="reviewComment" class="form-control" rows="4" placeholder="Share your experience (max 500 chars)..." maxlength="500" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: none;"></textarea>
+                    </div>
+
+                    <div style="margin-top: 25px;">
+                        <button id="submitReviewBtn" class="btn btn-primary full-width" style="width: 100%; transition: transform 0.2s;" onclick="submitReview()">Submit Elite Review</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <style>
-            /* Modal Styles */
+            /* Elite Modal Styles */
             .modal {
                 display: none;
                 position: fixed;
@@ -150,39 +177,34 @@
                 top: 0;
                 width: 100%;
                 height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                /* Center the modal content */
-                display: none;
-                /* Controlled by JS */
+                background-color: rgba(15, 23, 42, 0.6); /* Modern dark backdrop */
+                backdrop-filter: blur(4px);
                 align-items: center;
                 justify-content: center;
             }
 
-            /* When JS sets display: block, we want to override or handle centering. 
-               Actually, easiest is to use a specific class or stick to margin centering if JS uses 'block'. 
-               Let's stick to the existing 'block' behavior but optimize margins. */
-
             .modal-content {
-                background-color: #fff;
+                background-color: var(--axiom-surface);
                 margin: 2vh auto;
-                /* Very small top margin to maximize space */
                 padding: 0;
                 border: 0;
                 width: 95%;
-                /* Wider */
-                max-width: 700px;
-                border-radius: 12px;
+                max-width: 600px;
+                border-radius: 24px;
                 position: relative;
                 max-height: 96vh;
-                /* Almost full screen height */
-                box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
                 display: flex;
                 flex-direction: column;
+                overflow: hidden;
+                border: 1px solid var(--axiom-border);
+                backdrop-filter: blur(20px);
             }
 
             .modal-header {
-                padding: 15px 20px;
-                border-bottom: 1px solid #eee;
+                padding: 20px 25px;
+                background: linear-gradient(to right, #f8fafc, #ffffff);
+                border-bottom: 1px solid #f1f5f9;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -191,81 +213,176 @@
 
             .modal-header h2 {
                 margin: 0;
-                font-size: 1.5rem;
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: #1e293b;
             }
 
             .modal-body {
-                padding: 20px;
+                padding: 25px;
                 overflow-y: auto;
-                /* Scroll ONLY the body */
                 flex-grow: 1;
+                background: #fff;
             }
 
             .close-modal {
-                font-size: 28px;
-                font-weight: bold;
-                color: #aaa;
+                font-size: 24px;
+                color: #94a3b8;
                 cursor: pointer;
-                line-height: 1;
+                transition: color 0.2s;
             }
 
-            .close-modal:hover {
-                color: #000;
+            .close-modal:hover { color: #1e293b; }
+
+            /* Elite Table Styles */
+            .dashboard-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0 8px;
             }
 
-            .order-section {
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 1px solid #eee;
+            .dashboard-table th {
+                padding: 12px 15px;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #64748b;
+                font-weight: 600;
+                border: none;
             }
 
-            .order-section h3 {
-                margin-bottom: 10px;
-                font-size: 1.1rem;
-                color: #333;
+            .dashboard-table tr {
+                background: #fff;
+                transition: transform 0.2s, box-shadow 0.2s;
             }
 
-            .item-row {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 10px;
+            .dashboard-table tbody tr:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             }
 
-            .item-img {
-                width: 50px;
-                height: 50px;
-                object-fit: cover;
-                border-radius: 4px;
+            .dashboard-table td {
+                padding: 16px 15px;
+                vertical-align: middle;
+                border-top: 1px solid #f1f5f9;
+                border-bottom: 1px solid #f1f5f9;
             }
+
+            .dashboard-table td:first-child {
+                border-left: 1px solid #f1f5f9;
+                border-top-left-radius: 12px;
+                border-bottom-left-radius: 12px;
+            }
+
+            .dashboard-table td:last-child {
+                border-right: 1px solid #f1f5f9;
+                border-top-right-radius: 12px;
+                border-bottom-right-radius: 12px;
+            }
+
+            .status-badge {
+                padding: 6px 12px;
+                border-radius: 100px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+            }
+
+            .status-badge::before {
+                content: '';
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: currentColor;
+            }
+
+            .status-badge.pending { background: #fffbeb; color: #b45309; }
+            .status-badge.completed { background: #ecfdf5; color: #059669; }
+            .status-badge.in_transit { background: #ebf5ff; color: #1d4ed8; }
+            .status-badge.verified { background: #f5f3ff; color: #6d28d9; }
 
             .action-btn-group {
                 display: flex;
-                gap: 8px;
+                gap: 10px;
             }
 
-            .btn-action {
-                padding: 4px 8px;
-                font-size: 0.85rem;
-                border-radius: 4px;
-                text-decoration: none;
+            .btn-track {
+                background: #3b82f6;
                 color: white;
-                background-color: #3b82f6;
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: background 0.2s;
+            }
+
+            .btn-track:hover { background: #2563eb; }
+
+            .btn-details {
+                background: #f1f5f9;
+                color: #475569;
+                padding: 8px;
+                border-radius: 8px;
                 border: none;
                 cursor: pointer;
+                transition: background 0.2s;
             }
 
-            .btn-action.secondary {
-                background-color: #6b7280;
+            .btn-details:hover { background: #e2e8f0; }
+
+            .item-row { display: flex; gap: 15px; align-items: center; background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 8px;}
+            .item-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+            .participant-link { 
+                color: var(--axiom-primary); 
+                text-decoration: none; 
+                font-weight: 700; 
+                transition: opacity 0.2s;
+            }
+            .participant-link:hover { opacity: 0.8; text-decoration: underline; }
+            .badge-price { background: #f1f5f9; color: #1e293b; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.9rem; }
+
+            /* Star Rating Styles */
+            .rating-stars {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                font-size: 2rem;
+            }
+            .star-btn {
+                cursor: pointer;
+                color: #e2e8f0; /* Default slate */
+                transition: transform 0.1s ease, color 0.1s ease;
+            }
+            .star-btn.active {
+                color: #fbbf24; /* Axiom Gold */
+            }
+            .star-btn:hover {
+                transform: scale(1.1);
             }
 
-            .participant-link {
-                color: #3b82f6;
-                text-decoration: none;
-                font-weight: 500;
+            .btn-review {
+                background: #f8fafc;
+                color: #1e293b;
+                border: 1px solid #e2e8f0;
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                transition: all 0.2s;
             }
-
-            .participant-link:hover {
-                text-decoration: underline;
+            .btn-review:hover {
+                background: #f1f5f9;
+                border-color: #cbd5e1;
             }
         </style>
     </main>
@@ -299,88 +416,66 @@
         });
 
         function updateUserProfile(user) {
-            document.getElementById('userName').textContent = user.displayName || user.fullName || 'User';
-            document.getElementById('userRole').textContent = user.role || 'Buyer';
+            if (!user) return; // Silent skip if no DB profile yet
+            
+            const name = user.displayName || user.fullName || user.name || 'Elite User';
+            const role = user.role || 'Buyer';
+            
+            document.getElementById('userName').textContent = name;
+            document.getElementById('userRole').textContent = role;
+            
             const avatar = document.getElementById('userAvatar');
-            if (user.profilePic || user.profile?.avatar) {
-                avatar.src = user.profilePic || user.profile?.avatar;
-            } else {
-                avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=random`;
+            if (avatar) {
+                if (user.profilePic || user.profile?.avatar) {
+                    avatar.src = user.profilePic || user.profile?.avatar;
+                } else {
+                    avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+                }
             }
         }
 
         async function loadOrders(uid, role) {
             const db = firebase.database();
-            const tableHead = document.querySelector('#ordersTable thead tr');
-            const tbody = document.querySelector('#ordersTable tbody');
-
-            // Update Header based on Role
-            if (role === 'Seller') {
-                tableHead.innerHTML = `
-                    <th>Order ID</th>
-                    <th>Date</th>
-                    <th>Buyer</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                `;
-            } else {
-                tableHead.innerHTML = `
-                    <th>Order ID</th>
-                    <th>Date</th>
-                    <th>Seller</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                `;
-            }
+            const container = document.getElementById('ordersContainer');
+            if (!container) return;
 
             try {
                 let orders = [];
-
+                // 1. Fetch relevant orders
                 if (role === 'Seller') {
-                    // "Deep Filter" Logic:
-                    // 1. Fetch recent orders
-                    // 2. check if sellerId matches root OR items
-                    // 3. IF NOT, check the product owner directly (db lookup) to handle historic data
-                    const snap = await db.ref('orders').limitToLast(50).once('value');
-
+                    const snap = await db.ref('orders').limitToLast(100).once('value');
                     if (snap.exists()) {
                         const checkOwnershipPromises = [];
-
                         snap.forEach(child => {
                             const o = child.val();
+                            if (!o) return;
+                            
                             const checkPromise = async () => {
-                                // 1. Direct Check
-                                if (o.sellerId === uid) return { id: child.key, ...o };
-                                if (o.items && Array.isArray(o.items) && o.items.some(i => i.sellerId === uid)) return { id: child.key, ...o };
-
-                                // 2. Indirect Check (Product Lookup)
-                                // Only do this if direct check failed and we have an item ID
-                                if (o.items && o.items[0] && o.items[0].id) {
-                                    try {
+                                try {
+                                    if (o.sellerId === uid) return { id: child.key, ...o };
+                                    if (o.items && Array.isArray(o.items) && o.items.some(i => i && i.sellerId === uid)) return { id: child.key, ...o };
+                                    
+                                    // product owner fallback
+                                    if (o.items && o.items[0] && o.items[0].id) {
                                         const pSnap = await db.ref(`products/${o.items[0].id}/sellerId`).once('value');
-                                        if (pSnap.exists() && pSnap.val() === uid) {
-                                            return { id: child.key, ...o };
-                                        }
-                                    } catch (e) { /* ignore */ }
+                                        if (pSnap.exists() && pSnap.val() === uid) return { id: child.key, ...o };
+                                    }
+                                } catch (e) {
+                                    console.warn('Ownership check failed for order:', child.key, e);
                                 }
                                 return null;
                             };
                             checkOwnershipPromises.push(checkPromise());
                         });
-
                         const results = await Promise.all(checkOwnershipPromises);
                         orders = results.filter(res => res !== null);
                     }
                 } else {
-                    // Fetch buyer orders - Robust Fetch
-                    // Instead of strict query, we fetch all and filter to handle structure variations
                     const snap = await db.ref('orders').once('value');
                     if (snap.exists()) {
                         snap.forEach(child => {
                             const val = child.val();
-                            // Check root buyerId OR nested buyer.id
+                            if (!val) return;
                             if (val.buyerId === uid || (val.buyer && val.buyer.id === uid)) {
                                 orders.push({ id: child.key, ...val });
                             }
@@ -389,106 +484,160 @@
                 }
 
                 if (orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No orders found</td></tr>';
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
+                            <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
+                            <h3 style="color: #64748b;">No Orders Yet</h3>
+                            <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
+                        </div>
+                    `;
                     return;
                 }
 
-                // Sort by date desc
-                orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                // Sort by date desc - with safety
+                orders.sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateB - dateA;
+                });
+                
+                window.allOrdersRaw = orders; // store for filtering
 
-                // Process orders to fetch names
-                const rows = await Promise.all(orders.map(async (o) => {
-                    // robustness for finding IDs if they are in items
-                    const rootBuyerId = o.buyerId;
-                    const rootSellerId = o.sellerId;
-                    const itemBuyerId = o.items && o.items[0] ? o.items[0].buyerId : null; // rare but possible
-                    const itemSellerId = o.items && o.items[0] ? o.items[0].sellerId : null;
+                await renderOrderCards(orders, role);
+            } catch (error) {
+                console.error('CRITICAL: Error loading orders:', error);
+                container.innerHTML = `<div style="text-align:center; color:#ef4444; padding:40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>Failed to synchronize order engine.</p>
+                    <small>${error.message}</small>
+                </div>`;
+            }
+        }
 
-                    const effectiveBuyerId = rootBuyerId || itemBuyerId;
-                    const effectiveSellerId = rootSellerId || itemSellerId;
+        async function renderOrderCards(orders, role) {
+            const container = document.getElementById('ordersContainer');
+            if (!container) return;
+            
+            const db = firebase.database();
+            window.currentOrders = {}; // for modals
 
-                    const otherId = role === 'Seller' ? effectiveBuyerId : effectiveSellerId;
-
-                    let otherName = role === 'Seller' ? 'Unknown Buyer' : 'Unknown Seller';
-                    let otherProfileLink = '#';
+            const cardPromises = orders.map(async (o) => {
+                if (!o || !o.id) return '';
+                
+                try {
+                    window.currentOrders[o.id] = o;
+                    
+                    // participant data resolving - PRIORITIZE EMBEDDED DATA
+                    const embeddedBuyerName = o.buyer && (o.buyer.name || o.buyer.displayName);
+                    const embeddedSellerName = o.sellerName || (o.items && o.items[0]?.sellerName);
+                    
+                    const otherId = role === 'Seller' ? (o.buyerId || (o.buyer && o.buyer.id)) : (o.sellerId || (o.items && o.items[0]?.sellerId));
+                    
+                    let otherName = role === 'Seller' ? (embeddedBuyerName || 'Buyer Participant') : (embeddedSellerName || 'SafeTrade Merchant');
+                    let otherLink = '#';
 
                     if (otherId) {
                         try {
-                            const uSnap = await db.ref('users/' + otherId).once('value');
-                            if (uSnap.exists()) {
-                                const u = uSnap.val();
-                                otherName = u.displayName || u.fullName || (role === 'Seller' ? 'Buyer' : 'Seller');
-                                otherProfileLink = `seller-profile.html?id=${otherId}`;
-                            } else if (role === 'Buyer' && o.items && o.items.length > 0) {
-                                // Fallback: If user not found (e.g. 'admin' or bad ID), try fetching from product
-                                // This handles orders made with stale cart data
-                                try {
-                                    const productId = o.items[0].id;
-                                    const pSnap = await db.ref('products/' + productId + '/sellerId').once('value');
+                            otherLink = `seller-profile.html?id=${otherId}`;
+                            
+                            // If we don't have an embedded name, or if it's a generic placeholder, try fetching fresh
+                            if (!otherName || otherName.includes('Participant') || otherName.includes('Merchant')) {
+                                const uSnap = await db.ref('users/' + otherId).once('value');
+                                if (uSnap.exists()) {
+                                    const u = uSnap.val();
+                                    otherName = u.displayName || u.fullName || u.name || otherName;
+                                } else if (role === 'Buyer' && o.items && o.items[0]?.id) {
+                                    const pSnap = await db.ref(`products/${o.items[0].id}`).once('value');
                                     if (pSnap.exists()) {
-                                        const realSellerId = pSnap.val();
-                                        const realSellerSnap = await db.ref('users/' + realSellerId).once('value');
-                                        if (realSellerSnap.exists()) {
-                                            const realSeller = realSellerSnap.val();
-                                            otherName = realSeller.displayName || realSeller.fullName || 'Seller';
-                                            otherProfileLink = `seller-profile.html?id=${realSellerId}`;
-                                        }
+                                        const p = pSnap.val();
+                                        otherName = p.sellerName || otherName;
+                                        otherLink = `seller-profile.html?id=${p.sellerId}`;
                                     }
-                                } catch (err) { console.error('Fallback fetch failed', err); }
-                            }
-                        } catch (e) { console.error(e); }
-                    } else if (role === 'Buyer' && o.items && o.items.length > 0) {
-                        // Double Fallback: If no otherId was found at all initially
-                        try {
-                            const productId = o.items[0].id;
-                            const pSnap = await db.ref('products/' + productId + '/sellerId').once('value');
-                            if (pSnap.exists()) {
-                                const realSellerId = pSnap.val();
-                                const realSellerSnap = await db.ref('users/' + realSellerId).once('value');
-                                if (realSellerSnap.exists()) {
-                                    const realSeller = realSellerSnap.val();
-                                    otherName = realSeller.displayName || realSeller.fullName || 'Seller';
-                                    otherProfileLink = `seller-profile.html?id=${realSellerId}`;
                                 }
                             }
-                        } catch (err) { console.error('Double Fallback fetch failed', err); }
+                        } catch (e) {
+                            console.warn('Participant lookup failed for order:', o.id, e);
+                        }
                     }
 
-                    // Actions
-                    let actionsHtml = `<a href="orderstatus.html?orderId=${o.id}" class="btn-action">Track Order</a>`;
-
-                    if (role === 'Seller') {
-                        // Add View Details button for Seller
-                        // We store the data in a data attribute or just pass ID to function
-                        const orderDataSafe = encodeURIComponent(JSON.stringify(o));
-                        actionsHtml += ` <button onclick="openOrderModal('${o.id}')" class="btn-action secondary">Order Details</button>`;
+                    const displayStatus = (o.status || 'pending').replace(/_/g, ' ');
+                    const statusClass = (o.status || 'pending').toLowerCase();
+                    const totalAmount = (o.total || 0).toFixed(0);
+                    
+                    let orderDate = 'Unknown Date';
+                    if (o.createdAt) {
+                        try {
+                            orderDate = new Date(o.createdAt).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' });
+                        } catch(e) {}
                     }
+                    
+                    const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/placeholder.jpg') : '/static/images/placeholder.jpg';
+                    const itemCount = o.items ? o.items.length : 0;
+                    const showReview = (statusClass === 'delivered' || statusClass === 'completed');
 
                     return `
-                        <tr>
-                            <td>#${(o.id || '').substring(1, 6)}</td>
-                            <td>${new Date(o.createdAt).toLocaleDateString()}</td>
-                            <td><a href="${otherProfileLink}" class="participant-link">${otherName}</a></td>
-                            <td>RS ${(o.total || 0).toFixed(2)}</td>
-                            <td><span class="status-badge ${o.status === 'completed' ? 'completed' : 'pending'}">${o.status || 'Pending'}</span></td>
-                            <td><div class="action-btn-group">${actionsHtml}</div></td>
-                        </tr>
+                        <div class="premium-order-card" onclick="openOrderModal('${o.id}')">
+                            <div class="order-media">
+                                <img src="${mainImg}" alt="Product Preview">
+                            </div>
+                            <div class="order-info">
+                                <span class="order-id">#${String(o.id).substring(1, 8).toUpperCase()}</span>
+                                <div class="order-participant">${otherName}</div>
+                                <div class="order-meta">
+                                    <span><i class="far fa-calendar-alt"></i> ${orderDate}</span>
+                                    <span>•</span>
+                                    <span>${itemCount} ${itemCount === 1 ? 'item' : 'items'}</span>
+                                </div>
+                            </div>
+                            <div class="order-pricing">
+                                <span class="total-amount">RS ${totalAmount}</span>
+                                <div class="item-count">Net Total Value</div>
+                            </div>
+                            <div class="order-status-section" onclick="event.stopPropagation()">
+                                <span class="axiom-status-badge badge-${statusClass}">${displayStatus}</span>
+                                <div class="action-strip">
+                                    ${showReview ? `
+                                        <button onclick="openReviewModal('${o.id}')" class="axiom-mini-btn" title="Leave Review">
+                                            <i class="fas fa-star" style="color: #fbbf24;"></i>
+                                        </button>
+                                    ` : ''}
+                                    <a href="orderstatus.html?orderId=${o.id}" class="axiom-mini-btn" title="Track Logistics">
+                                        <i class="fas fa-satellite-dish"></i>
+                                    </a>
+                                    <button onclick="openOrderModal('${o.id}')" class="axiom-mini-btn" title="View Details">
+                                        <i class="fas fa-list-ul"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     `;
-                }));
+                } catch (cardError) {
+                    console.error('Error rendering card for order:', o.id, cardError);
+                    return ''; // Skip malformed card
+                }
+            });
 
-                tbody.innerHTML = rows.join('');
+            const cards = await Promise.all(cardPromises);
+            container.innerHTML = cards.filter(c => c !== '').join('');
+        }
 
-                // Store orders globally for modal access if needed, or re-fetch active one
-                window.currentOrders = {};
-                orders.forEach(o => window.currentOrders[o.id] = o);
+        function filterOrders(status) {
+            const tabs = document.querySelectorAll('.filter-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelector(`.filter-tab[data-filter="${status}"]`).classList.add('active');
 
-            } catch (error) {
-                console.error('Error loading orders:', error);
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">
-                    Error loading orders: ${error.message || error.code || error} <br>
-                    <small>Please ensure database rules are deployed to allow seller access.</small>
-                </td></tr>`;
+            if (!window.allOrdersRaw) return;
+
+            let filtered = [];
+            if (status === 'all') {
+                filtered = window.allOrdersRaw;
+            } else if (status === 'pending') {
+                filtered = window.allOrdersRaw.filter(o => o.status === 'pending' || !o.status);
+            } else {
+                filtered = window.allOrdersRaw.filter(o => (o.status || '').toLowerCase() === status);
             }
+
+            renderOrderCards(filtered, document.getElementById('userRole').textContent);
         }
 
         function openOrderModal(orderId) {
@@ -501,41 +650,109 @@
             // Handle different data structures (shippingAddress vs buyer object)
             const shipping = order.shippingAddress || order.buyer || {};
             const items = order.items || [];
+            const status = (order.status || 'pending').toLowerCase();
+            const role = document.getElementById('userRole').textContent;
 
             // Map fields carefully
             const name = shipping.fullName || shipping.name || 'N/A';
             const phone = shipping.phone || 'N/A';
             const address = shipping.address || shipping.street || '';
-            const city = shipping.city ? `, ${shipping.city}` : '';
-            const fullAddress = address + city;
+            const city = shipping.city || '';
+            const fullAddress = (address + (city ? ', ' + city : '')) || 'N/A';
 
             body.innerHTML = `
-                <div class="order-section">
-                    <h3>Status: <span class="status-badge ${order.status}">${order.status}</span></h3>
-                    <p><strong>Order ID:</strong> ${order.id}</p>
-                    <p><strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
+                <div class="tracking-stepper">
+                    <div class="step ${status === 'pending' || !status ? 'active' : 'completed'}">
+                        <div class="step-icon">1</div>
+                        <span class="step-label">Ordered</span>
+                    </div>
+                    <div class="step ${status === 'verified' ? 'active' : (['shipped', 'delivered', 'completed'].includes(status) ? 'completed' : '')}">
+                        <div class="step-icon">2</div>
+                        <span class="step-label">Verified</span>
+                    </div>
+                    <div class="step ${status === 'shipped' ? 'active' : (['delivered', 'completed'].includes(status) ? 'completed' : '')}">
+                        <div class="step-icon">3</div>
+                        <span class="step-label">Shipped</span>
+                    </div>
+                    <div class="step ${['delivered', 'completed'].includes(status) ? 'active completed' : ''}">
+                        <div class="step-icon">4</div>
+                        <span class="step-label">Arrived</span>
+                    </div>
                 </div>
 
-                <div class="order-section">
-                    <h3>Shipping Details</h3>
-                    <p><strong>Name:</strong> ${name}</p>
-                    <p><strong>Phone:</strong> ${phone}</p>
-                    <p><strong>Address:</strong> ${fullAddress || 'N/A'}</p>
+                <div class="modal-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <!-- Card 1: Logistics -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-truck"></i> Logistics
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>No:</strong> #${order.id.substring(1, 10).toUpperCase()}</p>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
+                        <p style="font-size:0.85rem;"><strong>Tracking:</strong> ${order.trackingNumber || 'Processing'}</p>
+                    </div>
+
+                    <!-- Card 2: Recipient/Buyer -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-user-tag"></i> ${role === 'Seller' ? 'Buyer' : 'Receiver'}
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px; color:var(--axiom-primary); font-weight:700;">${name}</p>
+                        <p style="font-size:0.8rem; margin-bottom:4px;"><i class="fas fa-phone-alt"></i> ${phone}</p>
+                        <p style="font-size:0.8rem; color:#64748b; line-height:1.4;">${fullAddress}</p>
+                    </div>
+
+                    <!-- Card 3: Seller Info -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-store"></i> Merchant
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px; font-weight:700;">${order.sellerName || 'SafeTradeHub Official'}</p>
+                        <p style="font-size:0.8rem; color:#64748b;">Verification: <span style="color:#10b981;"><i class="fas fa-check-circle"></i> Axiom Certified</span></p>
+                    </div>
+
+                    <!-- Card 4: Payment Info -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-shield-alt"></i> Settlement
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><i class="fas fa-wallet"></i> ${String(order.paymentMethod || 'Wallet').replace(/_/g, ' ').toUpperCase()}</p>
+                        <p style="font-size:0.8rem; color:#64748b;">Escrow ID: ${String(order.escrowId || 'STH-ESC-N/A').toUpperCase()}</p>
+                    </div>
                 </div>
 
-                <div class="order-section">
-                    <h3>Ordered Items</h3>
-                    ${items.map(item => `
-                        <div class="item-row">
-                            <img src="${item.img || item.image || '/static/images/placeholder.jpg'}" class="item-img" alt="${item.name}">
-                            <div>
-                                <p><strong>${item.name || item.title}</strong></p>
-                                <p>Qty: ${(item.quantity || item.qty || 1)} x RS ${(item.price || 0)}</p>
+                <div class="order-section" style="margin-top:20px;">
+                    <h4 style="font-size:0.8rem; text-transform:uppercase; color:#94a3b8; margin-bottom:12px;">Order Manifest</h4>
+                    <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
+                        ${items.map(item => `
+                            <div class="item-row">
+                                <img src="${item.img || item.image || '/static/images/placeholder.jpg'}" class="item-img" alt="${item.name}">
+                                <div style="flex:1;">
+                                    <p style="font-size:0.9rem; font-weight:700; margin-bottom:2px;">${item.name || item.title || 'Product'}</p>
+                                    <p style="font-size:0.8rem; color:#64748b;">Quantity: ${(item.quantity || item.qty || 1)} x RS ${(item.price || 0)}</p>
+                                </div>
+                                <span class="badge-price">RS ${((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(0)}</span>
                             </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top:20px; background: #f1f5f9; padding: 15px; border-radius: 16px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem; color:#64748b;">
+                            <span>Subtotal</span>
+                            <span>RS ${(order.subtotal || order.total || 0).toFixed(0)}</span>
                         </div>
-                    `).join('')}
-                    <hr>
-                    <p style="text-align:right; font-weight:bold; font-size:1.1rem;">Total: RS ${(order.total || 0).toFixed(2)}</p>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem; color:#64748b;">
+                            <span>Shipping</span>
+                            <span>RS ${(order.shippingTotal || 0).toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.85rem; color:#64748b;">
+                            <span>Axiom Escrow Fee (2%)</span>
+                            <span>RS ${(order.escrowFee || 0).toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top: 1px solid #cbd5e1;">
+                            <span style="font-weight:700; color:var(--axiom-secondary);">Total Settlement</span>
+                            <span style="font-size:1.3rem; font-weight:800; color:var(--axiom-primary);">RS ${(order.totalAmount || order.total || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -557,7 +774,104 @@
         function logout() {
             firebase.auth().signOut().then(() => window.location.href = 'index.html');
         }
+
+        /* --- Review System Logic --- */
+        let activeRating = 0;
+        let activeReviewOrderId = null;
+
+        function openReviewModal(orderId) {
+            activeReviewOrderId = orderId;
+            activeRating = 0;
+            updateStarUI();
+            document.getElementById('reviewComment').value = '';
+            document.getElementById('reviewModal').style.display = 'flex';
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').style.display = 'none';
+        }
+
+        function setRating(val) {
+            activeRating = val;
+            updateStarUI();
+        }
+
+        function updateStarUI() {
+            const stars = document.querySelectorAll('#starRating .star-btn');
+            stars.forEach((s, idx) => {
+                if (idx < activeRating) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+        }
+
+        async function submitReview() {
+            if (activeRating === 0) {
+                alert('Please select a star rating.');
+                return;
+            }
+
+            const order = window.currentOrders[activeReviewOrderId];
+            if (!order) return;
+
+            const btn = document.getElementById('submitReviewBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+
+            try {
+                const idToken = await firebase.auth().currentUser.getIdToken();
+                const response = await fetch('/api/v1/reviews/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        orderId: activeReviewOrderId,
+                        rating: activeRating,
+                        comment: document.getElementById('reviewComment').value,
+                        reviewerId: firebase.auth().currentUser.uid,
+                        targetId: (document.getElementById('userRole').textContent === 'Seller') ? order.buyerId : order.sellerId,
+                        productId: order.items[0]?.id || 'unknown',
+                        type: (document.getElementById('userRole').textContent === 'Seller') ? 'Seller-to-Buyer' : 'Buyer-to-Seller'
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    if (window.NotificationManager) {
+                        window.NotificationManager.showToast('Review Submitted', 'Thank you for your feedback!', 'success');
+                    } else {
+                        alert('Review submitted successfully!');
+                    }
+                    closeReviewModal();
+                    // Optionally refresh the row to hide the review button
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    if (window.NotificationManager) {
+                        window.NotificationManager.showToast('Error', result.error, 'error');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            } catch (err) {
+                console.error('Submit review error:', err);
+                if (window.NotificationManager) {
+                    window.NotificationManager.showToast('Error', 'Failed to submit review.', 'error');
+                } else {
+                    alert('Failed to submit review.');
+                }
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
     </script>
+    <script src="/static/js/notification-manager.js"></script>
 </body>
 
 </html>

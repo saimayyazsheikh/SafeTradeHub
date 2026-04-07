@@ -93,4 +93,4 @@
 
 })();
 
-console.log('📄 Page setup initialized - Professional page management ready');
+

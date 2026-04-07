@@ -22,14 +22,14 @@ class AuthManager {
    */
   async init() {
     try {
-      console.log('🔐 AuthManager: Starting initialization...');
+      
 
       // Load from localStorage first
       await this.loadFromStorage();
 
       // Initialize Firebase if available
       if (typeof firebase !== 'undefined' && firebase.auth) {
-        console.log('🔥 AuthManager: Initializing Firebase auth...');
+        
         await this.initFirebaseAuth();
       } else {
         console.warn('⚠️ AuthManager: Firebase not available, using localStorage only');
@@ -41,9 +41,9 @@ class AuthManager {
       // Set up periodic token validation
       this.setupTokenValidation();
 
-      console.log('✅ AuthManager: Initialization complete');
-      console.log('👤 AuthManager: Current user:', this.user);
-      console.log('🔑 AuthManager: Is authenticated:', this.isAuthenticated());
+      
+      
+      
 
     } catch (error) {
       console.error('❌ AuthManager initialization error:', error);
@@ -63,7 +63,7 @@ class AuthManager {
         this.user = JSON.parse(userData);
         this.token = token; // Token can be null for Firebase users
 
-        console.log('🔄 AuthManager: Loaded from storage - user:', this.user, 'token:', !!this.token);
+        
 
         // Only validate token if we have one and it's not a Firebase user
         if (token && this.user.provider !== 'firebase') {
@@ -85,9 +85,18 @@ class AuthManager {
    */
   async initFirebaseAuth() {
     return new Promise((resolve) => {
+      let isFirstCheck = true;
       firebase.auth().onAuthStateChanged(async (firebaseUser) => {
         if (firebaseUser) {
-          // Firebase user exists, try to get profile from RTDB
+          
+          
+          // Resolve initialization immediately on first check so other components can proceed
+          if (isFirstCheck) {
+            isFirstCheck = false;
+            resolve();
+          }
+
+          // Fetch profile in background
           try {
             let dbUserData = {};
             if (firebase.database) {
@@ -101,56 +110,32 @@ class AuthManager {
               id: firebaseUser.uid,
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              // Prioritize name from DB, then Auth displayName, then default
               name: dbUserData.name || dbUserData.displayName || firebaseUser.displayName || 'User',
-              role: dbUserData.role || 'Buyer', // Also get role
+              role: dbUserData.role || 'Buyer',
               provider: 'firebase',
-              ...dbUserData // Include other DB fields
+              ...dbUserData
             };
 
-            // Only update if different to avoid loops/unnecessary writes
-            if (!this.user || this.user.id !== userData.id || this.user.name !== userData.name) {
-              await this.setAuthData(userData, null);
-            }
+            await this.setAuthData(userData, null);
 
-            // SETUP REAL-TIME LISTENER
-            // This ensures verification status and other profile data is always fresh
+            // Set up real-time listener if not already done
             firebase.database().ref('users/' + firebaseUser.uid).on('value', (snap) => {
               const updatedData = snap.val() || {};
-              const updatedUser = {
-                id: firebaseUser.uid,
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: updatedData.name || updatedData.displayName || firebaseUser.displayName || 'User',
-                role: updatedData.role || 'Buyer',
-                provider: 'firebase',
-                ...updatedData
-              };
-
-              // Update local state silently (without full page reload if possible)
-              // We use setAuthData which triggers notifyStateChange
-              console.log('🔄 AuthManager: Real-time user data update received');
-              this.setAuthData(updatedUser, null);
+              this.setAuthData({ ...userData, ...updatedData }, null);
             });
           } catch (error) {
-            console.error('Error fetching Firebase user data:', error);
-            // Fallback to basic auth data
-            if (!this.user) {
-              const userData = {
-                id: firebaseUser.uid,
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName || 'User',
-                provider: 'firebase'
-              };
-              await this.setAuthData(userData, null);
-            }
+            console.error('❌ AuthManager: Background profile fetch error:', error);
           }
-        } else if (!firebaseUser && this.user?.provider === 'firebase') {
-          // Firebase user signed out
-          this.clearAuth();
+        } else {
+          
+          if (this.user?.provider === 'firebase') {
+            this.clearAuth();
+          }
+          if (isFirstCheck) {
+            isFirstCheck = false;
+            resolve();
+          }
         }
-        resolve();
       });
     });
   }
@@ -220,7 +205,7 @@ class AuthManager {
    * Clear authentication data
    */
   clearAuth() {
-    console.log('🔐 AuthManager: Clearing authentication data and cart...');
+    
 
     this.user = null;
     this.token = null;
@@ -231,7 +216,7 @@ class AuthManager {
 
     // Clear cart data for security and privacy
     localStorage.removeItem('sthub_cart');
-    console.log('🛒 AuthManager: Cart cleared on logout');
+    
 
     // Update cart count display if available
     const cartCountEl = document.getElementById('cartCount');
@@ -246,7 +231,7 @@ class AuthManager {
 
     this.notifyStateChange();
 
-    console.log('✅ AuthManager: Authentication and cart data cleared successfully');
+    
   }
 
   /**
@@ -255,30 +240,30 @@ class AuthManager {
   isAuthenticated() {
     // More flexible authentication check
     if (!this.user) {
-      console.log('🔐 AuthManager: No user data available');
+      
       return false;
     }
 
     // For Firebase users, provider is enough
     if (this.user.provider === 'firebase') {
-      console.log('🔐 AuthManager: Firebase user authenticated');
+      
       return true;
     }
 
     // For other users, check if we have token OR if user data exists in localStorage
     if (this.token) {
-      console.log('🔐 AuthManager: Token-based user authenticated');
+      
       return true;
     }
 
     // Fallback: if user exists and we have userData in localStorage, consider authenticated
     const storedUserData = localStorage.getItem('userData');
     if (storedUserData) {
-      console.log('🔐 AuthManager: localStorage-based user authenticated');
+      
       return true;
     }
 
-    console.log('🔐 AuthManager: User not authenticated');
+    
     return false;
   }
 
@@ -294,6 +279,54 @@ class AuthManager {
    */
   getToken() {
     return this.token;
+  }
+
+  /**
+   * Centralized Permission & Restriction Layer
+   * @param {string} action - Action requested (e.g., 'add_to_cart', 'bid', 'review')
+   * @param {object} context - Metadata for specific checks
+   * @returns {boolean} - true if allowed, false if restricted
+   */
+  checkPermission(action, context = {}) {
+    if (!this.user) return false;
+    
+    const role = (this.user.role || 'Buyer').toLowerCase();
+    
+    // Admin and Staff have full capability (except self-review maybe)
+    if (role === 'admin' || role === 'staff') return true;
+
+    switch (action) {
+      case 'add_to_cart':
+      case 'buy_now':
+      case 'bid':
+        // Sellers are strictly isolated from buying activities
+        if (role === 'seller') {
+          if (window.NotificationManager) {
+            window.NotificationManager.showToast(
+              'Action Restricted',
+              'To purchase products or place bids, please log in with a Buyer account.',
+              'warning'
+            );
+          }
+          return false;
+        }
+        return true;
+
+      case 'report':
+        // Sellers cannot report themselves (handled in UI usually) or have limited report capability
+        if (role === 'seller' && context.targetId === this.user.uid) return false;
+        return true;
+
+      case 'review':
+        // Seller-to-Seller reviews are blocked
+        if (role === 'seller' && context.targetRole === 'Seller') return false;
+        // Self-review blocked
+        if (context.targetId === this.user.uid) return false;
+        return true;
+
+      default:
+        return true;
+    }
   }
 
   /**
@@ -504,4 +537,4 @@ window.getCurrentUser = () => window.AuthManager.getCurrentUser();
 window.getAuthToken = () => window.AuthManager.getToken();
 window.requireAuth = (redirectUrl) => window.AuthManager.requireAuth(redirectUrl);
 
-console.log('🔐 AuthManager initialized - Professional authentication system ready');
+

@@ -1,5 +1,6 @@
 // ========================================
 // HOME-PRODUCTS.JS - Fetch & Display Recommended Products
+// AUCTION RECONSTRUCTION - Elite Visual Architecture
 // ========================================
 
 class HomeProductsManager {
@@ -11,6 +12,7 @@ class HomeProductsManager {
     async init() {
         if (!this.productsContainer) return;
         await this.loadRecommendedProducts();
+        this.startTimerEngine();
     }
 
     async loadRecommendedProducts() {
@@ -47,15 +49,11 @@ class HomeProductsManager {
         }
 
         this.productsContainer.innerHTML = this.products.map(product => this.createProductCard(product)).join('');
-
-        // Re-attach event listeners for "Add to Cart" buttons if needed
-        // Assuming cart.js handles this via delegation or we need to trigger it
     }
 
     createProductCard(product) {
-        // Handle image extraction (support both string URLs and object structure)
+        // Handle image extraction
         let image = 'images/placeholder.jpg';
-
         if (product.images && product.images.length > 0) {
             const firstImage = product.images[0];
             if (typeof firstImage === 'string') {
@@ -65,27 +63,80 @@ class HomeProductsManager {
             }
         }
 
-        const isAuction = product.listingType === 'auction';
-        const priceLabel = isAuction ? 'Current Bid' : 'PKR';
-        const priceValue = isAuction ? (product.currentBid || product.startingBid || 0) : product.price;
-        const formattedPrice = this.formatPrice(priceValue);
-        const buttonText = isAuction ? 'Place Bid' : 'Add to Cart';
-        const buttonClass = isAuction ? 'btn primary auction-btn' : 'btn primary';
+        // ─── AUCTION DETECTION ───
+        const auction = product.auction || {};
+        const isAuction = auction.enabled === true;
 
+        if (isAuction) {
+            return this.createAuctionCard(product, image, auction);
+        } else {
+            return this.createFixedCard(product, image);
+        }
+    }
+
+    /**
+     * FIXED PRICE CARD — Standard Blue Theme
+     */
+    createFixedCard(product, image) {
+        const formattedPrice = this.formatPrice(product.price);
         return `
-        <article class="card" onclick="window.location.href='product-detail.html?id=${product.id}'">
+        <article class="card card-fixed" onclick="window.location.href='product-detail.html?id=${product.id}'">
           <div class="card-img">
             <img src="${image}" alt="${product.name}" loading="lazy" onerror="this.src='images/placeholder.jpg'">
-            ${isAuction ? '<span class="card-badge" style="background: #ef4444; color: white;">Auction</span>' : ''}
           </div>
           <div class="card-content">
             <h3 class="card-title">${this.escapeHtml(product.name)}</h3>
-            <p class="card-price">${priceLabel} ${formattedPrice}</p>
-            <button class="${buttonClass}" 
+            <p class="card-price">PKR ${formattedPrice}</p>
+            <button class="btn primary" 
                 data-id="${product.id}"
                 onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
                 style="width:100%;">
-                ${buttonText}
+                Add to Cart
+            </button>
+          </div>
+        </article>
+        `;
+    }
+
+    /**
+     * AUCTION CARD — Indigo Elite Theme with LIVE badge & countdown
+     */
+    createAuctionCard(product, image, auction) {
+        const currentBid = auction.currentHighestBid || auction.startingPrice || product.price || 0;
+        const formattedBid = this.formatPrice(currentBid);
+
+        // Calculate end time
+        const auctionStartStr = auction.updatedAt || product.updatedAt || product.createdAt;
+        const auctionStart = auctionStartStr ? new Date(auctionStartStr).getTime() : Date.now();
+        const durationMs = (auction.duration || 7) * 24 * 60 * 60 * 1000;
+        const auctionEndTime = auctionStart + durationMs;
+        const isEnded = Date.now() >= auctionEndTime;
+
+        return `
+        <article class="card card-auction ${isEnded ? 'auction-ended-card' : ''}" onclick="window.location.href='product-detail.html?id=${product.id}'">
+          <div class="card-img">
+            <img src="${image}" alt="${product.name}" loading="lazy" onerror="this.src='images/placeholder.jpg'">
+            <!-- LIVE Ribbon -->
+            <div class="auction-ribbon-wrapper">
+              <div class="auction-ribbon ${isEnded ? 'auction-ended-ribbon' : ''}">${isEnded ? 'ENDED' : '🔥 LIVE'}</div>
+            </div>
+            <!-- Countdown -->
+            <div class="countdown-bar" data-auction-end="${auctionEndTime}">
+              <i class="fas fa-clock"></i> ${isEnded ? 'AUCTION ENDED' : '...'}
+            </div>
+          </div>
+          <div class="card-content">
+            <h3 class="card-title">${this.escapeHtml(product.name)}</h3>
+            <p class="card-price auction-price-label" style="display:flex; flex-direction:column; gap:0;">
+              <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">Current Bid</span>
+              PKR ${formattedBid}
+            </p>
+            <button class="btn primary auction-btn btn-pulse" 
+                data-id="${product.id}"
+                onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
+                style="width:100%;"
+                ${isEnded ? 'disabled style="width:100%; opacity:0.5;"' : ''}>
+                <i class="fas fa-gavel"></i> ${isEnded ? 'Ended' : 'Place Bid'}
             </button>
           </div>
         </article>
@@ -112,6 +163,42 @@ class HomeProductsManager {
 
     formatPrice(price) {
         return new Intl.NumberFormat('en-PK').format(price);
+    }
+
+    /**
+     * GLOBAL TIMER ENGINE for homepage cards
+     */
+    startTimerEngine() {
+        setInterval(() => {
+            document.querySelectorAll('[data-auction-end]').forEach(el => {
+                const endTime = parseInt(el.dataset.auctionEnd);
+                const diff = endTime - Date.now();
+
+                if (diff <= 0) {
+                    el.innerHTML = '<i class="fas fa-flag-checkered"></i> AUCTION ENDED';
+                    el.classList.add('timer-ended');
+                    return;
+                }
+
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+
+                let timeStr;
+                if (hours > 24) {
+                    const days = Math.floor(hours / 24);
+                    timeStr = `${days}d ${hours % 24}h ${minutes}m`;
+                } else {
+                    timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+
+                el.innerHTML = `<i class="fas fa-clock"></i> ${timeStr}`;
+
+                if (diff < 3600000) {
+                    el.classList.add('timer-urgent');
+                }
+            });
+        }, 1000);
     }
 }
 

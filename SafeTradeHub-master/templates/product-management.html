@@ -18,6 +18,10 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="/static/js/firebase-config.js"></script>
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/user-auth-guard.js"></script>
 </head>
 
 <body>
@@ -96,22 +100,68 @@
         <h1>Product Management</h1>
         <p>Manage your listings and inventory</p>
       </div>
-      <a href="product-upload.html" class="action-btn"
-        style="padding: 0.75rem 1.5rem; flex-direction: row; gap: 0.5rem; background: var(--primary-color); color: white; border: none;">
-        <i class="fas fa-plus" style="color: white; font-size: 1rem; margin: 0;"></i>
-        <span>Add New Product</span>
-      </a>
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="product-upload.html" class="action-btn"
+          style="padding: 0.75rem 1.5rem; flex-direction: row; gap: 0.5rem; background: #4F46E5; color: white; border: none; border-radius: 8px;">
+          <i class="fas fa-plus" style="color: white; font-size: 1rem; margin: 0;"></i>
+          <span>Add New Product</span>
+        </a>
+        <div class="topbar-actions">
+            <button class="icon-btn" id="notificationBtn" aria-label="Notifications" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#64748b; padding:8px; border-radius:50%; transition:all 0.2s;">
+                <i class="fas fa-bell"></i>
+            </button>
+        </div>
+      </div>
     </div>
+
+    <!-- Management Tabs -->
+    <div class="management-tabs" style="display: flex; gap: 20px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 0;">
+        <button class="tab-btn active" data-tab="fixed" onclick="switchTab('fixed')" style="padding: 12px 24px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; position: relative;">
+            Fixed Price Sales
+        </button>
+        <button class="tab-btn" data-tab="auction" onclick="switchTab('auction')" style="padding: 12px 24px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; position: relative;">
+            Live Auctions
+        </button>
+    </div>
+
+    <style>
+        .tab-btn.active { color: #4F46E5 !important; }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #4F46E5;
+        }
+        .auction-highlight { color: #4F46E5; font-weight: 700; }
+        .btn-auction-details {
+            background: #f5f3ff;
+            color: #4F46E5;
+            border: 1px solid #c7d2fe;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-auction-details:hover { background: #ede9fe; }
+    </style>
 
     <div id="productsContent">
       <div class="dashboard-card">
-        <div class="card-header">
-          <h3>Your Products</h3>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 id="tableTitle">Fixed Price Listings</h3>
+          <div id="auctionStats" style="display: none; font-size: 0.85rem; color: #64748b;">
+             <span id="activeAuctionCount">0</span> Active Auctions
+          </div>
         </div>
         <div class="card-body">
           <div class="table-responsive">
             <table class="dashboard-table" id="productsTable">
-              <thead>
+              <thead id="tableHead">
                 <tr>
                   <th>Image</th>
                   <th>Name</th>
@@ -128,11 +178,43 @@
                 </tr>
               </tbody>
             </table>
-          </div>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- Bids Modal -->
+  <div id="bidsModal" class="modal"
+    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="modal-content"
+      style="background: white; width: 95%; max-width: 800px; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+      <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #1e293b;">
+            <i class="fas fa-gavel" style="color: #4F46E5; margin-right: 8px;"></i>
+            Auction Bid History: <span id="bidModalProductName" style="color: #4F46E5;">...</span>
+        </h2>
+        <span class="close" onclick="closeBidsModal()" style="font-size: 24px; color: #94a3b8; cursor: pointer;">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+        <div class="table-responsive">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Bidder</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                        <th>Decision</th>
+                    </tr>
+                </thead>
+                <tbody id="bidsTableBody">
+                    <tr><td colspan="5" style="text-align:center;">Loading bids...</td></tr>
+                </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- View Product Modal -->
   <div id="viewProductModal" class="modal"
@@ -141,7 +223,7 @@
       style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; position: relative;">
       <span class="close" onclick="closeModal()"
         style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-      <h2 style="margin-top: 0; color: var(--primary-color);">Product Details</h2>
+      <h2 style="margin-top: 0; color: #4F46E5;">Product Details</h2>
       <div id="modalBody" style="margin-top: 20px;">
         <p>Loading...</p>
       </div>
@@ -187,67 +269,262 @@
       }
     }
 
+    let currentTab = 'fixed';
+    let globalProducts = [];
+
+    function switchTab(tab) {
+        currentTab = tab;
+        // Update UI
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+        
+        document.getElementById('tableTitle').textContent = tab === 'fixed' ? 'Fixed Price Listings' : 'Live Auctions';
+        document.getElementById('auctionStats').style.display = tab === 'auction' ? 'block' : 'none';
+        
+        renderProducts();
+    }
+
     async function loadProducts(uid) {
       const db = firebase.database();
-      const tbody = document.querySelector('#productsTable tbody');
-
       try {
-        // Fetch all products and filter client-side to ensure accuracy
         const snap = await db.ref('products').once('value');
-        const products = [];
-
+        globalProducts = [];
         snap.forEach(child => {
           const p = child.val();
           if (p.sellerId === uid) {
-            products.push({ id: child.key, ...p });
+            globalProducts.push({ id: child.key, ...p });
           }
         });
 
-        if (products.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No products found</td></tr>';
-          return;
-        }
+        // Update counts
+        const activeAuctions = globalProducts.filter(p => p.auction?.enabled && p.status !== 'Sold').length;
+        document.getElementById('activeAuctionCount').textContent = activeAuctions;
 
-        tbody.innerHTML = products.map(p => {
-          // Handle image
-          let imgUrl = 'images/placeholder.jpg';
-          if (Array.isArray(p.images) && p.images.length > 0) {
-            imgUrl = p.images.find(img => img.isMain)?.url || p.images[0].url;
-          } else if (typeof p.images === 'string') {
-            imgUrl = p.images;
-          } else if (p.img) {
-            imgUrl = p.img;
-          }
-
-          return `
-                        <tr>
-                            <td><img src="${imgUrl}" alt="${p.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"></td>
-                            <td>${p.name || p.title}</td>
-                            <td>RS ${p.price}</td>
-                            <td>${p.category || 'N/A'}</td>
-                            <td><span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span></td>
-                            <td>${p.views || 0}</td>
-                            <td>
-                                <div class="action-buttons-container">
-                                    <button onclick="viewProduct('${p.id}')" class="btn-icon view" title="View">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <a href="product-edit.html?id=${p.id}" class="btn-icon edit" title="Edit">
-                                        <i class="fas fa-pencil-alt"></i>
-                                    </a>
-                                    <button onclick="deleteProduct('${p.id}')" class="btn-icon delete" title="Delete">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-        }).join('');
-
+        renderProducts();
       } catch (error) {
         console.error('Error loading products:', error);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading products</td></tr>';
       }
+    }
+
+    function renderProducts() {
+      const tbody = document.querySelector('#productsTable tbody');
+      const tableHead = document.getElementById('tableHead');
+      
+      const filtered = globalProducts.filter(p => {
+          const isAuction = !!p.auction?.enabled;
+          // Hide ANY sold item from these active tabs
+          if (p.status === 'Sold') return false;
+          
+          return currentTab === 'auction' ? isAuction : !isAuction;
+      });
+
+      if (currentTab === 'auction') {
+          tableHead.innerHTML = `
+              <tr>
+                  <th>Image</th>
+                  <th>Auction Name</th>
+                  <th>Current Bid</th>
+                  <th>Bids</th>
+                  <th>End Time</th>
+                  <th>Actions</th>
+              </tr>
+          `;
+      } else {
+          tableHead.innerHTML = `
+              <tr>
+                  <th>Image</th>
+                  <th>Name</th>
+                  <th>Price</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Views</th>
+                  <th>Actions</th>
+              </tr>
+          `;
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${currentTab === 'auction' ? 6 : 7}" style="text-align:center;">No ${currentTab} products found</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(p => {
+        let imgUrl = 'images/placeholder.jpg';
+        if (Array.isArray(p.images) && p.images.length > 0) imgUrl = p.images.find(img => img.isMain)?.url || p.images[0].url;
+        else if (p.img || p.images) imgUrl = p.img || p.images;
+
+        if (currentTab === 'auction') {
+            const currentBid = p.auction?.currentHighestBid || p.auction?.startingPrice || p.startingBid || 0;
+            const bidCount = p.auction?.bidCount || 0;
+            
+            // Robust End Time Detection: Check explicit, alternative, or calculate fallback
+            let rawEnd = p.auction?.endTime || p.auctionEndsAt;
+            let endStr = 'N/A';
+            
+            if (rawEnd) {
+                const d = new Date(rawEnd);
+                if (!isNaN(d.getTime())) endStr = d.toLocaleDateString();
+            } else {
+                // Calculation Fallback: createdAt + (duration or 7 days)
+                const start = new Date(p.createdAt || Date.now()).getTime();
+                const dur = p.auction?.duration || p.auctionDuration || 7;
+                const calculatedEnd = new Date(start + (dur * 24 * 60 * 60 * 1000));
+                endStr = calculatedEnd.toLocaleDateString();
+            }
+            
+            const endTime = endStr;
+
+            return `
+                <tr>
+                    <td><img src="${imgUrl}" alt="${p.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"></td>
+                    <td><strong>${p.name}</strong></td>
+                    <td><span class="auction-highlight">RS ${currentBid.toLocaleString()}</span></td>
+                    <td><span class="status-badge verified">${bidCount} Bids</span></td>
+                    <td>${endTime}</td>
+                    <td>
+                        <div class="action-buttons-container">
+                            <button onclick="openBidsModal('${p.id}', '${p.name}')" class="btn-auction-details">
+                                <i class="fas fa-list-ol"></i> View Bids
+                            </button>
+                            <a href="product-edit.html?id=${p.id}" class="btn-icon edit" title="Edit"><i class="fas fa-pencil-alt"></i></a>
+                            <button onclick="deleteProduct('${p.id}')" class="btn-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        return `
+            <tr>
+                <td><img src="${imgUrl}" alt="${p.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"></td>
+                <td>${p.name || p.title}</td>
+                <td>RS ${p.price}</td>
+                <td>${p.category || 'N/A'}</td>
+                <td><span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                <td>${p.views || 0}</td>
+                <td>
+                    <div class="action-buttons-container">
+                        <button onclick="viewProduct('${p.id}')" class="btn-icon view" title="View"><i class="fas fa-eye"></i></button>
+                        <a href="product-edit.html?id=${p.id}" class="btn-icon edit" title="Edit"><i class="fas fa-pencil-alt"></i></a>
+                        <button onclick="deleteProduct('${p.id}')" class="btn-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+      }).join('');
+    }
+
+    /* --- Auction Bid Hub Logic --- */
+    let currentAuctionId = null;
+
+    async function openBidsModal(pid, pname) {
+        currentAuctionId = pid;
+        document.getElementById('bidModalProductName').textContent = pname;
+        const modal = document.getElementById('bidsModal');
+        modal.style.display = 'flex';
+        
+        const tbody = document.getElementById('bidsTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Fetching Bids...</td></tr>';
+
+        // Listen for real-time bid updates
+        const db = firebase.database();
+        db.ref(`bids/${pid}`).on('value', async (snap) => {
+            if (!currentAuctionId || currentAuctionId !== pid) return;
+            
+            const bids = [];
+            snap.forEach(child => {
+                bids.push({ id: child.key, ...child.val() });
+            });
+
+            if (bids.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No bids placed yet.</td></tr>';
+                return;
+            }
+
+            // Sort by amount desc
+            bids.sort((a, b) => b.amount - a.amount);
+
+            const rows = await Promise.all(bids.map(async (b, index) => {
+                let name = b.bidderName;
+                const isHighest = (index === 0);
+                
+                // If bidderName is not in the bid object (old bids), try fetching it
+                if (!name) {
+                    try {
+                        // Fetching specific child nodes (allowed by our new rules)
+                        const nameSnap = await db.ref(`users/${b.bidderId}/displayName`).once('value');
+                        const fullNameSnap = await db.ref(`users/${b.bidderId}/fullName`).once('value');
+                        name = nameSnap.val() || fullNameSnap.val() || 'Anonymous Bidder';
+                    } catch (err) {
+                        console.error('Permission denied or error fetching name for:', b.bidderId);
+                        name = 'Bidder ' + b.bidderId.substring(0, 5);
+                    }
+                }
+
+                const time = new Date(b.timestamp).toLocaleString();
+                
+                // UX: Highest = Green/Active, Others = Red/Expired
+                const statusHtml = isHighest ? 
+                    '<span class="status-badge" style="background: #ecfdf5; color: #10b981; border: 1px solid #10b981; padding: 4px 8px; border-radius: 6px; font-weight: 600;">Active Lock</span>' :
+                    '<span class="status-badge" style="background: #fef2f2; color: #ef4444; border: 1px solid #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600;">Expired</span>';
+
+                const actionHtml = isHighest ? `
+                        <button onclick="finalizeAuction('${pid}', '${b.bidderId}', ${b.amount})" class="btn-auction-details" style="background:#4F46E5; color:white; border:none; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-check-double"></i> Sell Now
+                        </button>` : '';
+
+                return `
+                    <tr style="${!isHighest ? 'opacity: 0.8;' : ''}">
+                        <td><strong>${name}</strong></td>
+                        <td class="${isHighest ? 'auction-highlight' : ''}" style="${!isHighest ? 'color: #94a3b8;' : 'color: #4F46E5; font-weight: 700;'}">RS ${b.amount.toLocaleString()}</td>
+                        <td>${statusHtml}</td>
+                        <td style="font-size: 0.8rem; color: #64748b;">${time}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            }));
+
+            tbody.innerHTML = rows.join('');
+        });
+    }
+
+    function closeBidsModal() {
+        if (currentAuctionId) {
+            firebase.database().ref(`bids/${currentAuctionId}`).off();
+        }
+        document.getElementById('bidsModal').style.display = 'none';
+        currentAuctionId = null;
+    }
+
+    async function finalizeAuction(pid, winnerId, amount) {
+        const confirmed = await window.NotificationManager.showConfirm('Finalize Auction?', 
+            `Are you sure you want to sell this product to this bidder for RS ${amount.toLocaleString()}? This will end the auction immediately.`);
+        
+        if (!confirmed) return;
+
+        try {
+            const idToken = await firebase.auth().currentUser.getIdToken();
+            const response = await fetch('/api/v1/auctions/sell-now', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ productId: pid, winnerUid: winnerId, amount: amount })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                window.NotificationManager.showToast('Success', 'Auction finalized! Funds are secured in escrow.', 'success');
+                closeBidsModal();
+                loadProducts(firebase.auth().currentUser.uid);
+            } else {
+                window.NotificationManager.showToast('Error', result.error, 'error');
+            }
+        } catch (err) {
+            console.error('Finalization error:', err);
+            window.NotificationManager.showToast('Error', 'Failed to finalize auction.', 'error');
+        }
     }
 
     async function viewProduct(id) {
@@ -310,14 +587,15 @@
     }
 
     async function deleteProduct(id) {
-      if (!confirm('Are you sure you want to delete this product?')) return;
+      const confirmed = await window.NotificationManager.showConfirm('Delete Product?', 'Are you sure you want to delete this product? This action cannot be undone.');
+      if (!confirmed) return;
 
       try {
         await firebase.database().ref('products/' + id).remove();
-        // Also remove from user's products list if you maintain one, but here we just reload
-        location.reload();
+        window.NotificationManager.showToast('Success', 'Product deleted successfully', 'success');
+        setTimeout(() => location.reload(), 1500);
       } catch (error) {
-        alert('Error deleting product: ' + error.message);
+        window.NotificationManager.showToast('Error', 'Error deleting product: ' + error.message, 'error');
       }
     }
 

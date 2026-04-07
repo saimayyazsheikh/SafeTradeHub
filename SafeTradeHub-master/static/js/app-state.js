@@ -21,9 +21,9 @@ window.SafeTradeHub = {
         this.loadUserPreferences();
 
         // Debug info
-        console.log('SafeTradeHub initialized');
-        console.log('Cart items:', this.cart.get().length);
-        console.log('Storage keys:', STORAGE_KEYS);
+        
+        
+        
     },
 
     // Cart Management
@@ -261,25 +261,8 @@ window.SafeTradeHub = {
     },
 
     storeNotification: function (message, type) {
-        try {
-            const notifications = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
-            notifications.unshift({
-                id: Date.now(),
-                message: message,
-                type: type,
-                timestamp: new Date().toISOString(),
-                read: false
-            });
-
-            // Keep only last 50 notifications
-            if (notifications.length > 50) {
-                notifications.splice(50);
-            }
-
-            localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-        } catch (error) {
-            console.error('Error storing notification:', error);
-        }
+        // Obsolete: Notifications are now managed by Firebase via notification-manager.js
+        // We leave this as a no-op for backward compatibility.
     },
 
     initializeNotifications: function () {
@@ -391,7 +374,7 @@ window.SafeTradeHub = {
         Object.entries(STORAGE_KEYS).forEach(([key, storageKey]) => {
             data[key] = localStorage.getItem(storageKey);
         });
-        console.log('SafeTradeHub Data Export:', data);
+        
         return data;
     }
 };

@@ -34,7 +34,7 @@ class HeaderManager {
       this.setupAuthStateListener();
       this.isInitialized = true;
 
-      console.log('✅ HeaderManager initialized successfully');
+      
 
     } catch (error) {
       console.error('❌ HeaderManager initialization error:', error);
@@ -91,7 +91,7 @@ class HeaderManager {
       try {
         isAuthenticated = window.AuthManager.isAuthenticated();
         user = window.AuthManager.getCurrentUser();
-        console.log('🔄 HeaderManager: AuthManager check - authenticated:', isAuthenticated, 'user:', user?.name);
+        
       } catch (error) {
         console.warn('⚠️ HeaderManager: AuthManager error:', error);
       }
@@ -105,14 +105,14 @@ class HeaderManager {
         try {
           user = JSON.parse(userData);
           isAuthenticated = !!(user && (user.id || user.uid || user.email));
-          console.log('🔄 HeaderManager: localStorage fallback - authenticated:', isAuthenticated, 'user:', user?.name);
+          
         } catch (error) {
           console.warn('⚠️ HeaderManager: localStorage parse error:', error);
         }
       }
     }
 
-    console.log(`🔄 HeaderManager: Final state - authenticated: ${isAuthenticated}, user:`, user);
+    
 
     // Remove any existing auth elements (but preserve chat/notification buttons)
     this.removeAuthElements(headerActions);
@@ -170,9 +170,10 @@ class HeaderManager {
     }
 
     // Add cart if it doesn't exist
+    const isSeller = (user.role || '').toLowerCase() === 'seller';
     if (!container.querySelector('a[href="cart.html"]')) {
       const cartHTML = `
-        <a class="icon-btn auth-element" href="cart.html" aria-label="Cart" title="Cart" style="position:relative; ${!isVerified ? 'display: none;' : ''}">
+        <a class="icon-btn auth-element" href="cart.html" aria-label="Cart" title="Cart" style="position:relative; ${(!isVerified || isSeller) ? 'display: none;' : ''}">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
             <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
@@ -503,11 +504,11 @@ window.toggleUserMenu = function () {
 
 window.handleSignOut = async function () {
   if (window.AuthManager) {
-    console.log('🚪 HeaderManager: Initiating sign out...');
+    
 
     const result = await window.AuthManager.signOut();
     if (result.success) {
-      console.log('✅ HeaderManager: Sign out successful, cart cleared');
+      
 
       // Show feedback to user
       if (typeof showNotification === 'function') {
@@ -537,7 +538,7 @@ document.addEventListener('click', function (e) {
 
 // Initialize header manager when DOM is ready
 document.addEventListener('DOMContentLoaded', async function () {
-  console.log('🏷️ HeaderManager: DOM ready, starting initialization...');
+  
 
   try {
     // Wait for all critical scripts to be ready
@@ -546,7 +547,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       if (window.AuthManager) {
         try {
           await window.AuthManager.waitForInit();
-          console.log('✅ HeaderManager: AuthManager is ready');
+          
           break;
         } catch (error) {
           console.warn('⚠️ HeaderManager: AuthManager not ready, attempt', attempts, error);
@@ -557,7 +558,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     if (!window.HeaderManager) {
-      console.log('🏷️ HeaderManager: Creating new instance...');
+      
       window.HeaderManager = new HeaderManager();
     }
 
@@ -565,7 +566,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     setTimeout(() => {
       if (window.HeaderManager) {
         window.HeaderManager.updateHeaderState();
-        console.log('🏷️ HeaderManager: Forced header update completed');
+        
       }
     }, 500);
 
@@ -574,4 +575,4 @@ document.addEventListener('DOMContentLoaded', async function () {
   }
 });
 
-console.log('🎯 HeaderManager loaded - Professional navigation system ready');
+
