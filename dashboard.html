@@ -51,7 +51,7 @@
           </div>
           <div class="verification-status" id="verificationStatus">
             <div class="status-indicator pending">
-              <span class="status-icon">⏳</span>
+              <span class="status-icon">•</span>
               <span class="status-text">Verification Pending</span>
             </div>
           </div>
@@ -60,28 +60,28 @@
       <!-- Stats Cards -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon">🛒</div>
+          <div class="stat-icon">Orders</div>
           <div class="stat-content">
             <div class="stat-value" id="totalOrders">0</div>
             <div class="stat-label">Total Orders</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">💰</div>
+          <div class="stat-icon">Spent</div>
           <div class="stat-content">
             <div class="stat-value" id="totalSpent">$0</div>
             <div class="stat-label">Total Spent</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">⭐</div>
+          <div class="stat-icon">Rating</div>
           <div class="stat-content">
             <div class="stat-value" id="userRating">5.0</div>
             <div class="stat-label">Rating</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🔒</div>
+          <div class="stat-icon">Escrow</div>
           <div class="stat-content">
             <div class="stat-value" id="escrowFunds">$0</div>
             <div class="stat-label">In Escrow</div>
@@ -95,7 +95,7 @@
         <div class="dashboard-card">
           <div class="card-header">
             <h2>Recent Orders</h2>
-            <a href="orders.html" class="view-all">View All</a>
+            <a href="orders.html" class="view-all btn-manage">View All</a>
           </div>
           <div class="card-content">
             <div id="recentOrders" class="orders-list">
@@ -112,7 +112,7 @@
         <div class="dashboard-card">
           <div class="card-header">
             <h2>Verification Progress</h2>
-            <a href="verify.html" class="view-all">Complete</a>
+            <a href="verify.html" class="view-all btn-manage">Complete</a>
           </div>
           <div class="card-content">
             <div class="verification-steps">
@@ -124,21 +124,21 @@
                 </div>
               </div>
               <div class="verification-step pending">
-                <div class="step-icon">⏳</div>
+                <div class="step-icon">•</div>
                 <div class="step-content">
                   <div class="step-title">Phone Verification</div>
                   <div class="step-desc">Verify your phone number</div>
                 </div>
               </div>
               <div class="verification-step pending">
-                <div class="step-icon">⏳</div>
+                <div class="step-icon">•</div>
                 <div class="step-content">
                   <div class="step-title">Identity Verification</div>
                   <div class="step-desc">Upload your CNIC and selfie</div>
                 </div>
               </div>
               <div class="verification-step pending" id="sellerStep" style="display: none;">
-                <div class="step-icon">⏳</div>
+                <div class="step-icon">•</div>
                 <div class="step-content">
                   <div class="step-title">Shop Verification</div>
                   <div class="step-desc">Verify your business details</div>
@@ -156,23 +156,23 @@
           <div class="card-content">
             <div class="quick-actions">
               <a href="index.html" class="action-btn">
-                <div class="action-icon">🛍️</div>
+                <div class="action-icon">Browse</div>
                 <div class="action-text">Browse Products</div>
               </a>
               <a href="cart.html" class="action-btn">
-                <div class="action-icon">🛒</div>
+                <div class="action-icon">Cart</div>
                 <div class="action-text">View Cart</div>
               </a>
               <a href="profile.html" class="action-btn">
-                <div class="action-icon">👤</div>
+                <div class="action-icon">Profile</div>
                 <div class="action-text">Edit Profile</div>
               </a>
               <a href="verify.html" class="action-btn">
-                <div class="action-icon">🔐</div>
+                <div class="action-icon">Verify</div>
                 <div class="action-text">Complete KYC</div>
               </a>
               <a href="escrow-management.html" class="action-btn">
-                <div class="action-icon">🛡️</div>
+                <div class="action-icon">Escrow</div>
                 <div class="action-text">Escrow Management</div>
               </a>
             </div>
@@ -183,7 +183,7 @@
         <div class="dashboard-card">
           <div class="card-header">
             <h2>Escrow Management</h2>
-            <a href="escrow-management.html" class="view-all">Manage</a>
+            <a href="escrow-management.html" class="view-all btn-manage">Manage</a>
           </div>
           <div class="card-content">
             <div class="escrow-overview">
@@ -221,12 +221,12 @@
         <div class="dashboard-card">
           <div class="card-header">
             <h2>Notifications</h2>
-            <button class="mark-all-read" id="markAllRead">Mark All Read</button>
+            <button class="mark-all-read btn-manage" id="markAllRead">Mark All Read</button>
           </div>
           <div class="card-content">
             <div id="notificationsList" class="notifications-list">
               <div class="notification-item">
-                <div class="notification-icon">📧</div>
+                <div class="notification-icon">•</div>
                 <div class="notification-content">
                   <div class="notification-title">Welcome to SafeTradeHub!</div>
                   <div class="notification-desc">Complete your profile to get started</div>
@@ -362,17 +362,17 @@
     
     let statusClass = 'pending';
     let statusText = 'Verification Pending';
-    let statusIcon = '⏳';
+    let statusIcon = '•';
     
     if (verification.email && verification.phone && verification.cnic?.verified) {
       if (userData.role === 'Seller' && verification.shop?.verified) {
         statusClass = 'verified';
         statusText = 'Fully Verified';
-        statusIcon = '✅';
+        statusIcon = '✓';
       } else if (userData.role === 'Buyer') {
         statusClass = 'verified';
         statusText = 'Fully Verified';
-        statusIcon = '✅';
+        statusIcon = '✓';
       }
     }
     
@@ -439,7 +439,7 @@
       if (recentOrders.length === 0) {
         ordersList.innerHTML = `
           <div class="empty-state">
-            <div class="empty-icon">📦</div>
+            <div class="empty-icon">No Orders</div>
             <div class="empty-text">No orders yet</div>
             <a href="index.html" class="btn primary">Start Shopping</a>
           </div>
@@ -468,13 +468,13 @@
     // Mock notifications - in real app, these would come from Firestore
     const notifications = [
       {
-        icon: '📧',
+        icon: '•',
         title: 'Welcome to SafeTradeHub!',
         desc: 'Complete your profile to get started',
         time: '2 hours ago'
       },
       {
-        icon: '🔐',
+        icon: '•',
         title: 'Verification Required',
         desc: 'Complete your KYC verification to access all features',
         time: '1 day ago'
@@ -558,9 +558,10 @@
     align-items: center;
     margin-bottom: 32px;
     padding: 24px;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    background: linear-gradient(135deg, #1e90ff, #0066cc, #004499, #002266);
     border-radius: 20px;
     color: white;
+    box-shadow: 0 8px 32px rgba(30, 144, 255, 0.3);
   }
 
   .welcome-content h1 {
@@ -617,7 +618,8 @@
   }
 
   .stat-icon {
-    font-size: 32px;
+    font-size: 14px;
+    font-weight: 600;
     width: 60px;
     height: 60px;
     display: flex;
@@ -625,6 +627,7 @@
     justify-content: center;
     background: #f0f9ff;
     border-radius: 12px;
+    color: #3b82f6;
   }
 
   .stat-value {
@@ -825,7 +828,9 @@
   }
 
   .action-icon {
-    font-size: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #3b82f6;
   }
 
   .action-text {
@@ -859,7 +864,7 @@
   }
 
   .notification-icon {
-    font-size: 20px;
+    font-size: 16px;
     width: 32px;
     height: 32px;
     display: flex;
@@ -867,6 +872,7 @@
     justify-content: center;
     background: #e0f2fe;
     border-radius: 8px;
+    color: #3b82f6;
   }
 
   .notification-content {
@@ -960,7 +966,9 @@
   }
 
   .empty-icon {
-    font-size: 48px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #64748b;
     margin-bottom: 16px;
   }
 
@@ -1085,6 +1093,33 @@
 
   .escrow-actions .btn-secondary:hover {
     background: #e5e7eb;
+  }
+
+  /* Manage-style button */
+  .btn-manage {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-manage:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  .btn-manage:active {
+    transform: translateY(0);
   }
   </style>
 </body>

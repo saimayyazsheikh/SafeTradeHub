@@ -1,1199 +1,1166 @@
 /* ========================================
-   ADMIN-DASHBOARD.JS - JavaScript for admin dashboard module
+   ADMIN-DASHBOARD.JS - Real-time Admin Dashboard
    ======================================== */
 
-// Admin credentials
-const ADMIN_EMAIL = '221009@students.au.edu.pk';
-const ADMIN_PASSWORD = 'Saim@12345';
+// Firebase instances (already initialized in HTML)
+let auth, db;
 
-// Storage keys
-const USERS_KEY = 'sthub_users';
-const PRODUCTS_KEY = 'sthub_products';
-const ORDERS_KEY = 'sthub_orders';
-const ESCROWS_KEY = 'sthub_escrows';
-const DISPUTES_KEY = 'sthub_disputes';
-const TRANSACTIONS_KEY = 'sthub_transactions';
+// Initialize Firebase instances safely
+try {
+  auth = firebase.auth();
+  db = firebase.firestore();
+  console.log('Firebase instances initialized successfully');
+} catch (error) {
+  console.error('Firebase instances initialization error:', error);
+  auth = null;
+  db = null;
+}
 
 // Global variables
 let currentSection = 'dashboard';
 let adminData = {
+  stats: {},
   users: [],
   products: [],
   orders: [],
   escrows: [],
   disputes: [],
-  transactions: []
+  transactions: [],
+  logistics: {},
+  recentActivity: []
 };
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-  // Check if we're on login page or dashboard
-  if (document.body.classList.contains('admin-login-body')) {
-    initializeLogin();
-  } else if (document.body.classList.contains('admin-dashboard-body')) {
+  if (document.body.classList.contains('admin-dashboard-body')) {
     initializeDashboard();
   }
 });
 
-// Initialize login page
-function initializeLogin() {
-  console.log('Initializing Admin Login');
-  
-  const loginForm = document.getElementById('adminLoginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-}
-
 // Initialize dashboard
-function initializeDashboard() {
+async function initializeDashboard() {
   console.log('Initializing Admin Dashboard');
   
-  // Check if user is logged in
-  if (!isAdminLoggedIn()) {
-    window.location.href = 'admin-login.html';
-    return;
-  }
+  // Wait for AuthManager to initialize
+  await waitForAuthManager();
   
-  setupEventListeners();
-  loadAllData();
-  updateDashboardStats();
+  // Setup navigation
+  setupNavigation();
+  
+  // Show dashboard section by default
   showSection('dashboard');
+  
+  // Setup event listeners
+  setupEventListeners();
+  
+  // Load initial data
+  await loadDashboardData();
 }
 
-// Setup event listeners
-function setupEventListeners() {
-  // Navigation
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', function(e) {
+// Wait for AuthManager to be available
+async function waitForAuthManager() {
+  let attempts = 0;
+  const maxAttempts = 50; // 5 seconds max wait
+  
+  while (!window.authManager && attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  
+  if (!window.authManager) {
+    console.warn('AuthManager not available after waiting');
+  }
+}
+
+// Setup navigation
+function setupNavigation() {
+  const navItems = document.querySelectorAll('.nav-item');
+  console.log('Setting up navigation for', navItems.length, 'items');
+  
+  navItems.forEach(item => {
+    const section = item.getAttribute('data-section');
+    console.log('Navigation item:', section, item);
+    
+    item.addEventListener('click', (e) => {
       e.preventDefault();
-      const section = this.dataset.section;
-      showSection(section);
+      console.log('Navigation clicked:', section);
+      if (section) {
+        showSection(section);
+      }
     });
   });
-  
-  // User dropdown
-  const userBtn = document.getElementById('adminUserBtn');
-  const userDropdown = document.getElementById('adminDropdown');
-  
-  if (userBtn && userDropdown) {
-    userBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      userDropdown.classList.toggle('show');
-    });
-  }
-  
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function() {
-    if (userDropdown) {
-      userDropdown.classList.remove('show');
-    }
-  });
-  
-  // Search functionality
-  setupSearchHandlers();
-  
-  // Filter functionality
-  setupFilterHandlers();
-}
-
-// Setup search handlers
-function setupSearchHandlers() {
-  const searchInputs = [
-    { id: 'userSearch', type: 'users' },
-    { id: 'verificationSearch', type: 'verification' },
-    { id: 'productSearch', type: 'products' },
-    { id: 'categorySearch', type: 'categories' },
-    { id: 'transactionSearch', type: 'transactions' },
-    { id: 'orderSearch', type: 'orders' },
-    { id: 'escrowSearch', type: 'escrow' },
-    { id: 'disputeSearch', type: 'disputes' }
-  ];
-  
-  searchInputs.forEach(({ id, type }) => {
-    const input = document.getElementById(id);
-    if (input) {
-      input.addEventListener('input', debounce(() => {
-        searchData(type, input.value);
-      }, 300));
-    }
-  });
-}
-
-// Setup filter handlers
-function setupFilterHandlers() {
-  const filters = [
-    { id: 'categoryFilter', type: 'products' },
-    { id: 'verificationStatusFilter', type: 'verification' },
-    { id: 'transactionStatusFilter', type: 'transactions' },
-    { id: 'orderStatusFilter', type: 'orders' },
-    { id: 'escrowStatusFilter', type: 'escrow' },
-    { id: 'disputeStatusFilter', type: 'disputes' }
-  ];
-  
-  filters.forEach(({ id, type }) => {
-    const select = document.getElementById(id);
-    if (select) {
-      select.addEventListener('change', () => {
-        filterData(type, select.value);
-      });
-    }
-  });
-}
-
-// Handle login
-function handleLogin(e) {
-  e.preventDefault();
-  
-  const email = document.getElementById('adminEmail').value;
-  const password = document.getElementById('adminPassword').value;
-  const errorDiv = document.getElementById('loginError');
-  
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    // Store login session
-    sessionStorage.setItem('adminLoggedIn', 'true');
-    sessionStorage.setItem('adminEmail', email);
-    sessionStorage.setItem('adminLoginTime', new Date().toISOString());
-    
-    // Redirect to dashboard
-    window.location.href = 'admin-dashboard.html';
-  } else {
-    // Show error
-    errorDiv.style.display = 'flex';
-    errorDiv.querySelector('#errorMessage').textContent = 'Invalid email or password';
-    
-    // Hide error after 3 seconds
-    setTimeout(() => {
-      errorDiv.style.display = 'none';
-    }, 3000);
-  }
-}
-
-// Check if admin is logged in
-function isAdminLoggedIn() {
-  return sessionStorage.getItem('adminLoggedIn') === 'true';
-}
-
-// Logout function
-function logout() {
-  sessionStorage.removeItem('adminLoggedIn');
-  sessionStorage.removeItem('adminEmail');
-  sessionStorage.removeItem('adminLoginTime');
-  window.location.href = 'admin-login.html';
-}
-
-// Toggle password visibility
-function togglePassword() {
-  const passwordInput = document.getElementById('adminPassword');
-  const toggleIcon = document.getElementById('passwordToggleIcon');
-  
-  if (passwordInput.type === 'password') {
-    passwordInput.type = 'text';
-    toggleIcon.classList.remove('fa-eye');
-    toggleIcon.classList.add('fa-eye-slash');
-  } else {
-    passwordInput.type = 'password';
-    toggleIcon.classList.remove('fa-eye-slash');
-    toggleIcon.classList.add('fa-eye');
-  }
 }
 
 // Show section
-function showSection(sectionName) {
+async function showSection(sectionName) {
+  console.log('Switching to section:', sectionName);
+  
+  // Update navigation
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  
+  const activeNavItem = document.querySelector(`[data-section="${sectionName}"]`);
+  if (activeNavItem) {
+    activeNavItem.classList.add('active');
+  }
+  
   // Hide all sections
   document.querySelectorAll('.admin-section').forEach(section => {
     section.classList.remove('active');
   });
   
-  // Remove active class from all nav items
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.remove('active');
-  });
-  
-  // Show selected section
-  const targetSection = document.getElementById(sectionName + '-section');
+  // Show target section
+  const targetSection = document.getElementById(`${sectionName}-section`);
   if (targetSection) {
     targetSection.classList.add('active');
+    currentSection = sectionName;
+    
+    // Load section data
+    await loadSectionData(sectionName);
+  } else {
+    console.error('Section not found:', sectionName);
   }
-  
-  // Add active class to nav item
-  const navItem = document.querySelector(`[data-section="${sectionName}"]`);
-  if (navItem) {
-    navItem.classList.add('active');
-  }
-  
-  currentSection = sectionName;
-  
-  // Load section-specific data
-  loadSectionData(sectionName);
 }
 
-// Load section-specific data
-function loadSectionData(sectionName) {
-  switch(sectionName) {
+// Load section data
+async function loadSectionData(sectionName) {
+  console.log('Loading data for section:', sectionName);
+  
+  switch (sectionName) {
+    case 'dashboard':
+      await loadDashboardData();
+      break;
     case 'users':
-      loadUsersData();
+      await loadUsersData();
       break;
     case 'verification':
-      loadVerificationData();
+      await loadVerificationData();
       break;
     case 'products':
-      loadProductsData();
+      await loadProductsData();
       break;
     case 'categories':
-      loadCategoriesData();
-      break;
-    case 'transactions':
-      loadTransactionsData();
+      await loadCategoriesData();
       break;
     case 'orders':
-      loadOrdersData();
+      await loadOrdersData();
+      break;
+    case 'logistics':
+      await loadLogisticsData();
       break;
     case 'escrow':
-      loadEscrowData();
+      await loadEscrowData();
       break;
     case 'disputes':
-      loadDisputesData();
+      await loadDisputesData();
+      break;
+    case 'transactions':
+      await loadTransactionsData();
       break;
     case 'analytics':
-      loadAnalyticsData();
+      await loadAnalyticsData();
+      break;
+    case 'settings':
+      await loadSettingsData();
       break;
   }
 }
 
-// Load all data
-function loadAllData() {
+// Get data from localStorage using correct keys
+function getLocalStorageData(key) {
   try {
-    adminData.users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    adminData.products = JSON.parse(localStorage.getItem(PRODUCTS_KEY) || '[]');
-    adminData.orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
-    adminData.escrows = JSON.parse(localStorage.getItem(ESCROWS_KEY) || '[]');
-    adminData.disputes = JSON.parse(localStorage.getItem(DISPUTES_KEY) || '[]');
-    adminData.transactions = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+    // Map to correct localStorage keys used by your website
+    const keyMap = {
+      'users': 'userData', // User data is stored differently
+      'orders': 'sthub_orders',
+      'escrows': 'sthub_escrows', 
+      'disputes': 'sthub_disputes',
+      'products': 'sthub_products',
+      'cart': 'sthub_cart'
+    };
     
-    // Initialize sample data if empty
-    initializeSampleData();
-    
-    console.log('Admin data loaded:', adminData);
+    const actualKey = keyMap[key] || key;
+    const data = localStorage.getItem(actualKey);
+    return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.error('Error loading admin data:', error);
+    console.error(`Error reading ${key} from localStorage:`, error);
+    return [];
   }
 }
 
-// Initialize sample data
-function initializeSampleData() {
-  // Sample users
-  if (adminData.users.length === 0) {
-    adminData.users = [
-      {
-        id: 'USR-001',
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'Buyer',
-        status: 'active',
-        joined: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        verified: true
-      },
-      {
-        id: 'USR-002',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        role: 'Seller',
-        status: 'active',
-        joined: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-        verified: true
-      },
-      {
-        id: 'USR-003',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        role: 'Buyer',
-        status: 'pending',
-        joined: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        verified: false
-      }
-    ];
-    localStorage.setItem(USERS_KEY, JSON.stringify(adminData.users));
-  }
-  
-  // Sample products
-  if (adminData.products.length === 0) {
-    adminData.products = [
-      {
-        id: 'PROD-001',
-        name: 'iPhone 14 Pro',
-        category: 'mobile',
-        price: 999.99,
-        stock: 15,
-        status: 'active',
-        seller: 'USR-002'
-      },
-      {
-        id: 'PROD-002',
-        name: 'Samsung Galaxy S23',
-        category: 'mobile',
-        price: 899.99,
-        stock: 8,
-        status: 'active',
-        seller: 'USR-002'
-      },
-      {
-        id: 'PROD-003',
-        name: 'MacBook Pro 16"',
-        category: 'computers',
-        price: 2499.99,
-        stock: 5,
-        status: 'active',
-        seller: 'USR-002'
-      }
-    ];
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(adminData.products));
-  }
-  
-  // Sample orders
-  if (adminData.orders.length === 0) {
-    adminData.orders = [
-      {
-        id: 'ORD-001',
-        userId: 'USR-001',
-        total: 999.99,
-        status: 'completed',
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'ORD-002',
-        userId: 'USR-003',
-        total: 899.99,
-        status: 'pending',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-    localStorage.setItem(ORDERS_KEY, JSON.stringify(adminData.orders));
-  }
-  
-  // Sample escrow transactions
-  if (adminData.escrows.length === 0) {
-    adminData.escrows = [
-      {
-        id: 'ESC-001',
-        orderId: 'ORD-001',
-        amount: 999.99,
-        status: 'released',
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'ESC-002',
-        orderId: 'ORD-002',
-        amount: 899.99,
-        status: 'held',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-    localStorage.setItem(ESCROWS_KEY, JSON.stringify(adminData.escrows));
-  }
-  
-  // Sample disputes
-  if (adminData.disputes.length === 0) {
-    adminData.disputes = [
-      {
-        id: 'DISP-001',
-        orderId: 'ORD-003',
-        issue: 'Product not as described',
-        priority: 'high',
-        status: 'open',
-        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-    localStorage.setItem(DISPUTES_KEY, JSON.stringify(adminData.disputes));
-  }
-  
-  // Sample transactions
-  if (adminData.transactions.length === 0) {
-    adminData.transactions = [
-      {
-        id: 'TXN-001',
-        userId: 'USR-001',
-        amount: 999.99,
-        type: 'payment',
-        status: 'completed',
-        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'TXN-002',
-        userId: 'USR-003',
-        amount: 899.99,
-        type: 'escrow',
-        status: 'pending',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-    localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(adminData.transactions));
+// Load Dashboard Data
+async function loadDashboardData() {
+  try {
+    showLoading('dashboard');
+    
+    // Load real data from localStorage
+    const stats = await getRealStatsFromLocalStorage();
+    adminData.stats = stats;
+    
+    // Load recent activity
+    const recentActivity = await getRecentActivityFromLocalStorage();
+    adminData.recentActivity = recentActivity;
+    
+    // Update dashboard UI
+    updateDashboardStats();
+    updateRecentActivity();
+    
+    hideLoading('dashboard');
+  } catch (error) {
+    console.error('Error loading dashboard data:', error);
+    showError('Failed to load dashboard data');
+    hideLoading('dashboard');
   }
 }
 
-// Update dashboard stats
+// Get real statistics from localStorage
+async function getRealStatsFromLocalStorage() {
+  try {
+    // Get user data (single user object, not array)
+    const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+    const users = userData ? [userData] : [];
+    
+    // Get other data using correct keys
+    const products = getLocalStorageData('products');
+    const orders = getLocalStorageData('orders');
+    const escrows = getLocalStorageData('escrows');
+    const disputes = getLocalStorageData('disputes');
+    
+    console.log('LocalStorage data found:', {
+      users: users.length,
+      products: products.length,
+      orders: orders.length,
+      escrows: escrows.length,
+      disputes: disputes.length
+    });
+    
+    // Calculate statistics
+    const stats = {
+      users: {
+        total: users.length,
+        active: users.filter(u => u.isActive !== false).length,
+        buyers: users.filter(u => u.role === 'Buyer').length,
+        sellers: users.filter(u => u.role === 'Seller').length,
+        verified: users.filter(u => u.verification?.email && u.verification?.phone).length
+      },
+      products: {
+        total: products.length,
+        active: products.filter(p => p.isActive !== false).length,
+        categories: [...new Set(products.map(p => p.category))].length
+      },
+      orders: {
+        total: orders.length,
+        pending: orders.filter(o => o.status === 'pending').length,
+        shipped: orders.filter(o => o.status === 'shipped').length,
+        delivered: orders.filter(o => o.status === 'delivered').length,
+        cancelled: orders.filter(o => o.status === 'cancelled').length,
+        totalValue: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+      },
+      escrows: {
+        total: escrows.length,
+        held: escrows.filter(e => e.status === 'held').length,
+        released: escrows.filter(e => e.status === 'released').length,
+        disputed: escrows.filter(e => e.status === 'disputed').length,
+        totalHeld: escrows.filter(e => e.status === 'held').reduce((sum, e) => sum + (e.amount || 0), 0)
+      },
+      disputes: {
+        total: disputes.length,
+        open: disputes.filter(d => d.status === 'open').length,
+        resolved: disputes.filter(d => d.status === 'resolved').length,
+        highPriority: disputes.filter(d => d.priority === 'high').length
+      }
+    };
+    
+    return stats;
+  } catch (error) {
+    console.error('Error calculating real stats:', error);
+    return {
+      users: { total: 0, active: 0, buyers: 0, sellers: 0, verified: 0 },
+      products: { total: 0, active: 0, categories: 0 },
+      orders: { total: 0, pending: 0, shipped: 0, delivered: 0, cancelled: 0, totalValue: 0 },
+      escrows: { total: 0, held: 0, released: 0, disputed: 0, totalHeld: 0 },
+      disputes: { total: 0, open: 0, resolved: 0, highPriority: 0 }
+    };
+  }
+}
+
+// Get recent activity from localStorage
+async function getRecentActivityFromLocalStorage() {
+  try {
+    const activities = [];
+    const orders = getLocalStorageData('orders');
+    const users = getLocalStorageData('users');
+    
+    // Get recent orders
+    const recentOrders = orders
+      .sort((a, b) => new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at))
+      .slice(0, 5);
+    
+    recentOrders.forEach(order => {
+      const buyer = users.find(u => u.id === order.buyerId || u.uid === order.buyerId);
+      const seller = users.find(u => u.id === order.sellerId || u.uid === order.sellerId);
+      
+      activities.push({
+        id: order.id,
+        type: 'order',
+        message: `New order from ${buyer?.name || 'Unknown'} to ${seller?.name || 'Unknown'}`,
+        timestamp: order.createdAt || order.created_at,
+        status: order.status
+      });
+    });
+    
+    return activities;
+  } catch (error) {
+    console.error('Error getting recent activity:', error);
+    return [];
+  }
+}
+
+// Load Users Data
+async function loadUsersData() {
+  try {
+    showLoading('users');
+    
+    // Load real users from localStorage
+    const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+    adminData.users = userData ? [{
+      id: userData.id || userData.uid,
+      ...userData
+    }] : [];
+    
+    console.log('Loaded users from localStorage:', adminData.users.length);
+    updateUsersTable();
+    
+    hideLoading('users');
+  } catch (error) {
+    console.error('Error loading users data:', error);
+    showError('Failed to load users data');
+    hideLoading('users');
+  }
+}
+
+// Load Orders Data
+async function loadOrdersData() {
+  try {
+    showLoading('orders');
+    
+    // Load real orders from localStorage
+    const orders = getLocalStorageData('orders');
+    adminData.orders = orders.map(order => ({
+      id: order.id,
+      ...order
+    }));
+    
+    console.log('Loaded orders from localStorage:', adminData.orders.length);
+    
+    // Calculate status counts from real data
+    const statusCounts = {
+      pending: adminData.orders.filter(o => o.status === 'pending').length,
+      shipped: adminData.orders.filter(o => o.status === 'shipped').length,
+      delivered: adminData.orders.filter(o => o.status === 'delivered').length,
+      disputed: adminData.orders.filter(o => o.status === 'disputed').length
+    };
+    
+    // Update order status counts
+    updateElementText('pendingOrdersCount', statusCounts.pending);
+    updateElementText('shippedOrdersCount', statusCounts.shipped);
+    updateElementText('deliveredOrdersCount', statusCounts.delivered);
+    updateElementText('disputedOrdersCount', statusCounts.disputed);
+    
+    // Update orders table
+    updateOrdersTable();
+    
+    hideLoading('orders');
+  } catch (error) {
+    console.error('Error loading orders data:', error);
+    showError('Failed to load orders data');
+    hideLoading('orders');
+  }
+}
+
+// Load Products Data
+async function loadProductsData() {
+  try {
+    showLoading('products');
+    
+    // Load real products from localStorage
+    const products = getLocalStorageData('products');
+    adminData.products = products.map(product => ({
+      id: product.id,
+      ...product
+    }));
+    
+    console.log('Loaded products from localStorage:', adminData.products.length);
+    updateProductsTable();
+    
+    hideLoading('products');
+  } catch (error) {
+    console.error('Error loading products data:', error);
+    showError('Failed to load products data');
+    hideLoading('products');
+  }
+}
+
+// Load Categories Data
+async function loadCategoriesData() {
+  try {
+    showLoading('categories');
+    
+    // Get categories from products
+    const products = getLocalStorageData('products');
+    const categories = [...new Set(products.map(p => p.category))].filter(Boolean);
+    
+    adminData.categories = categories.map(category => ({
+      id: category.toLowerCase().replace(/\s+/g, '-'),
+      name: category,
+      productCount: products.filter(p => p.category === category).length
+    }));
+    
+    console.log('Loaded categories from localStorage:', adminData.categories.length);
+    updateCategoriesTable();
+    
+    hideLoading('categories');
+  } catch (error) {
+    console.error('Error loading categories data:', error);
+    showError('Failed to load categories data');
+    hideLoading('categories');
+  }
+}
+
+// Load Disputes Data
+async function loadDisputesData() {
+  try {
+    showLoading('disputes');
+    
+    // Load real disputes from localStorage
+    const disputes = getLocalStorageData('disputes');
+    adminData.disputes = disputes.map(dispute => ({
+      id: dispute.id,
+      ...dispute
+    }));
+    
+    console.log('Loaded disputes from localStorage:', adminData.disputes.length);
+    updateDisputesTable();
+    
+    hideLoading('disputes');
+  } catch (error) {
+    console.error('Error loading disputes data:', error);
+    showError('Failed to load disputes data');
+    hideLoading('disputes');
+  }
+}
+
+// Load Transactions Data
+async function loadTransactionsData() {
+  try {
+    showLoading('transactions');
+    
+    // Load real escrows as transactions from localStorage
+    const escrows = getLocalStorageData('escrows');
+    adminData.transactions = escrows.map(escrow => ({
+      id: escrow.id,
+      ...escrow
+    }));
+    
+    console.log('Loaded transactions from localStorage:', adminData.transactions.length);
+    updateTransactionsTable();
+    
+    hideLoading('transactions');
+  } catch (error) {
+    console.error('Error loading transactions data:', error);
+    showError('Failed to load transactions data');
+    hideLoading('transactions');
+  }
+}
+
+// Load Escrow Data
+async function loadEscrowData() {
+  try {
+    showLoading('escrow');
+    
+    // Load real escrows from localStorage
+    const escrows = getLocalStorageData('escrows');
+    adminData.escrows = escrows.map(escrow => ({
+      id: escrow.id,
+      ...escrow
+    }));
+    
+    console.log('Loaded escrows from localStorage:', adminData.escrows.length);
+    updateEscrowTable();
+    
+    hideLoading('escrow');
+  } catch (error) {
+    console.error('Error loading escrow data:', error);
+    showError('Failed to load escrow data');
+    hideLoading('escrow');
+  }
+}
+
+// Load Verification Data
+async function loadVerificationData() {
+  try {
+    showLoading('verification');
+    
+    // Load user data from localStorage and check verification status
+    const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+    const users = userData ? [userData] : [];
+    
+    // Filter users with pending verification
+    adminData.pendingVerifications = users.filter(user => {
+      const verification = user.verification || {};
+      return verification.email && !verification.phone;
+    }).map(user => ({
+      id: user.id || user.uid,
+      ...user
+    }));
+    
+    console.log('Loaded verification data from localStorage:', adminData.pendingVerifications.length);
+    updateVerificationTable();
+    
+    hideLoading('verification');
+  } catch (error) {
+    console.error('Error loading verification data:', error);
+    showError('Failed to load verification data');
+    hideLoading('verification');
+  }
+}
+
+// Load Logistics Data
+async function loadLogisticsData() {
+  try {
+    showLoading('logistics');
+    
+    // Load orders from localStorage for logistics activity
+    const orders = getLocalStorageData('orders');
+    const logisticsActivity = orders.filter(order => 
+      order.status === 'shipped' || order.status === 'delivered'
+    ).map(order => ({
+      id: order.id,
+      orderId: order.id,
+      status: order.status,
+      trackingNumber: order.trackingNumber,
+      timestamp: order.createdAt
+    }));
+    
+    // Real logistics data based on actual orders
+    adminData.logistics = {
+      providers: [
+        { id: 'tcs', name: 'TCS Express', status: 'active', activeShipments: orders.filter(o => o.status === 'shipped').length, deliveryRate: 0 },
+        { id: 'leopards', name: 'Leopards Courier', status: 'inactive', activeShipments: 0, deliveryRate: 0 },
+        { id: 'postex', name: 'PostEx', status: 'inactive', activeShipments: 0, deliveryRate: 0 }
+      ],
+      activity: logisticsActivity
+    };
+    
+    console.log('Loaded logistics data from localStorage:', adminData.logistics.activity.length, 'activities');
+    
+    // Update logistics UI
+    updateLogisticsProviders();
+    updateLogisticsActivity();
+    
+    hideLoading('logistics');
+  } catch (error) {
+    console.error('Error loading logistics data:', error);
+    showError('Failed to load logistics data');
+    hideLoading('logistics');
+  }
+}
+
+// Load Analytics Data
+async function loadAnalyticsData() {
+  console.log('Loading analytics data...');
+}
+
+// Load Settings Data
+async function loadSettingsData() {
+  console.log('Loading settings data...');
+}
+
+// Update Dashboard Statistics
 function updateDashboardStats() {
-  // Total users
-  document.getElementById('totalUsers').textContent = adminData.users.length;
+  const stats = adminData.stats;
   
-  // Total orders
-  document.getElementById('totalOrders').textContent = adminData.orders.length;
+  // Update main stats
+  updateElementText('totalUsers', stats.users?.total || 0);
+  updateElementText('totalOrders', stats.orders?.total || 0);
+  updateElementText('totalRevenue', `$${stats.orders?.totalValue || 0}`);
+  updateElementText('pendingDisputes', stats.disputes?.open || 0);
   
-  // Total revenue
-  const totalRevenue = adminData.orders.reduce((sum, order) => sum + (order.total || 0), 0);
-  document.getElementById('totalRevenue').textContent = formatCurrency(totalRevenue);
-  
-  // Pending disputes
-  const pendingDisputes = adminData.disputes.filter(dispute => dispute.status === 'open').length;
-  document.getElementById('pendingDisputes').textContent = pendingDisputes;
-  
-  // Update nav badges
-  document.getElementById('usersCount').textContent = adminData.users.length;
-  document.getElementById('productsCount').textContent = adminData.products.length;
-  document.getElementById('transactionsCount').textContent = adminData.transactions.length;
-  document.getElementById('ordersCount').textContent = adminData.orders.length;
-  document.getElementById('escrowCount').textContent = adminData.escrows.length;
-  document.getElementById('disputesCount').textContent = pendingDisputes;
-  
-  // Pending verifications
-  const pendingVerifications = adminData.users.filter(user => !user.verified).length;
-  document.getElementById('pendingVerifications').textContent = pendingVerifications;
-  
-  // Load recent activity
-  loadRecentActivity();
+  // Update navigation badges
+  updateElementText('usersCount', stats.users?.total || 0);
+  updateElementText('productsCount', stats.products?.total || 0);
+  updateElementText('pendingVerifications', stats.users?.verified || 0);
 }
 
-// Load recent activity
-function loadRecentActivity() {
-  const activityContainer = document.getElementById('recentActivity');
+// Update Recent Activity
+function updateRecentActivity() {
+  const activityContainer = document.getElementById('recentActivityList');
   if (!activityContainer) return;
   
-  const activities = [
-    {
-      icon: 'fas fa-user-plus',
-      title: 'New user registered',
-      time: '2 hours ago',
-      color: '#667eea'
-    },
-    {
-      icon: 'fas fa-shopping-cart',
-      title: 'New order placed',
-      time: '4 hours ago',
-      color: '#38a169'
-    },
-    {
-      icon: 'fas fa-exclamation-triangle',
-      title: 'Dispute reported',
-      time: '6 hours ago',
-      color: '#e53e3e'
-    },
-    {
-      icon: 'fas fa-shield-alt',
-      title: 'Escrow funds released',
-      time: '8 hours ago',
-      color: '#667eea'
-    }
-  ];
+  if (adminData.recentActivity.length === 0) {
+    activityContainer.innerHTML = `
+      <div class="activity-item">
+        <div class="activity-icon order">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="activity-content">
+          <p>No recent activity</p>
+          <small>Activity will appear here as users interact with the platform</small>
+        </div>
+      </div>
+    `;
+    return;
+  }
   
-  activityContainer.innerHTML = activities.map(activity => `
+  activityContainer.innerHTML = adminData.recentActivity.map(activity => `
     <div class="activity-item">
-      <div class="activity-icon" style="background: ${activity.color}20; color: ${activity.color}">
-        <i class="${activity.icon}"></i>
+      <div class="activity-icon ${activity.type}">
+        <i class="fas fa-${getActivityIcon(activity.type)}"></i>
       </div>
       <div class="activity-content">
-        <div class="activity-title">${activity.title}</div>
-        <div class="activity-time">${activity.time}</div>
+        <p>${activity.message}</p>
+        <small>${formatTimestamp(activity.timestamp)}</small>
       </div>
     </div>
   `).join('');
 }
 
-// Load users data
-function loadUsersData() {
-  const tbody = document.getElementById('usersTableBody');
-  if (!tbody) return;
+// Update Users Table
+function updateUsersTable() {
+  const tableBody = document.querySelector('#usersTable tbody');
+  if (!tableBody) return;
   
-  tbody.innerHTML = adminData.users.map(user => `
-    <tr>
-      <td>${user.id}</td>
-      <td>${user.name}</td>
-      <td>${user.email}</td>
-      <td><span class="status-badge ${user.role.toLowerCase()}">${user.role}</span></td>
-      <td><span class="status-badge ${user.status}">${user.status}</span></td>
-      <td>${new Date(user.joined).toLocaleDateString()}</td>
-      <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewUser('${user.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button class="action-btn-small btn-edit" onclick="editUser('${user.id}')">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="action-btn-small btn-delete" onclick="deleteUser('${user.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// Load products data
-function loadProductsData() {
-  const tbody = document.getElementById('productsTableBody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = adminData.products.map(product => `
-    <tr>
-      <td>${product.id}</td>
-      <td>${product.name}</td>
-      <td><span class="status-badge">${product.category}</span></td>
-      <td>${formatCurrency(product.price)}</td>
-      <td>${product.stock}</td>
-      <td><span class="status-badge ${product.status}">${product.status}</span></td>
-      <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewProduct('${product.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button class="action-btn-small btn-edit" onclick="editProduct('${product.id}')">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="action-btn-small btn-delete" onclick="deleteProduct('${product.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// Load transactions data
-function loadTransactionsData() {
-  const tbody = document.getElementById('transactionsTableBody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = adminData.transactions.map(transaction => {
-    const user = adminData.users.find(u => u.id === transaction.userId);
-    return `
+  if (adminData.users.length === 0) {
+    tableBody.innerHTML = `
       <tr>
-        <td>${transaction.id}</td>
-        <td>${user ? user.name : 'Unknown'}</td>
-        <td>${formatCurrency(transaction.amount)}</td>
-        <td><span class="status-badge">${transaction.type}</span></td>
-        <td><span class="status-badge ${transaction.status}">${transaction.status}</span></td>
-        <td>${new Date(transaction.createdAt).toLocaleDateString()}</td>
-        <td>
-          <div class="action-buttons">
-            <button class="action-btn-small btn-view" onclick="viewTransaction('${transaction.id}')">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button class="action-btn-small btn-edit" onclick="editTransaction('${transaction.id}')">
-              <i class="fas fa-edit"></i>
-            </button>
-          </div>
-        </td>
+        <td colspan="6" class="text-center">No users found</td>
       </tr>
     `;
-  }).join('');
-}
-
-// Load escrow data
-function loadEscrowData() {
-  const tbody = document.getElementById('escrowTableBody');
-  if (!tbody) return;
+    return;
+  }
   
-  tbody.innerHTML = adminData.escrows.map(escrow => `
+  tableBody.innerHTML = adminData.users.map(user => `
     <tr>
-      <td>${escrow.id}</td>
-      <td>${escrow.orderId}</td>
-      <td>${formatCurrency(escrow.amount)}</td>
-      <td><span class="status-badge ${escrow.status}">${escrow.status}</span></td>
-      <td>${new Date(escrow.createdAt).toLocaleDateString()}</td>
+      <td>${user.name || 'N/A'}</td>
+      <td>${user.email || 'N/A'}</td>
+      <td><span class="role-badge ${user.role?.toLowerCase()}">${user.role || 'N/A'}</span></td>
+      <td><span class="status-badge ${user.isActive ? 'active' : 'inactive'}">${user.isActive ? 'Active' : 'Inactive'}</span></td>
+      <td>${formatTimestamp(user.createdAt)}</td>
       <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewEscrow('${escrow.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          ${escrow.status === 'held' ? `
-            <button class="action-btn-small btn-edit" onclick="releaseEscrow('${escrow.id}')">
-              <i class="fas fa-unlock"></i>
-            </button>
-          ` : ''}
-        </div>
+        <button class="btn btn-sm btn-primary" onclick="viewUser('${user.id}')">View</button>
+        <button class="btn btn-sm btn-secondary" onclick="editUser('${user.id}')">Edit</button>
       </td>
     </tr>
   `).join('');
 }
 
-// Load disputes data
-function loadDisputesData() {
-  const tbody = document.getElementById('disputesTableBody');
-  if (!tbody) return;
+// Update Orders Table
+function updateOrdersTable() {
+  const tableBody = document.querySelector('#ordersTable tbody');
+  if (!tableBody) return;
   
-  tbody.innerHTML = adminData.disputes.map(dispute => `
+  if (adminData.orders.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center">No orders found</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tableBody.innerHTML = adminData.orders.map(order => `
+    <tr>
+      <td>${order.id}</td>
+      <td>${order.buyerName || 'N/A'}</td>
+      <td>${order.sellerName || 'N/A'}</td>
+      <td>$${order.totalAmount || 0}</td>
+      <td><span class="status-badge ${order.status}">${order.status || 'N/A'}</span></td>
+      <td>${order.trackingNumber || 'N/A'}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="viewOrder('${order.id}')">View</button>
+        <button class="btn btn-sm btn-secondary" onclick="updateOrderStatus('${order.id}')">Update</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Update Products Table
+function updateProductsTable() {
+  const tableBody = document.querySelector('#productsTable tbody');
+  if (!tableBody) return;
+  
+  if (adminData.products.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center">No products found</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tableBody.innerHTML = adminData.products.map(product => `
+    <tr>
+      <td>${product.title || product.name || 'N/A'}</td>
+      <td>${product.category || 'N/A'}</td>
+      <td>$${product.price || 0}</td>
+      <td>${product.stock || 0}</td>
+      <td><span class="status-badge ${product.isActive ? 'active' : 'inactive'}">${product.isActive ? 'Active' : 'Inactive'}</span></td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="viewProduct('${product.id}')">View</button>
+        <button class="btn btn-sm btn-secondary" onclick="editProduct('${product.id}')">Edit</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Update Categories Table
+function updateCategoriesTable() {
+  const tableBody = document.querySelector('#categoriesTable tbody');
+  if (!tableBody) return;
+  
+  if (adminData.categories.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="text-center">No categories found</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tableBody.innerHTML = adminData.categories.map(category => `
+    <tr>
+      <td>${category.name}</td>
+      <td>${category.productCount}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="viewCategory('${category.id}')">View</button>
+        <button class="btn btn-sm btn-secondary" onclick="editCategory('${category.id}')">Edit</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Update Disputes Table
+function updateDisputesTable() {
+  const tableBody = document.querySelector('#disputesTable tbody');
+  if (!tableBody) return;
+  
+  if (adminData.disputes.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center">No disputes found</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tableBody.innerHTML = adminData.disputes.map(dispute => `
     <tr>
       <td>${dispute.id}</td>
-      <td>${dispute.orderId}</td>
-      <td>${dispute.issue}</td>
-      <td><span class="status-badge ${dispute.priority}">${dispute.priority}</span></td>
-      <td><span class="status-badge ${dispute.status}">${dispute.status}</span></td>
-      <td>${new Date(dispute.createdAt).toLocaleDateString()}</td>
+      <td>${dispute.orderId || 'N/A'}</td>
+      <td>${dispute.complainantName || 'N/A'}</td>
+      <td><span class="status-badge ${dispute.status}">${dispute.status || 'N/A'}</span></td>
       <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewDispute('${dispute.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button class="action-btn-small btn-edit" onclick="resolveDispute('${dispute.id}')">
-            <i class="fas fa-gavel"></i>
-          </button>
-        </div>
+        <button class="btn btn-sm btn-primary" onclick="viewDispute('${dispute.id}')">View</button>
+        <button class="btn btn-sm btn-success" onclick="resolveDispute('${dispute.id}')">Resolve</button>
       </td>
     </tr>
   `).join('');
 }
 
-// Load verification data
-function loadVerificationData() {
-  const tbody = document.getElementById('verificationTableBody');
-  if (!tbody) return;
+// Update Transactions Table
+function updateTransactionsTable() {
+  const tableBody = document.querySelector('#transactionsTable tbody');
+  if (!tableBody) return;
   
-  // Get verification data from users
-  const verificationData = adminData.users.map(user => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    documentType: 'ID Card',
-    status: user.verified ? 'approved' : 'pending',
-    submitted: user.joined
-  }));
-  
-  tbody.innerHTML = verificationData.map(verification => `
-    <tr>
-      <td>${verification.id}</td>
-      <td>${verification.name}</td>
-      <td>${verification.email}</td>
-      <td><span class="status-badge">${verification.documentType}</span></td>
-      <td><span class="status-badge ${verification.status}">${verification.status}</span></td>
-      <td>${new Date(verification.submitted).toLocaleDateString()}</td>
-      <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewVerification('${verification.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          ${verification.status === 'pending' ? `
-            <button class="action-btn-small btn-edit" onclick="approveVerification('${verification.id}')">
-              <i class="fas fa-check"></i>
-            </button>
-            <button class="action-btn-small btn-delete" onclick="rejectVerification('${verification.id}')">
-              <i class="fas fa-times"></i>
-            </button>
-          ` : ''}
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// Load categories data
-function loadCategoriesData() {
-  const tbody = document.getElementById('categoriesTableBody');
-  if (!tbody) return;
-  
-  const categories = [
-    { id: 'CAT-001', name: 'Mobile', description: 'Mobile phones and accessories', productsCount: 15, status: 'active', created: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-002', name: 'Camera', description: 'Cameras and photography equipment', productsCount: 8, status: 'active', created: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-003', name: 'Computers', description: 'Laptops, desktops and computer accessories', productsCount: 12, status: 'active', created: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-004', name: 'Fashion', description: 'Clothing and fashion accessories', productsCount: 25, status: 'active', created: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-005', name: 'Beauty', description: 'Beauty and cosmetic products', productsCount: 18, status: 'active', created: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-006', name: 'Books', description: 'Books and educational materials', productsCount: 30, status: 'active', created: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-007', name: 'Furniture', description: 'Home and office furniture', productsCount: 22, status: 'active', created: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-008', name: 'Gym', description: 'Fitness and gym equipment', productsCount: 14, status: 'active', created: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-009', name: 'Home', description: 'Home and garden products', productsCount: 20, status: 'active', created: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'CAT-010', name: 'Services', description: 'Professional services', productsCount: 16, status: 'active', created: new Date().toISOString() },
-    { id: 'CAT-011', name: 'Sports', description: 'Sports and outdoor equipment', productsCount: 19, status: 'active', created: new Date().toISOString() },
-    { id: 'CAT-012', name: 'Pets', description: 'Pet care and supplies', productsCount: 13, status: 'active', created: new Date().toISOString() }
-  ];
-  
-  tbody.innerHTML = categories.map(category => `
-    <tr>
-      <td>${category.id}</td>
-      <td>${category.name}</td>
-      <td>${category.description}</td>
-      <td><span class="status-badge">${category.productsCount}</span></td>
-      <td><span class="status-badge ${category.status}">${category.status}</span></td>
-      <td>${new Date(category.created).toLocaleDateString()}</td>
-      <td>
-        <div class="action-buttons">
-          <button class="action-btn-small btn-view" onclick="viewCategory('${category.id}')">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button class="action-btn-small btn-edit" onclick="editCategory('${category.id}')">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="action-btn-small btn-delete" onclick="deleteCategory('${category.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// Load orders data
-function loadOrdersData() {
-  const tbody = document.getElementById('ordersTableBody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = adminData.orders.map(order => {
-    const user = adminData.users.find(u => u.id === order.userId);
-    const itemsCount = Math.floor(Math.random() * 5) + 1; // Random items count for demo
-    
-    return `
+  if (adminData.transactions.length === 0) {
+    tableBody.innerHTML = `
       <tr>
-        <td>${order.id}</td>
-        <td>${user ? user.name : 'Unknown'}</td>
-        <td><span class="status-badge">${itemsCount} items</span></td>
-        <td>${formatCurrency(order.total)}</td>
-        <td><span class="status-badge ${order.status}">${order.status}</span></td>
-        <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-        <td>
-          <div class="action-buttons">
-            <button class="action-btn-small btn-view" onclick="viewOrder('${order.id}')">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button class="action-btn-small btn-edit" onclick="updateOrderStatus('${order.id}')">
-              <i class="fas fa-edit"></i>
-            </button>
-          </div>
-        </td>
+        <td colspan="5" class="text-center">No transactions found</td>
       </tr>
     `;
-  }).join('');
-}
-
-// Load analytics data
-function loadAnalyticsData() {
-  // This would typically load chart data
-  console.log('Loading analytics data...');
-}
-
-// Search data
-function searchData(type, query) {
-  if (!query.trim()) {
-    loadSectionData(type);
     return;
   }
   
-  let filteredData = [];
-  
-  switch(type) {
-    case 'users':
-      filteredData = adminData.users.filter(user => 
-        user.name.toLowerCase().includes(query.toLowerCase()) ||
-        user.email.toLowerCase().includes(query.toLowerCase()) ||
-        user.id.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'verification':
-      const verificationData = adminData.users.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        documentType: 'ID Card',
-        status: user.verified ? 'approved' : 'pending',
-        submitted: user.joined
-      }));
-      filteredData = verificationData.filter(verification => 
-        verification.name.toLowerCase().includes(query.toLowerCase()) ||
-        verification.email.toLowerCase().includes(query.toLowerCase()) ||
-        verification.id.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'products':
-      filteredData = adminData.products.filter(product => 
-        product.name.toLowerCase().includes(query.toLowerCase()) ||
-        product.category.toLowerCase().includes(query.toLowerCase()) ||
-        product.id.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'categories':
-      const categories = [
-        { id: 'CAT-001', name: 'Mobile', description: 'Mobile phones and accessories', productsCount: 15, status: 'active', created: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-002', name: 'Camera', description: 'Cameras and photography equipment', productsCount: 8, status: 'active', created: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-003', name: 'Computers', description: 'Laptops, desktops and computer accessories', productsCount: 12, status: 'active', created: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-004', name: 'Fashion', description: 'Clothing and fashion accessories', productsCount: 25, status: 'active', created: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-005', name: 'Beauty', description: 'Beauty and cosmetic products', productsCount: 18, status: 'active', created: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-006', name: 'Books', description: 'Books and educational materials', productsCount: 30, status: 'active', created: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-007', name: 'Furniture', description: 'Home and office furniture', productsCount: 22, status: 'active', created: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-008', name: 'Gym', description: 'Fitness and gym equipment', productsCount: 14, status: 'active', created: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-009', name: 'Home', description: 'Home and garden products', productsCount: 20, status: 'active', created: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: 'CAT-010', name: 'Services', description: 'Professional services', productsCount: 16, status: 'active', created: new Date().toISOString() },
-        { id: 'CAT-011', name: 'Sports', description: 'Sports and outdoor equipment', productsCount: 19, status: 'active', created: new Date().toISOString() },
-        { id: 'CAT-012', name: 'Pets', description: 'Pet care and supplies', productsCount: 13, status: 'active', created: new Date().toISOString() }
-      ];
-      filteredData = categories.filter(category => 
-        category.name.toLowerCase().includes(query.toLowerCase()) ||
-        category.description.toLowerCase().includes(query.toLowerCase()) ||
-        category.id.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'orders':
-      filteredData = adminData.orders.filter(order => 
-        order.id.toLowerCase().includes(query.toLowerCase()) ||
-        order.status.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'transactions':
-      filteredData = adminData.transactions.filter(transaction => 
-        transaction.id.toLowerCase().includes(query.toLowerCase()) ||
-        transaction.type.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'escrow':
-      filteredData = adminData.escrows.filter(escrow => 
-        escrow.id.toLowerCase().includes(query.toLowerCase()) ||
-        escrow.orderId.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-    case 'disputes':
-      filteredData = adminData.disputes.filter(dispute => 
-        dispute.id.toLowerCase().includes(query.toLowerCase()) ||
-        dispute.issue.toLowerCase().includes(query.toLowerCase()) ||
-        dispute.orderId.toLowerCase().includes(query.toLowerCase())
-      );
-      break;
-  }
-  
-  // Update the table with filtered data
-  updateTableWithData(type, filteredData);
+  tableBody.innerHTML = adminData.transactions.map(transaction => `
+    <tr>
+      <td>${transaction.id}</td>
+      <td>${transaction.orderId || 'N/A'}</td>
+      <td>$${transaction.amount || 0}</td>
+      <td><span class="status-badge ${transaction.status}">${transaction.status || 'N/A'}</span></td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="viewTransaction('${transaction.id}')">View</button>
+        <button class="btn btn-sm btn-success" onclick="releaseEscrow('${transaction.id}')">Release</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-// Filter data
-function filterData(type, filterValue) {
-  if (!filterValue) {
-    loadSectionData(type);
+// Update Escrow Table
+function updateEscrowTable() {
+  const tableBody = document.querySelector('#escrowTable tbody');
+  if (!tableBody) return;
+  
+  if (adminData.escrows.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center">No escrows found</td>
+      </tr>
+    `;
     return;
   }
   
-  let filteredData = [];
+  tableBody.innerHTML = adminData.escrows.map(escrow => `
+    <tr>
+      <td>${escrow.id}</td>
+      <td>${escrow.orderId || 'N/A'}</td>
+      <td>$${escrow.amount || 0}</td>
+      <td><span class="status-badge ${escrow.status}">${escrow.status || 'N/A'}</span></td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="viewEscrow('${escrow.id}')">View</button>
+        <button class="btn btn-sm btn-success" onclick="releaseEscrow('${escrow.id}')">Release</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Update Verification Table
+function updateVerificationTable() {
+  const tableBody = document.querySelector('#verificationTable tbody');
+  if (!tableBody) return;
   
-  switch(type) {
-    case 'products':
-      filteredData = adminData.products.filter(product => product.category === filterValue);
-      break;
-    case 'verification':
-      const verificationData = adminData.users.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        documentType: 'ID Card',
-        status: user.verified ? 'approved' : 'pending',
-        submitted: user.joined
-      }));
-      filteredData = verificationData.filter(verification => verification.status === filterValue);
-      break;
-    case 'orders':
-      filteredData = adminData.orders.filter(order => order.status === filterValue);
-      break;
-    case 'transactions':
-      filteredData = adminData.transactions.filter(transaction => transaction.status === filterValue);
-      break;
-    case 'escrow':
-      filteredData = adminData.escrows.filter(escrow => escrow.status === filterValue);
-      break;
-    case 'disputes':
-      filteredData = adminData.disputes.filter(dispute => dispute.status === filterValue);
-      break;
+  if (adminData.pendingVerifications.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center">No pending verifications</td>
+      </tr>
+    `;
+    return;
   }
   
-  updateTableWithData(type, filteredData);
+  tableBody.innerHTML = adminData.pendingVerifications.map(user => `
+    <tr>
+      <td>${user.name || 'N/A'}</td>
+      <td>${user.email || 'N/A'}</td>
+      <td><span class="verification-status pending">Pending</span></td>
+      <td>
+        <button class="btn btn-sm btn-success" onclick="approveVerification('${user.id}')">Approve</button>
+        <button class="btn btn-sm btn-danger" onclick="rejectVerification('${user.id}')">Reject</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-// Update table with filtered data
-function updateTableWithData(type, data) {
-  // This would update the specific table with the filtered data
-  console.log(`Updating ${type} table with ${data.length} items`);
+// Update Logistics Providers
+function updateLogisticsProviders() {
+  const providers = adminData.logistics.providers;
+  
+  providers.forEach(provider => {
+    updateElementText(`${provider.id}ActiveShipments`, provider.activeShipments);
+    updateElementText(`${provider.id}DeliveryRate`, `${provider.deliveryRate}%`);
+  });
 }
 
-// Action functions
-function addUser() {
-  alert('Add User functionality would be implemented here');
+// Update Logistics Activity
+function updateLogisticsActivity() {
+  const activityContainer = document.getElementById('logisticsActivity');
+  if (!activityContainer) return;
+  
+  if (adminData.logistics.activity.length === 0) {
+    activityContainer.innerHTML = `
+      <div class="activity-item">
+        <div class="activity-icon order">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="activity-content">
+          <p>No logistics activity</p>
+          <small>Activity will appear here as orders are shipped and delivered</small>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  
+  activityContainer.innerHTML = adminData.logistics.activity.map(activity => `
+    <div class="activity-item">
+      <div class="activity-icon ${activity.status}">
+        <i class="fas fa-${getActivityIcon(activity.status)}"></i>
+      </div>
+      <div class="activity-content">
+        <p>Order ${activity.orderId} - ${activity.status}</p>
+        <small>${activity.trackingNumber ? `Tracking: ${activity.trackingNumber}` : 'No tracking number'}</small>
+      </div>
+    </div>
+  `).join('');
 }
 
-function addProduct() {
-  alert('Add Product functionality would be implemented here');
-}
-
-function viewUser(userId) {
-  const user = adminData.users.find(u => u.id === userId);
-  if (user) {
-    alert(`User Details:\nID: ${user.id}\nName: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\nStatus: ${user.status}`);
+// Utility Functions
+function updateElementText(id, text) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = text;
   }
 }
 
-function editUser(userId) {
-  alert(`Edit User ${userId} functionality would be implemented here`);
-}
-
-function deleteUser(userId) {
-  if (confirm('Are you sure you want to delete this user?')) {
-    adminData.users = adminData.users.filter(u => u.id !== userId);
-    localStorage.setItem(USERS_KEY, JSON.stringify(adminData.users));
-    loadUsersData();
-    updateDashboardStats();
-    alert('User deleted successfully');
-  }
-}
-
-function viewProduct(productId) {
-  const product = adminData.products.find(p => p.id === productId);
-  if (product) {
-    alert(`Product Details:\nID: ${product.id}\nName: ${product.name}\nCategory: ${product.category}\nPrice: ${formatCurrency(product.price)}\nStock: ${product.stock}`);
-  }
-}
-
-function editProduct(productId) {
-  alert(`Edit Product ${productId} functionality would be implemented here`);
-}
-
-function deleteProduct(productId) {
-  if (confirm('Are you sure you want to delete this product?')) {
-    adminData.products = adminData.products.filter(p => p.id !== productId);
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(adminData.products));
-    loadProductsData();
-    updateDashboardStats();
-    alert('Product deleted successfully');
-  }
-}
-
-function viewTransaction(transactionId) {
-  const transaction = adminData.transactions.find(t => t.id === transactionId);
-  if (transaction) {
-    alert(`Transaction Details:\nID: ${transaction.id}\nAmount: ${formatCurrency(transaction.amount)}\nType: ${transaction.type}\nStatus: ${transaction.status}`);
-  }
-}
-
-function editTransaction(transactionId) {
-  alert(`Edit Transaction ${transactionId} functionality would be implemented here`);
-}
-
-function viewEscrow(escrowId) {
-  const escrow = adminData.escrows.find(e => e.id === escrowId);
-  if (escrow) {
-    alert(`Escrow Details:\nID: ${escrow.id}\nOrder: ${escrow.orderId}\nAmount: ${formatCurrency(escrow.amount)}\nStatus: ${escrow.status}`);
-  }
-}
-
-function releaseEscrow(escrowId) {
-  if (confirm('Are you sure you want to release these escrow funds?')) {
-    const escrowIndex = adminData.escrows.findIndex(e => e.id === escrowId);
-    if (escrowIndex !== -1) {
-      adminData.escrows[escrowIndex].status = 'released';
-      adminData.escrows[escrowIndex].releasedAt = new Date().toISOString();
-      localStorage.setItem(ESCROWS_KEY, JSON.stringify(adminData.escrows));
-      loadEscrowData();
-      updateDashboardStats();
-      alert('Escrow funds released successfully');
-    }
-  }
-}
-
-function viewDispute(disputeId) {
-  const dispute = adminData.disputes.find(d => d.id === disputeId);
-  if (dispute) {
-    alert(`Dispute Details:\nID: ${dispute.id}\nOrder: ${dispute.orderId}\nIssue: ${dispute.issue}\nPriority: ${dispute.priority}\nStatus: ${dispute.status}`);
-  }
-}
-
-function resolveDispute(disputeId) {
-  const resolution = prompt('Enter resolution details:');
-  if (resolution) {
-    const disputeIndex = adminData.disputes.findIndex(d => d.id === disputeId);
-    if (disputeIndex !== -1) {
-      adminData.disputes[disputeIndex].status = 'resolved';
-      adminData.disputes[disputeIndex].resolution = resolution;
-      adminData.disputes[disputeIndex].resolvedAt = new Date().toISOString();
-      localStorage.setItem(DISPUTES_KEY, JSON.stringify(adminData.disputes));
-      loadDisputesData();
-      updateDashboardStats();
-      alert('Dispute resolved successfully');
-    }
-  }
-}
-
-function exportTransactions() {
-  const csv = convertToCSV(adminData.transactions, ['id', 'userId', 'amount', 'type', 'status', 'createdAt']);
-  downloadCSV(csv, 'transactions.csv');
-}
-
-function exportEscrow() {
-  const csv = convertToCSV(adminData.escrows, ['id', 'orderId', 'amount', 'status', 'createdAt']);
-  downloadCSV(csv, 'escrow.csv');
-}
-
-function exportDisputes() {
-  const csv = convertToCSV(adminData.disputes, ['id', 'orderId', 'issue', 'priority', 'status', 'createdAt']);
-  downloadCSV(csv, 'disputes.csv');
-}
-
-function generateReport() {
-  alert('Report generation functionality would be implemented here');
-}
-
-function refreshDashboard() {
-  loadAllData();
-  updateDashboardStats();
-  alert('Dashboard refreshed successfully');
-}
-
-// Utility functions
-function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount || 0);
-}
-
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+function getActivityIcon(type) {
+  const icons = {
+    'order': 'shopping-cart',
+    'user': 'user',
+    'dispute': 'gavel',
+    'payment': 'credit-card',
+    'delivery': 'truck',
+    'shipped': 'truck',
+    'delivered': 'check-circle'
   };
+  return icons[type] || 'info-circle';
 }
 
-function convertToCSV(data, fields) {
-  const headers = fields.join(',');
-  const rows = data.map(item => 
-    fields.map(field => `"${item[field] || ''}"`).join(',')
-  );
-  return [headers, ...rows].join('\n');
-}
-
-function downloadCSV(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  window.URL.revokeObjectURL(url);
-}
-
-// Verification action functions
-function viewVerification(verificationId) {
-  const user = adminData.users.find(u => u.id === verificationId);
-  if (user) {
-    alert(`Verification Details:\nUser ID: ${user.id}\nName: ${user.name}\nEmail: ${user.email}\nStatus: ${user.verified ? 'Approved' : 'Pending'}\nDocument Type: ID Card`);
+function formatTimestamp(timestamp) {
+  if (!timestamp) return 'N/A';
+  try {
+    return new Date(timestamp).toLocaleDateString();
+  } catch (error) {
+    return 'N/A';
   }
 }
 
-function approveVerification(verificationId) {
-  if (confirm('Are you sure you want to approve this verification?')) {
-    const userIndex = adminData.users.findIndex(u => u.id === verificationId);
-    if (userIndex !== -1) {
-      adminData.users[userIndex].verified = true;
-      localStorage.setItem(USERS_KEY, JSON.stringify(adminData.users));
-      loadVerificationData();
-      updateDashboardStats();
-      alert('Verification approved successfully');
-    }
-  }
+function showLoading(section) {
+  console.log(`Loading ${section}...`);
 }
 
-function rejectVerification(verificationId) {
-  if (confirm('Are you sure you want to reject this verification?')) {
-    const userIndex = adminData.users.findIndex(u => u.id === verificationId);
-    if (userIndex !== -1) {
-      adminData.users[userIndex].verified = false;
-      localStorage.setItem(USERS_KEY, JSON.stringify(adminData.users));
-      loadVerificationData();
-      updateDashboardStats();
-      alert('Verification rejected');
-    }
-  }
+function hideLoading(section) {
+  console.log(`Finished loading ${section}`);
 }
 
-function exportVerifications() {
-  const verificationData = adminData.users.map(user => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    documentType: 'ID Card',
-    status: user.verified ? 'approved' : 'pending',
-    submitted: user.joined
-  }));
-  const csv = convertToCSV(verificationData, ['id', 'name', 'email', 'documentType', 'status', 'submitted']);
-  downloadCSV(csv, 'verifications.csv');
-}
-
-// Category action functions
-function viewCategory(categoryId) {
-  const categories = [
-    { id: 'CAT-001', name: 'Mobile', description: 'Mobile phones and accessories', productsCount: 15, status: 'active' },
-    { id: 'CAT-002', name: 'Camera', description: 'Cameras and photography equipment', productsCount: 8, status: 'active' },
-    { id: 'CAT-003', name: 'Computers', description: 'Laptops, desktops and computer accessories', productsCount: 12, status: 'active' },
-    { id: 'CAT-004', name: 'Fashion', description: 'Clothing and fashion accessories', productsCount: 25, status: 'active' },
-    { id: 'CAT-005', name: 'Beauty', description: 'Beauty and cosmetic products', productsCount: 18, status: 'active' },
-    { id: 'CAT-006', name: 'Books', description: 'Books and educational materials', productsCount: 30, status: 'active' },
-    { id: 'CAT-007', name: 'Furniture', description: 'Home and office furniture', productsCount: 22, status: 'active' },
-    { id: 'CAT-008', name: 'Gym', description: 'Fitness and gym equipment', productsCount: 14, status: 'active' },
-    { id: 'CAT-009', name: 'Home', description: 'Home and garden products', productsCount: 20, status: 'active' },
-    { id: 'CAT-010', name: 'Services', description: 'Professional services', productsCount: 16, status: 'active' },
-    { id: 'CAT-011', name: 'Sports', description: 'Sports and outdoor equipment', productsCount: 19, status: 'active' },
-    { id: 'CAT-012', name: 'Pets', description: 'Pet care and supplies', productsCount: 13, status: 'active' }
-  ];
+function showSuccess(message) {
+  const notification = document.createElement('div');
+  notification.className = 'notification success';
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10b981;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  `;
+  notification.innerHTML = `
+    <i class="fas fa-check-circle"></i>
+    <span style="margin-left: 8px;">${message}</span>
+  `;
   
-  const category = categories.find(c => c.id === categoryId);
-  if (category) {
-    alert(`Category Details:\nID: ${category.id}\nName: ${category.name}\nDescription: ${category.description}\nProducts Count: ${category.productsCount}\nStatus: ${category.status}`);
-  }
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.remove();
+  }, 3000);
 }
 
-function editCategory(categoryId) {
-  alert(`Edit Category ${categoryId} functionality would be implemented here`);
+function showError(message) {
+  const notification = document.createElement('div');
+  notification.className = 'notification error';
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ef4444;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  `;
+  notification.innerHTML = `
+    <i class="fas fa-exclamation-circle"></i>
+    <span style="margin-left: 8px;">${message}</span>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.remove();
+  }, 5000);
 }
 
-function deleteCategory(categoryId) {
-  if (confirm('Are you sure you want to delete this category?')) {
-    alert('Category deleted successfully');
-    loadCategoriesData();
-  }
+// Setup Event Listeners
+function setupEventListeners() {
+  // Search functionality
+  const searchInputs = document.querySelectorAll('[id$="Search"]');
+  searchInputs.forEach(input => {
+    input.addEventListener('input', handleSearch);
+  });
+
+  // Filter functionality
+  const filterSelects = document.querySelectorAll('[id$="Filter"]');
+  filterSelects.forEach(select => {
+    select.addEventListener('change', handleFilter);
+  });
 }
 
-function addCategory() {
-  alert('Add Category functionality would be implemented here');
+// Search and Filter Functions
+function handleSearch(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const tableId = e.target.id.replace('Search', 'Table');
+  const table = document.getElementById(tableId);
+  
+  if (!table) return;
+  
+  const rows = table.querySelectorAll('tbody tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(searchTerm) ? '' : 'none';
+  });
 }
 
-// Order action functions
-function viewOrder(orderId) {
-  const order = adminData.orders.find(o => o.id === orderId);
-  const user = adminData.users.find(u => u.id === order.userId);
-  if (order) {
-    alert(`Order Details:\nOrder ID: ${order.id}\nCustomer: ${user ? user.name : 'Unknown'}\nTotal: ${formatCurrency(order.total)}\nStatus: ${order.status}\nDate: ${new Date(order.createdAt).toLocaleDateString()}`);
-  }
-}
-
-function updateOrderStatus(orderId) {
-  const newStatus = prompt('Enter new order status (pending, processing, shipped, delivered, cancelled):');
-  if (newStatus && ['pending', 'processing', 'shipped', 'delivered', 'cancelled'].includes(newStatus)) {
-    const orderIndex = adminData.orders.findIndex(o => o.id === orderId);
-    if (orderIndex !== -1) {
-      adminData.orders[orderIndex].status = newStatus;
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(adminData.orders));
-      loadOrdersData();
-      updateDashboardStats();
-      alert('Order status updated successfully');
+function handleFilter(e) {
+  const filterValue = e.target.value;
+  const tableId = e.target.id.replace('Filter', 'Table');
+  const table = document.getElementById(tableId);
+  
+  if (!table) return;
+  
+  const rows = table.querySelectorAll('tbody tr');
+  rows.forEach(row => {
+    if (!filterValue) {
+      row.style.display = '';
+      return;
     }
+    
+    const statusCell = row.querySelector('.status-badge');
+    if (statusCell) {
+      const status = statusCell.textContent.toLowerCase();
+      row.style.display = status.includes(filterValue.toLowerCase()) ? '' : 'none';
+    }
+  });
+}
+
+// Action Functions
+async function updateOrderStatus(orderId) {
+  const newStatus = prompt('Enter new status (pending, processing, shipped, delivered, cancelled, disputed):');
+  if (!newStatus) return;
+
+  const trackingNumber = newStatus === 'shipped' ? prompt('Enter tracking number:') : null;
+
+  try {
+    // Update order in localStorage
+    const orders = getLocalStorageData('orders');
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    
+    if (orderIndex !== -1) {
+      orders[orderIndex].status = newStatus;
+      if (trackingNumber) {
+        orders[orderIndex].trackingNumber = trackingNumber;
+      }
+      orders[orderIndex].updatedAt = new Date().toISOString();
+      
+      localStorage.setItem('sthub_orders', JSON.stringify(orders));
+      
+      // Reload orders data
+      await loadOrdersData();
+      showSuccess('Order status updated successfully');
+    } else {
+      showError('Order not found');
+    }
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    showError('Failed to update order status');
   }
 }
 
-function exportOrders() {
-  const csv = convertToCSV(adminData.orders, ['id', 'userId', 'total', 'status', 'createdAt']);
-  downloadCSV(csv, 'orders.csv');
+async function approveVerification(userId) {
+  try {
+    const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+    if (userData && userData.id === userId) {
+      userData.verification = userData.verification || {};
+      userData.verification.phone = true;
+      userData.verification.address = true;
+      userData.verification.id = true;
+      
+      localStorage.setItem('userData', JSON.stringify(userData));
+      
+      // Reload verification data
+      await loadVerificationData();
+      showSuccess('Verification approved successfully');
+    } else {
+      showError('User not found');
+    }
+  } catch (error) {
+    console.error('Error approving verification:', error);
+    showError('Failed to approve verification');
+  }
 }
+
+async function rejectVerification(userId) {
+  try {
+    const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+    if (userData && userData.id === userId) {
+      userData.verification = userData.verification || {};
+      userData.verification.phone = false;
+      userData.verification.address = false;
+      userData.verification.id = false;
+      
+      localStorage.setItem('userData', JSON.stringify(userData));
+      
+      // Reload verification data
+      await loadVerificationData();
+      showSuccess('Verification rejected');
+    } else {
+      showError('User not found');
+    }
+  } catch (error) {
+    console.error('Error rejecting verification:', error);
+    showError('Failed to reject verification');
+  }
+}
+
+// Placeholder functions for other actions
+function viewUser(userId) { alert(`View user: ${userId}`); }
+function editUser(userId) { alert(`Edit user: ${userId}`); }
+function viewOrder(orderId) { alert(`View order: ${orderId}`); }
+function viewProduct(productId) { alert(`View product: ${productId}`); }
+function editProduct(productId) { alert(`Edit product: ${productId}`); }
+function viewCategory(categoryId) { alert(`View category: ${categoryId}`); }
+function editCategory(categoryId) { alert(`Edit category: ${categoryId}`); }
+function viewDispute(disputeId) { alert(`View dispute: ${disputeId}`); }
+function resolveDispute(disputeId) { alert(`Resolve dispute: ${disputeId}`); }
+function viewTransaction(transactionId) { alert(`View transaction: ${transactionId}`); }
+function viewEscrow(escrowId) { alert(`View escrow: ${escrowId}`); }
+function releaseEscrow(escrowId) { alert(`Release escrow: ${escrowId}`); }
+
+// Refresh functions
+function refreshDashboard() {
+  loadDashboardData();
+}
+
+function refreshOrders() {
+  loadOrdersData();
+}
+
+function syncLogistics() {
+  loadLogisticsData();
+}
+
+// Export functions for global access
+window.showSection = showSection;
+window.refreshDashboard = refreshDashboard;
+window.refreshOrders = refreshOrders;
+window.syncLogistics = syncLogistics;
+window.updateOrderStatus = updateOrderStatus;
+window.approveVerification = approveVerification;
+window.rejectVerification = rejectVerification;
+window.viewUser = viewUser;
+window.editUser = editUser;
+window.viewOrder = viewOrder;
+window.viewProduct = viewProduct;
+window.editProduct = editProduct;
+window.viewCategory = viewCategory;
+window.editCategory = editCategory;
+window.viewDispute = viewDispute;
+window.resolveDispute = resolveDispute;
+window.viewTransaction = viewTransaction;
+window.viewEscrow = viewEscrow;
+window.releaseEscrow = releaseEscrow;

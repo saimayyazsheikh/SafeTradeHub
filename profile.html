@@ -40,12 +40,18 @@
             <div class="avatar-circle" id="userAvatar">
               <span id="userInitials">U</span>
             </div>
-            <button class="avatar-upload" id="uploadAvatar">
+            <button class="avatar-upload" id="uploadAvatar" title="Upload Profile Picture">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1-2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                 <circle cx="12" cy="13" r="4"/>
               </svg>
             </button>
+            <button class="avatar-remove" id="removeAvatar" title="Remove Profile Picture" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+              </svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
           </div>
           <div class="profile-info">
             <h2 id="userDisplayName">User Name</h2>
@@ -347,6 +353,10 @@
     const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
     document.getElementById('userInitials').textContent = initials;
     
+    // Update avatar display
+    const avatarUrl = userData?.profile?.avatar;
+    updateAvatarDisplay(avatarUrl);
+    
     // Update verification badge
     updateVerificationBadge();
     
@@ -623,6 +633,144 @@
     }
   });
 
+  // Cloudinary Configuration
+  const CLOUD_NAME = "dfkeplyzn";
+  const UPLOAD_PRESET = "sth_unsigned";
+
+  // Avatar upload functionality
+  document.getElementById('uploadAvatar').addEventListener('click', () => {
+    document.getElementById('avatarFileInput').click();
+  });
+
+  document.getElementById('avatarFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      showError('Please select an image file.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      showError('Image size must be less than 5MB.');
+      return;
+    }
+
+    try {
+      // Show loading state
+      const uploadBtn = document.getElementById('uploadAvatar');
+      const originalHTML = uploadBtn.innerHTML;
+      uploadBtn.innerHTML = '<div style="width: 16px; height: 16px; border: 2px solid currentColor; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
+      uploadBtn.disabled = true;
+
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('folder', `safetradehub/avatars/${currentUser.uid}`);
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Upload failed');
+      }
+
+      // Update user profile with new avatar URL
+      await db.collection('users').doc(currentUser.uid).update({
+        'profile.avatar': result.secure_url,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Update avatar display
+      updateAvatarDisplay(result.secure_url);
+      
+      showSuccess('Profile image updated successfully!');
+
+      // Reset button
+      uploadBtn.innerHTML = originalHTML;
+      uploadBtn.disabled = false;
+
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      showError('Failed to upload image. Please try again.');
+      
+      // Reset button
+      const uploadBtn = document.getElementById('uploadAvatar');
+      uploadBtn.innerHTML = originalHTML;
+      uploadBtn.disabled = false;
+    }
+
+    // Clear file input
+    e.target.value = '';
+  });
+
+  // Remove avatar functionality
+  document.getElementById('removeAvatar').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to remove your profile picture?')) {
+      return;
+    }
+
+    try {
+      // Show loading state
+      const removeBtn = document.getElementById('removeAvatar');
+      const originalHTML = removeBtn.innerHTML;
+      removeBtn.innerHTML = '<div style="width: 16px; height: 16px; border: 2px solid currentColor; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
+      removeBtn.disabled = true;
+
+      // Remove avatar URL from user profile
+      await db.collection('users').doc(currentUser.uid).update({
+        'profile.avatar': firebase.firestore.FieldValue.delete(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Update avatar display to show initials
+      updateAvatarDisplay(null);
+      
+      showSuccess('Profile picture removed successfully!');
+
+      // Reset button
+      removeBtn.innerHTML = originalHTML;
+      removeBtn.disabled = false;
+
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      showError('Failed to remove profile picture. Please try again.');
+      
+      // Reset button
+      const removeBtn = document.getElementById('removeAvatar');
+      removeBtn.innerHTML = originalHTML;
+      removeBtn.disabled = false;
+    }
+  });
+
+  // Function to update avatar display
+  function updateAvatarDisplay(avatarUrl) {
+    const avatarCircle = document.getElementById('userAvatar');
+    const userInitials = document.getElementById('userInitials');
+    const removeBtn = document.getElementById('removeAvatar');
+    
+    if (avatarUrl) {
+      // Show image
+      avatarCircle.style.backgroundImage = `url(${avatarUrl})`;
+      avatarCircle.style.backgroundSize = 'cover';
+      avatarCircle.style.backgroundPosition = 'center';
+      userInitials.style.display = 'none';
+      removeBtn.style.display = 'flex';
+    } else {
+      // Show initials
+      avatarCircle.style.backgroundImage = 'none';
+      avatarCircle.style.background = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+      userInitials.style.display = 'flex';
+      removeBtn.style.display = 'none';
+    }
+  }
+
   // Helper functions
   function getTimeAgo(date) {
     const now = new Date();
@@ -768,6 +916,43 @@
   .avatar-upload:hover {
     background: #3b82f6;
     color: white;
+  }
+
+  .avatar-upload:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .avatar-remove {
+    position: absolute;
+    bottom: 0;
+    right: 36px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #ef4444;
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .avatar-remove:hover {
+    background: #ef4444;
+    color: white;
+  }
+
+  .avatar-remove:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 
   .profile-info h2 {

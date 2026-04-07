@@ -94,16 +94,21 @@
         </div>
 
         <div class="nav-section">
-          <h3 class="nav-title">Transaction Management</h3>
-          <a href="#transactions" class="nav-item" data-section="transactions">
-            <i class="fas fa-credit-card"></i>
-            <span>Transactions</span>
-            <span class="nav-badge" id="transactionsCount">0</span>
-          </a>
+          <h3 class="nav-title">Order & Logistics</h3>
           <a href="#orders" class="nav-item" data-section="orders">
             <i class="fas fa-shopping-cart"></i>
             <span>Orders</span>
             <span class="nav-badge" id="ordersCount">0</span>
+          </a>
+          <a href="#logistics" class="nav-item" data-section="logistics">
+            <i class="fas fa-truck"></i>
+            <span>Logistics</span>
+            <span class="nav-badge" id="logisticsCount">0</span>
+          </a>
+          <a href="#transactions" class="nav-item" data-section="transactions">
+            <i class="fas fa-credit-card"></i>
+            <span>Transactions</span>
+            <span class="nav-badge" id="transactionsCount">0</span>
           </a>
         </div>
 
@@ -138,13 +143,17 @@
     <!-- Main Content -->
     <main class="admin-main">
       <!-- Dashboard Section -->
-      <section class="admin-section active" id="dashboard-section">
+      <section class="admin-section" id="dashboard-section">
         <div class="section-header">
           <h2>Dashboard Overview</h2>
           <div class="section-actions">
             <button class="btn btn-primary" onclick="refreshDashboard()">
               <i class="fas fa-sync-alt"></i>
               Refresh
+            </button>
+            <button class="btn btn-secondary" onclick="createAdminUser()" style="margin-left: 10px;">
+              <i class="fas fa-user-plus"></i>
+              Setup Admin
             </button>
           </div>
         </div>
@@ -158,10 +167,6 @@
             <div class="stat-content">
               <h3 id="totalUsers">0</h3>
               <p>Total Users</p>
-              <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i>
-                <span>+12% this month</span>
-              </div>
             </div>
           </div>
 
@@ -172,10 +177,6 @@
             <div class="stat-content">
               <h3 id="totalOrders">0</h3>
               <p>Total Orders</p>
-              <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i>
-                <span>+8% this month</span>
-              </div>
             </div>
           </div>
 
@@ -186,10 +187,6 @@
             <div class="stat-content">
               <h3 id="totalRevenue">$0</h3>
               <p>Total Revenue</p>
-              <div class="stat-change positive">
-                <i class="fas fa-arrow-up"></i>
-                <span>+15% this month</span>
-              </div>
             </div>
           </div>
 
@@ -200,10 +197,6 @@
             <div class="stat-content">
               <h3 id="pendingDisputes">0</h3>
               <p>Pending Disputes</p>
-              <div class="stat-change negative">
-                <i class="fas fa-arrow-down"></i>
-                <span>-3 this week</span>
-              </div>
             </div>
           </div>
         </div>
@@ -216,8 +209,17 @@
               <button class="btn btn-secondary">View All</button>
             </div>
             <div class="card-content">
-              <div class="activity-list" id="recentActivity">
-                <!-- Dynamic content -->
+              <div class="activity-list" id="recentActivityList">
+                <!-- Dynamic content will be loaded here -->
+                <div class="activity-item">
+                  <div class="activity-icon order">
+                    <i class="fas fa-shopping-cart"></i>
+                  </div>
+                  <div class="activity-content">
+                    <p>Loading recent activity...</p>
+                    <small>Please wait</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -562,7 +564,7 @@
       <!-- Orders Section -->
       <section class="admin-section" id="orders-section">
         <div class="section-header">
-          <h2>Order Management</h2>
+          <h2>Order Placement & Tracking</h2>
           <div class="section-actions">
             <div class="search-box">
               <i class="fas fa-search"></i>
@@ -574,12 +576,57 @@
               <option value="processing">Processing</option>
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
+              <option value="disputed">Disputed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            <button class="btn btn-primary" onclick="refreshOrders()">
+              <i class="fas fa-sync-alt"></i>
+              Refresh
+            </button>
             <button class="btn btn-secondary" onclick="exportOrders()">
               <i class="fas fa-download"></i>
               Export
             </button>
+          </div>
+        </div>
+
+        <!-- Order Status Overview -->
+        <div class="status-overview">
+          <div class="status-card pending">
+            <div class="status-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="status-info">
+              <h3 id="pendingOrdersCount">0</h3>
+              <p>Pending Orders</p>
+            </div>
+          </div>
+          <div class="status-card shipped">
+            <div class="status-icon">
+              <i class="fas fa-truck"></i>
+            </div>
+            <div class="status-info">
+              <h3 id="shippedOrdersCount">0</h3>
+              <p>Shipped Orders</p>
+            </div>
+          </div>
+          <div class="status-card delivered">
+            <div class="status-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="status-info">
+              <h3 id="deliveredOrdersCount">0</h3>
+              <p>Delivered Orders</p>
+            </div>
+          </div>
+          <div class="status-card disputed">
+            <div class="status-icon">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="status-info">
+              <h3 id="disputedOrdersCount">0</h3>
+              <p>Disputed Orders</p>
+            </div>
           </div>
         </div>
 
@@ -590,9 +637,11 @@
                 <tr>
                   <th>Order ID</th>
                   <th>Customer</th>
+                  <th>Seller</th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Status</th>
+                  <th>Tracking</th>
                   <th>Date</th>
                   <th>Actions</th>
                 </tr>
@@ -601,6 +650,160 @@
                 <!-- Dynamic content -->
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Logistics Section -->
+      <section class="admin-section" id="logistics-section">
+        <div class="section-header">
+          <h2>Logistics Integration</h2>
+          <div class="section-actions">
+            <button class="btn btn-primary" onclick="syncLogistics()">
+              <i class="fas fa-sync-alt"></i>
+              Sync All
+            </button>
+            <button class="btn btn-secondary" onclick="configureLogistics()">
+              <i class="fas fa-cog"></i>
+              Configure
+            </button>
+          </div>
+        </div>
+
+        <!-- Logistics Providers -->
+        <div class="logistics-providers">
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo">
+                <i class="fas fa-truck"></i>
+              </div>
+              <div class="provider-info">
+                <h3>TCS Express</h3>
+                <p class="provider-status active">Active</p>
+              </div>
+              <div class="provider-actions">
+                <button class="btn btn-sm btn-secondary" onclick="configureProvider('tcs')">
+                  <i class="fas fa-cog"></i>
+                </button>
+              </div>
+            </div>
+            <div class="provider-stats">
+              <div class="stat">
+                <span class="stat-value" id="tcsActiveShipments">0</span>
+                <span class="stat-label">Active Shipments</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="tcsDeliveryRate">98%</span>
+                <span class="stat-label">Delivery Rate</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo">
+                <i class="fas fa-shipping-fast"></i>
+              </div>
+              <div class="provider-info">
+                <h3>Leopards Courier</h3>
+                <p class="provider-status active">Active</p>
+              </div>
+              <div class="provider-actions">
+                <button class="btn btn-sm btn-secondary" onclick="configureProvider('leopards')">
+                  <i class="fas fa-cog"></i>
+                </button>
+              </div>
+            </div>
+            <div class="provider-stats">
+              <div class="stat">
+                <span class="stat-value" id="leopardsActiveShipments">0</span>
+                <span class="stat-label">Active Shipments</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="leopardsDeliveryRate">96%</span>
+                <span class="stat-label">Delivery Rate</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo">
+                <i class="fas fa-box"></i>
+              </div>
+              <div class="provider-info">
+                <h3>PostEx</h3>
+                <p class="provider-status inactive">Inactive</p>
+              </div>
+              <div class="provider-actions">
+                <button class="btn btn-sm btn-primary" onclick="activateProvider('postex')">
+                  <i class="fas fa-play"></i>
+                </button>
+              </div>
+            </div>
+            <div class="provider-stats">
+              <div class="stat">
+                <span class="stat-value">-</span>
+                <span class="stat-label">Active Shipments</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value">-</span>
+                <span class="stat-label">Delivery Rate</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Logistics Activity -->
+        <div class="content-card">
+          <div class="card-header">
+            <h3>Recent Pickup & Delivery Updates</h3>
+            <button class="btn btn-sm btn-secondary" onclick="refreshLogisticsActivity()">
+              <i class="fas fa-refresh"></i>
+              Refresh
+            </button>
+          </div>
+          <div class="logistics-activity" id="logisticsActivity">
+            <!-- Dynamic content -->
+          </div>
+        </div>
+
+        <!-- Notifications Settings -->
+        <div class="content-card">
+          <div class="card-header">
+            <h3>Notification Settings</h3>
+          </div>
+          <div class="notification-settings">
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Pickup Notifications</h4>
+                <p>Send notifications when orders are picked up</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pickupNotifications" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Delivery Notifications</h4>
+                <p>Send notifications when orders are delivered</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="deliveryNotifications" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Delay Alerts</h4>
+                <p>Alert when deliveries are delayed</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="delayAlerts" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
       </section>
@@ -711,6 +914,31 @@
     </main>
   </div>
 
+  <!-- Firebase SDK (same version as main site) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration (same as main site) -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system (same as main site) -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
+  
   <!-- External JavaScript -->
   <script src="js/admin-dashboard.js"></script>
 </body>
