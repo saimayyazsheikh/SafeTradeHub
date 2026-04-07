@@ -32,15 +32,7 @@
             <i class="fas fa-chevron-down"></i>
           </button>
           <div class="admin-dropdown" id="adminDropdown">
-            <a href="#" class="dropdown-item">
-              <i class="fas fa-user"></i>
-              Profile
-            </a>
-            <a href="#" class="dropdown-item">
-              <i class="fas fa-cog"></i>
-              Settings
-            </a>
-            <hr class="dropdown-divider">
+
             <a href="#" class="dropdown-item" onclick="logout()">
               <i class="fas fa-sign-out-alt"></i>
               Logout
@@ -213,22 +205,21 @@
           <!-- Left Column: Emails -->
           <div class="dashboard-col-main">
             <!-- Emails Section -->
-            <div class="content-card">
-              <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="email-card">
+              <div class="email-card-header">
                 <h3>Recent Emails</h3>
-                <span class="badge bg-light text-dark border">Safetradehubteam@gmail.com</span>
+                <span class="email-badge">safetradehubteam@gmail.com</span>
               </div>
-              <div class="card-content">
-                <div class="text-center py-5">
-                  <div class="mb-3">
-                    <i class="fas fa-inbox text-secondary" style="font-size: 48px; opacity: 0.5;"></i>
-                  </div>
-                  <h5 class="text-dark fw-bold">Inbox</h5>
-                  <p class="text-muted small mb-4">View your recent emails directly in Gmail</p>
-                  <a href="https://mail.google.com" target="_blank" class="btn btn-primary">
-                    <i class="fab fa-google me-2"></i>Open Gmail
-                  </a>
+              <div class="email-list" id="adminEmailList">
+                <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                  <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 12px;"></i>
+                  <p>Connecting to secure inbox...</p>
                 </div>
+              </div>
+              <div class="email-card-footer">
+                <a href="https://mail.google.com/mail/u/0/#inbox" target="_blank" class="btn-gmail">
+                  <i class="fab fa-google"></i> Open Full Gmail
+                </a>
               </div>
             </div>
           </div>
@@ -243,10 +234,7 @@
                   <div class="qa-icon color-1"><i class="fas fa-bullhorn"></i></div>
                   <span class="qa-label">Broadcast</span>
                 </div>
-                <div class="qa-btn" onclick="showSection('products')">
-                  <div class="qa-icon color-2"><i class="fas fa-box-open"></i></div>
-                  <span class="qa-label">Add Product</span>
-                </div>
+
                 <div class="qa-btn" onclick="showSection('disputes')">
                   <div class="qa-icon color-3"><i class="fas fa-gavel"></i></div>
                   <span class="qa-label">Disputes</span>
@@ -308,10 +296,7 @@
               <i class="fas fa-search"></i>
               <input type="text" placeholder="Search users..." id="userSearch">
             </div>
-            <button class="btn btn-primary" onclick="addUser()">
-              <i class="fas fa-plus"></i>
-              Add User
-            </button>
+
           </div>
         </div>
         <div class="content-card">
@@ -359,10 +344,7 @@
               <option value="sports">Sports</option>
               <option value="pets">Pets</option>
             </select>
-            <button class="btn btn-primary" onclick="addProduct()">
-              <i class="fas fa-plus"></i>
-              Add Product
-            </button>
+
           </div>
         </div>
         <div class="content-card">
@@ -698,14 +680,7 @@
         <div class="section-header">
           <h2>Category Management</h2>
           <div class="section-actions">
-            <div class="search-box">
-              <i class="fas fa-search"></i>
-              <input type="text" placeholder="Search categories..." id="categorySearch">
-            </div>
-            <button class="btn btn-primary" onclick="addCategory()">
-              <i class="fas fa-plus"></i>
-              Add Category
-            </button>
+
           </div>
         </div>
         <div class="content-card">
@@ -958,54 +933,9 @@
         </div>
       </section>
 
-      <!-- Settings Section -->
-      <section class="admin-section" id="settings-section">
-        <div class="section-header">
-          <h2>System Settings</h2>
-        </div>
-        <div class="settings-grid">
-          <div class="settings-card">
-            <h3>General Settings</h3>
-            <div class="settings-form">
-              <div class="form-group">
-                <label>Site Name</label>
-                <input type="text" value="Safe Trade Hub" class="form-input">
-              </div>
-              <div class="form-group">
-                <label>Admin Email</label>
-                <input type="email" value="221009@students.au.edu.pk" class="form-input">
-              </div>
-              <div class="form-group">
-                <label>Maintenance Mode</label>
-                <label class="toggle-switch">
-                  <input type="checkbox">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="settings-card">
-            <h3>Security Settings</h3>
-            <div class="settings-form">
-              <div class="form-group">
-                <label>Session Timeout (minutes)</label>
-                <input type="number" value="30" class="form-input">
-              </div>
-              <div class="form-group">
-                <label>Two-Factor Authentication</label>
-                <label class="toggle-switch">
-                  <input type="checkbox" checked>
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="form-group">
-                <label>Login Attempts Limit</label>
-                <input type="number" value="5" class="form-input">
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
+
+
     </main>
   </div>
   <!-- Firebase SDK (same version as main site) -->
@@ -1250,27 +1180,40 @@
   </div>
   <!-- Confirmation Modal -->
   <div id="confirmationModal" class="modal"
-    style="display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+    style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(5px);">
     <div class="modal-content"
-      style="background-color: #fefefe; margin: 15% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 400px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); text-align: center;">
-      <div style="margin-bottom: 20px;">
-        <h3 id="confirmTitle" style="margin: 0 0 10px 0; color: #1f2937;">Confirm Action</h3>
-        <p id="confirmMessage" style="color: #4b5563; margin: 0;">Are you sure?</p>
+      style="background-color: #ffffff; margin: 15% auto; padding: 30px; border: none; width: 90%; max-width: 400px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center; animation: modalSlideIn 0.3s ease-out;">
+      <div id="confirmIconContainer" style="margin-bottom: 20px;">
+        <div style="width: 70px; height: 70px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h3 id="confirmTitle" style="margin: 0 0 10px 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Confirm Action</h3>
+        <p id="confirmMessage" style="color: #64748b; margin: 0; line-height: 1.5;">Are you sure you want to proceed?</p>
       </div>
       <div id="confirmInputContainer" style="display: none; margin-bottom: 20px; text-align: left;">
         <label for="confirmInput"
-          style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Reason</label>
+          style="display: block; margin-bottom: 8px; font-weight: 600; color: #334155; font-size: 0.9rem;">Reason</label>
         <input type="text" id="confirmInput" class="form-input" placeholder="Enter reason..."
-          style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+          style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; transition: border-color 0.2s;">
       </div>
-      <div style="display: flex; justify-content: center; gap: 10px;">
+      <div style="display: flex; justify-content: center; gap: 12px;">
         <button id="confirmCancelBtn" class="btn btn-secondary"
-          style="padding: 8px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Cancel</button>
+          style="flex: 1; padding: 12px; border: none; background: #f1f5f9; color: #475569; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Cancel</button>
         <button id="confirmOkBtn" class="btn btn-primary"
-          style="padding: 8px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">Confirm</button>
+          style="flex: 1; padding: 12px; border: none; background: #ef4444; color: white; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);">Confirm</button>
       </div>
     </div>
   </div>
+  <style>
+    @keyframes modalSlideIn {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    #confirmCancelBtn:hover { background: #e2e8f0 !important; }
+    #confirmOkBtn:hover { background: #dc2626 !important; transform: translateY(-1px); }
+  </style>
   <!-- Add/Edit Staff Modal -->
   <div id="staffModal" class="modal"
     style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
@@ -1632,10 +1575,187 @@
     </div>
   </div>
 
+  <!-- Email Reader Modal -->
+  <div class="email-modal" id="emailReaderModal">
+      <div class="email-modal-container">
+          <div class="email-modal-header">
+              <div class="email-modal-title-area">
+                  <h2 class="email-modal-subject" id="readerSubject">Loading subject...</h2>
+                  <div class="email-modal-meta">
+                      <span>From: <span class="email-modal-sender" id="readerSender">...</span></span>
+                      <span>Date: <span id="readerDate">...</span></span>
+                  </div>
+              </div>
+              <button class="email-modal-close" onclick="closeEmailReader()">
+                  <i class="fas fa-times"></i>
+              </button>
+          </div>
+          <div class="email-modal-body" id="readerBody">
+              <div class="email-reader-loading">
+                  <i class="fas fa-circle-notch fa-spin"></i>
+                  <p>Retrieving full message content...</p>
+              </div>
+          </div>
+          <div class="email-modal-footer">
+              <button class="btn btn-secondary" onclick="closeEmailReader()">Close</button>
+              <a id="readerGmailLink" href="https://mail.google.com/mail/u/0/#inbox" target="_blank" class="btn btn-primary">
+                  <i class="fab fa-google"></i> Open in Gmail
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- User Detail / Intelligence Modal -->
+  <div id="userDetailModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);">
+    <div class="modal-content" style="background: rgba(255, 255, 255, 0.98); margin: 3% auto; padding: 0; border: none; width: 90%; max-width: 900px; border-radius: 28px; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.2); overflow: hidden; transform: scale(1); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+      
+      <!-- Top Banner / Identity -->
+      <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); height: 140px; position: relative;">
+        <span class="close" onclick="closeUserDetailModal()" style="position: absolute; right: 24px; top: 20px; color: white; font-size: 28px; font-weight: bold; cursor: pointer; opacity: 0.8; transition: 0.2s;">&times;</span>
+        <div style="position: absolute; left: 40px; bottom: -40px; display: flex; align-items: flex-end; gap: 24px;">
+           <div style="width: 120px; height: 120px; border-radius: 50%; border: 6px solid white; background: #f8fafc; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden;">
+              <img id="uDetAvatar" src="/static/images/avatar-placeholder.png" style="width: 100%; height: 100%; object-fit: cover;">
+           </div>
+           <div style="padding-bottom: 45px;">
+              <h2 id="uDetName" style="color: white; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.04em; text-shadow: 0 2px 10px rgba(0,0,0,0.1);">...</h2>
+              <p id="uDetEmail" style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 14px; font-weight: 700;"></p>
+           </div>
+        </div>
+      </div>
+
+      <!-- Main Intelligence Padding -->
+      <div style="padding: 60px 48px 40px;">
+        <div style="display: flex; gap: 40px;">
+          <!-- Left: Attributes -->
+          <div style="flex: 1;">
+            <div style="margin-bottom: 40px;">
+              <h3 style="font-size: 11px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">Operational Attributes</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="attr-group">
+                  <span style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">System ID</span>
+                  <span id="uDetId" style="font-size: 14px; font-weight: 700; color: #1e293b; font-family: 'JetBrains Mono', monospace;">...</span>
+                </div>
+                <div class="attr-group">
+                  <span style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Phone Handle</span>
+                  <span id="uDetPhone" style="font-size: 14px; font-weight: 700; color: #1e293b;">...</span>
+                </div>
+                <div class="attr-group">
+                  <span style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Role Profile</span>
+                  <span id="uDetRole" class="badge badge-info" style="font-size: 11px; text-transform: uppercase;">...</span>
+                </div>
+                <div class="attr-group">
+                  <span style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Registry Tenure</span>
+                  <span id="uDetJoined" style="font-size: 14px; font-weight: 700; color: #1e293b;">...</span>
+                </div>
+              </div>
+              <div style="margin-top: 20px;">
+                  <span style="display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Verified Registry Address</span>
+                  <span id="uDetAddress" style="font-size: 14px; font-weight: 700; color: #1e293b; line-height: 1.5;">...</span>
+              </div>
+            </div>
+
+            <!-- KYC Evidence Section -->
+            <div id="uDetKycSection">
+              <h3 style="font-size: 11px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">KYC Intelligence Assets</h3>
+              <div id="uDetKycGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px;">
+                <!-- KYCs Injected Here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Audit Status -->
+          <div style="width: 280px; background: #f8fafc; border-radius: 20px; padding: 24px; border: 1px solid #f1f5f9;">
+             <h3 style="font-size: 11px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 16px;">Audit Pulse</h3>
+             <div id="uDetPulse" style="padding: 16px; border-radius: 12px; background: white; border: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Pulse Injected -->
+             </div>
+             <hr style="margin: 24px 0; border: none; border-top: 1px dashed #e2e8f0;">
+             <p style="font-size: 12px; color: #64748b; line-height: 1.6; font-style: italic;">"Authorized person identity verified through cryptographic hash and manual documentation review."</p>
+          </div>
+        </div>
+      </div>
+      
+      <div style="padding: 24px 48px; background: #f8fafc; text-align: right; border-top: 1px solid #f1f5f9;">
+        <button class="btn btn-secondary" onclick="closeUserDetailModal()" style="border-radius: 10px; font-weight: 700; padding: 12px 30px;">Close Intelligence Record</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/js/admin-dashboard.js?v=24"></script>
   <script src="/static/js/disputes-engine.js?v=4"></script>
   <script src="/static/js/staff-repair.js?v=2"></script>
   <script src="/static/js/notification-manager.js?v=2"></script>
+  <script src="/static/js/admin-inbox.js"></script>
+  <script>
+    // CRITICAL OVERRIDE: Messaging System
+    window.openUserAlertModal = function(userId, userName) {
+        console.log('🔔 Opening Alert Modal for:', userName);
+        const modal = document.getElementById('userAlertModal');
+        const idInput = document.getElementById('alertTargetId');
+        const nameSpan = document.getElementById('alertTargetName');
+        
+        if (modal && idInput && nameSpan) {
+            idInput.value = userId;
+            nameSpan.textContent = userName;
+            modal.style.display = 'block';
+            modal.style.zIndex = '9999'; // Force to front
+        } else {
+            console.error('❌ Could not find modal elements');
+        }
+    };
+
+    window.closeUserAlertModal = function() {
+        const modal = document.getElementById('userAlertModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.sendUserAlert = async function() {
+        const uid = document.getElementById('alertTargetId').value;
+        const type = document.getElementById('userAlertType').value;
+        const title = document.getElementById('userAlertTitle').value.trim();
+        const message = document.getElementById('userAlertMessage').value.trim();
+
+        if (!title || !message) {
+            alert('Please provide both a title and message');
+            return;
+        }
+
+        try {
+            const auditorUid = firebase.auth().currentUser.uid;
+            
+            // 1. Send to user
+            await db.ref(`users/${uid}/notifications`).push({
+                title: title,
+                message: message,
+                type: type,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                read: false,
+                adminAlert: true
+            });
+
+            // 2. Log to global audit trail
+            const auditorSnap = await db.ref('users/' + auditorUid).once('value');
+            const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
+
+            await db.ref('global_notifications/admin_alerts').push({
+                title: `Direct Alert Sent: ${title}`,
+                message: `Admin ${auditorName} sent a direct alert to user ${uid.substring(0,8)}...: ${message}`,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                userId: uid,
+                type: type
+            });
+
+            if (window.showSuccess) window.showSuccess('Alert sent successfully');
+            else alert('Alert sent successfully');
+            
+            window.closeUserAlertModal();
+        } catch (e) {
+            console.error('❌ Send Alert Error:', e);
+            if (window.showError) window.showError('Failed: ' + e.message);
+            else alert('Failed: ' + e.message);
+        }
+    };
+  </script>
 </body>
 
 </html>

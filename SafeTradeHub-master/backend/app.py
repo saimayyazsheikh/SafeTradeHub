@@ -1,6 +1,9 @@
 import os
 import json
 import time
+import imaplib
+import email
+from email.header import decode_header
 from dotenv import load_dotenv
 
 # --- Configuration ---
@@ -1419,5 +1422,168 @@ def finalize_auction():
     except Exception as e:
         print(f"Finalization Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+@app.route('/api/v1/admin/emails', methods=['GET'])
+@admin_required
+def get_admin_emails():
+    """Fetch recent emails from Gmail using App Password"""
+    user = os.getenv('GMAIL_USER')
+    password = os.getenv('GMAIL_APP_PASSWORD')
+    
+    if not user or not password:
+        return jsonify({'success': False, 'error': 'Gmail credentials not configured in .env'}), 500
+
+    try:
+        # 1. Connect to Gmail IMAP
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        mail.login(user, password)
+        mail.select("inbox")
+
+        # 2. Search for all emails
+        status, messages = mail.search(None, "ALL")
+        if status != 'OK':
+            return jsonify({'success': False, 'error': 'Failed to search messages'}), 500
+
+        # 3. Get list of IDs (latest first)
+        email_ids = messages[0].split()
+        email_ids.reverse()
+
+        latest_emails = []
+        # Fetch the 8 most recent
+        for i in range(min(8, len(email_ids))):
+            res, msg_data = mail.fetch(email_ids[i], "(RFC822)")
+            for response_part in msg_data:
+                if isinstance(response_part, tuple):
+                    msg = email.message_from_bytes(response_part[1])
+                    
+                    # Extract Sender
+                    sender_header = msg.get("From", "Unknown")
+                    decoded_sender = decode_header(sender_header)
+                    sender_list = []
+                    for s, enc in decoded_sender:
+                        if isinstance(s, bytes):
+                            sender_list.append(s.decode(enc if enc else 'utf-8', errors='ignore'))
+                        else:
+                            sender_list.append(str(s))
+                    sender = "".join(sender_list)
+                    
+                    # Extract Subject
+                    subject_header = msg.get("Subject", "(No Subject)")
+                    decoded_subject = decode_header(subject_header)
+                    subject_list = []
+                    for s, enc in decoded_subject:
+                        if isinstance(s, bytes):
+                            subject_list.append(s.decode(enc if enc else 'utf-8', errors='ignore'))
+                        else:
+                            subject_list.append(str(s))
+                    subject = "".join(subject_list)
+                    
+                    # Extract Snippet (Optimized for speed)
+                    snippet = ""
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            if part.get_content_type() == "text/plain":
+                                try:
+                                    content = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                    snippet = content[:120].replace('\n', ' ').strip() + "..."
+                                    break
+                                except: pass
+                    else:
+                        try:
+                            content = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
+                            snippet = content[:120].replace('\n', ' ').strip() + "..."
+                        except: pass
+
+                    # Determine Visual Styles
+                    initial = sender[0].upper() if sender else "G"
+                    colors = ['#4f46e5', '#10b981', '#f59e0b', '#dc2626', '#3b82f6', '#8b5cf6']
+                    color_index = sum(ord(c) for c in sender) % len(colors)
+                    
+                    latest_emails.append({
+                        'id': email_ids[i].decode(),
+                        'sender': sender,
+                        'initial': initial,
+                        'subject': subject,
+                        'snippet': snippet,
+                        'time': msg['Date'].split(',')[0] if ',' in msg['Date'] else msg['Date'],
+                        'unread': False, # IMAP requires separate flags check, assume read for preview
+                        'color': colors[color_index]
+                    })
+
+        mail.logout()
+        return jsonify({'success': True, 'emails': latest_emails})
+
+    except Exception as e:
+        print(f"❌ Gmail Fetch Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/v1/admin/emails/<email_id>', methods=['GET'])
+@admin_required
+def get_admin_email_details(email_id):
+    """Fetch full body of a specific email"""
+    user = os.getenv('GMAIL_USER')
+    password = os.getenv('GMAIL_APP_PASSWORD')
+    
+    if not user or not password:
+        return jsonify({'success': False, 'error': 'Gmail credentials not configured'}), 500
+
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        mail.login(user, password)
+        mail.select("inbox")
+
+        res, msg_data = mail.fetch(email_id.encode(), "(RFC822)")
+        if res != 'OK':
+             return jsonify({'success': False, 'error': 'Email not found'}), 404
+
+        for response_part in msg_data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_bytes(response_part[1])
+                
+                body = ""
+                content_type = "text/plain"
+                
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        ctype = part.get_content_type()
+                        if ctype == "text/html":
+                            try:
+                                body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                content_type = "text/html"
+                                break
+                            except: pass
+                        elif ctype == "text/plain" and not body:
+                            try:
+                                body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                content_type = "text/plain"
+                            except: pass
+                else:
+                    try:
+                        body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
+                        content_type = msg.get_content_type()
+                    except: pass
+
+                # Extract Headers again for confirmation
+                subject_header = decode_header(msg.get("Subject", "(No Subject)"))
+                subject = "".join([s.decode(enc if enc else 'utf-8', errors='ignore') if isinstance(s, bytes) else str(s) for s, enc in subject_header])
+                
+                from_header = decode_header(msg.get("From", "Unknown"))
+                sender = "".join([s.decode(enc if enc else 'utf-8', errors='ignore') if isinstance(s, bytes) else str(s) for s, enc in from_header])
+
+                mail.logout()
+                return jsonify({
+                    'success': True,
+                    'subject': subject,
+                    'sender': sender,
+                    'date': msg['Date'],
+                    'body': body,
+                    'content_type': content_type
+                })
+
+        return jsonify({'success': False, 'error': 'Failed to parse email'}), 500
+
+    except Exception as e:
+        print(f"❌ Gmail Detail Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

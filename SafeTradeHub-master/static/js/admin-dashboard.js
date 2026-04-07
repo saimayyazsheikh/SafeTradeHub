@@ -50,7 +50,8 @@ let adminData = {
   disputes: [],
   transactions: [],
   logistics: {},
-  recentActivity: []
+  recentActivity: [],
+  currentSearch: { users: '', products: '', disputes: '', withdrawals: '', deposits: '', verification: '', category: '' }
 };
 
 // Initialize on page load
@@ -198,7 +199,53 @@ async function loadSectionData(sectionName) {
     case 'fraud-monitor':
       await loadFraudMonitorData();
       break;
+    case 'profile':
+      await loadProfileData();
+      break;
   }
+}
+
+// Load Settings Data
+async function loadSettingsData() {
+    // Already populated in HTML, but we can sync from server/storage if needed
+    console.log('Settings section loaded');
+}
+
+// Load Profile Data
+async function loadProfileData() {
+    try {
+        showLoading('profile');
+        
+        let currentUser = null;
+        if (window.AuthManager) {
+            currentUser = window.AuthManager.getCurrentUser();
+        }
+        
+        // Fallback to localStorage if AuthManager is still initializing
+        if (!currentUser) {
+            const storedData = localStorage.getItem('userData');
+            currentUser = storedData ? JSON.parse(storedData) : null;
+        }
+
+        if (currentUser) {
+            updateElementText('adminProfileName', currentUser.name || 'Administrator');
+            updateElementText('adminProfileEmail', currentUser.email || 'admin@safetradehub.com');
+            updateElementText('adminProfileId', currentUser.uid || currentUser.id || 'ADM-001');
+            
+            if (currentUser.createdAt) {
+                updateElementText('adminProfileDate', new Date(currentUser.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }));
+            }
+        }
+
+        hideLoading('profile');
+    } catch (error) {
+        console.error('Error loading profile data:', error);
+        hideLoading('profile');
+    }
 }
 
 // Get data from localStorage using correct keys
@@ -254,6 +301,97 @@ async function loadDashboardData() {
 window.refreshDashboard = async function () {
   await loadDashboardData();
   showSuccess('Dashboard refreshed successfully');
+};
+
+// Logout Functionality
+window.logout = async function() {
+    try {
+        const confirmed = await window.showConfirmModal({
+            title: 'Logout Confirmation',
+            message: 'Are you sure you want to end your administrative session? You will need to log in again to access the dashboard.',
+            confirmText: 'Logout',
+            type: 'danger'
+        });
+
+        if (confirmed) {
+            // 1. Clear global AuthManager (Default Firebase Instance)
+            if (window.AuthManager) {
+                await window.AuthManager.signOut();
+            }
+
+            // 2. Clear AdminPanel Instance (Mandatory for dashboard persistence)
+            if (window.auth && typeof window.auth.signOut === 'function') {
+                await window.auth.signOut();
+            }
+
+            // 3. Clear storage fallback
+            localStorage.removeItem('userData');
+            localStorage.removeItem('authToken');
+            
+            // 4. Force Redirect
+            window.location.replace('admin-login.html');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        window.location.replace('admin-login.html');
+    }
+};
+
+// Custom Confirmation Modal Utility
+window.showConfirmModal = function(options = {}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmationModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        const iconContainer = document.getElementById('confirmIconContainer');
+
+        titleEl.textContent = options.title || 'Confirm Action';
+        messageEl.textContent = options.message || 'Are you sure?';
+        
+        if (options.confirmText) okBtn.textContent = options.confirmText;
+        if (options.cancelText) cancelBtn.textContent = options.cancelText;
+        
+        if (options.type === 'danger') {
+            okBtn.style.background = '#ef4444';
+            iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-exclamation-triangle"></i></div>';
+        } else {
+            okBtn.style.background = '#2563eb';
+            iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #dbeafe; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-question-circle"></i></div>';
+        }
+
+        modal.style.display = 'block';
+
+        const handleOk = () => {
+            modal.style.display = 'none';
+            cleanup();
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            modal.style.display = 'none';
+            cleanup();
+            resolve(false);
+        };
+
+        const cleanup = () => {
+            okBtn.removeEventListener('click', handleOk);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+
+        okBtn.addEventListener('click', handleOk);
+        cancelBtn.addEventListener('click', handleCancel);
+        
+        // Close on escape key
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', handleKeydown);
+                handleCancel();
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+    });
 };
 
 // Get real statistics
@@ -1882,21 +2020,38 @@ function updateTrendingProducts() {
 }
 
 // Update Users Table
-function updateUsersTable() {
+function updateUsersTable(searchTerm = null) {
   const tableBody = document.querySelector('#usersTable tbody');
   if (!tableBody) return;
 
-  if (adminData.users.length === 0) {
+  // Sync with global state if provided via direct call
+  if (searchTerm !== null) {
+    adminData.currentSearch.users = searchTerm;
+  }
+
+  const query = (adminData.currentSearch.users || "").toLowerCase().trim();
+
+  // Filter Data based on query
+  const filteredUsers = adminData.users.filter(user => {
+    const name = (user.displayName || user.name || user.fullName || user.username || "").toLowerCase();
+    const email = (user.email || "").toLowerCase();
+    const role = (user.role || "").toLowerCase();
+    const id = (user.id || "").toLowerCase();
+    
+    return name.includes(query) || email.includes(query) || role.includes(query) || id.includes(query);
+  });
+
+  if (filteredUsers.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center">No users found</td>
+        <td colspan="7" class="text-center">No users matching search found</td>
       </tr>
     `;
     return;
   }
 
-  // Sort users: Admins first
-  const sortedUsers = [...adminData.users].sort((a, b) => {
+  // Sort filtered users: Admins first
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
     const roleA = (a.role || '').toLowerCase();
     const roleB = (b.role || '').toLowerCase();
     if (roleA === 'admin' && roleB !== 'admin') return -1;
@@ -1955,7 +2110,11 @@ function updateUsersTable() {
         <button class="btn btn-sm btn-primary" onclick="viewUser('${user.id}')" title="View Details">
             <i class="fas fa-eye"></i>
         </button>
-        <button class="btn btn-sm btn-warning" onclick="openUserAlertModal('${user.id}', '${displayName.replace(/'/g, "\\'")}')" title="Send Alert">
+        <button class="btn btn-sm btn-primary user-alert-btn" 
+                data-user-id="${user.id}" 
+                data-user-name="${displayName.replace(/"/g, '&quot;').replace(/'/g, '&apos;')}" 
+                onclick="openUserAlertModal('${user.id}', this.getAttribute('data-user-name'))"
+                title="Send Alert">
             <i class="fas fa-bell"></i>
         </button>
         <button class="btn btn-sm btn-secondary" onclick="editUser('${user.id}')" title="Edit User">
@@ -2341,20 +2500,41 @@ window.closeOrderViewModal = function () {
 };
 
 // Update Products Table
-function updateProductsTable() {
+// Update Products Table
+function updateProductsTable(searchTerm = null, categoryFilter = null) {
   const tableBody = document.querySelector('#productsTable tbody');
   if (!tableBody) return;
 
-  if (adminData.products.length === 0) {
+  // Sync with global state if provided via direct call
+  if (searchTerm !== null) adminData.currentSearch.products = searchTerm;
+  if (categoryFilter !== null) adminData.currentSearch.category = categoryFilter;
+
+  const query = (adminData.currentSearch.products || "").toLowerCase().trim();
+  const cat = (adminData.currentSearch.category || "").toLowerCase().trim();
+
+  // Filter Data
+  const filteredProducts = adminData.products.filter(product => {
+    const name = (product.name || "").toLowerCase();
+    const id = (product.id || "").toLowerCase();
+    const category = (product.category || "").toLowerCase();
+    const description = (product.description || "").toLowerCase();
+
+    const matchesSearch = !query || name.includes(query) || id.includes(query) || description.includes(query);
+    const matchesCat = !cat || category === cat;
+
+    return matchesSearch && matchesCat;
+  });
+
+  if (filteredProducts.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="text-center">No products found</td>
+        <td colspan="8" class="text-center">No products found matching your criteria</td>
       </tr>
     `;
     return;
   }
 
-  tableBody.innerHTML = adminData.products.map((product, index) => {
+  tableBody.innerHTML = filteredProducts.map((product, index) => {
     // Handle Images
     let imgUrl = 'images/placeholder.jpg';
     if (Array.isArray(product.images) && product.images.length > 0) {
@@ -2740,28 +2920,73 @@ function setupEventListeners() {
       const userId = link.getAttribute('data-user-id');
       if (userId) viewUser(userId);
     }
+
   });
 }
 
 // Search and Filter Functions
 function handleSearch(e) {
-  const searchTerm = e.target.value.toLowerCase();
-  const tableId = e.target.id.replace('Search', 'Table');
-  const table = document.getElementById(tableId);
+  const searchTerm = e.target.value;
+  const id = e.target.id;
 
+  // Unified Search Routing (State-Aware)
+  if (id === 'userSearch') {
+    updateUsersTable(searchTerm);
+    return;
+  }
+
+  if (id === 'verificationSearch') {
+    if (window.updateVerificationTable) {
+      updateVerificationTable(searchTerm);
+      return;
+    }
+  }
+
+  if (id === 'productSearch') {
+    updateProductsTable(searchTerm);
+    return;
+  }
+
+  // Generic Row-Hiding Fallback
+  const query = searchTerm.toLowerCase();
+  const tableId = id.replace('Search', 'Table');
+  
+  // Map IDs to specific table elements if they have irregular names
+  const tableMapping = { 
+    'userTable': 'usersTable', 
+    'productTable': 'productsTable', 
+    'transactionTable': 'transactionsTable' 
+  };
+  
+  const targetId = tableMapping[tableId] || tableId;
+  const table = document.getElementById(targetId);
+  
   if (!table) return;
 
   const rows = table.querySelectorAll('tbody tr');
   rows.forEach(row => {
     const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(searchTerm) ? '' : 'none';
+    row.style.display = text.includes(query) ? '' : 'none';
   });
 }
 
 function handleFilter(e) {
   const filterValue = e.target.value;
-  const tableId = e.target.id.replace('Filter', 'Table');
-  const table = document.getElementById(tableId);
+  const id = e.target.id;
+
+  if (id === 'categoryFilter') {
+    updateProductsTable(null, filterValue);
+    return;
+  }
+
+  const tableId = id.replace('Filter', 'Table');
+  const targetId = { 
+    'userTable': 'usersTable', 
+    'productTable': 'productsTable', 
+    'transactionTable': 'transactionsTable' 
+  }[tableId] || tableId;
+  
+  const table = document.getElementById(targetId);
 
   if (!table) return;
 
@@ -2860,7 +3085,115 @@ async function rejectVerification(userId) {
 }
 
 // Placeholder functions for other actions
-function viewUser(userId) { alert(`View user: ${userId}`); }
+window.viewUser = async function(userId) {
+  let user = adminData.users.find(u => u.id === userId);
+  
+  if (!user) {
+    try {
+      showLoading('users');
+      const snap = await db.ref('users/' + userId).once('value');
+      if (snap.exists()) {
+        user = { id: snap.key, ...snap.val() };
+      } else {
+        showSuccess('User record not found in system.');
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+      return;
+    } finally {
+      hideLoading('users');
+    }
+  }
+
+  const modal = document.getElementById('userDetailModal');
+  if (!modal) return;
+  
+  // Populate Fields
+  document.getElementById('uDetName').innerText = user.fullName || user.displayName || user.name || 'Unknown User';
+  document.getElementById('uDetEmail').innerText = user.email || 'No email provided';
+  document.getElementById('uDetId').innerText = user.id;
+  document.getElementById('uDetPhone').innerText = user.phone || 'N/A';
+  
+  const role = user.role || 'User';
+  const roleEl = document.getElementById('uDetRole');
+  if (roleEl) {
+    roleEl.innerText = role;
+    roleEl.className = `badge ${role === 'Admin' ? 'badge-danger' : (role === 'Staff' ? 'badge-info' : 'badge-success')}`;
+  }
+  
+  document.getElementById('uDetJoined').innerText = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A';
+  document.getElementById('uDetAddress').innerText = user.address || (user.verification?.shop?.address) || 'No verified address on file.';
+  
+  const avatarImg = document.getElementById('uDetAvatar');
+  if (avatarImg) {
+    const displayName = user.fullName || user.displayName || user.name || 'User';
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=128`;
+    avatarImg.src = user.profileImage || user.photoURL || fallbackAvatar;
+  }
+
+  // KYC Evidence Logic
+  const kycGrid = document.getElementById('uDetKycGrid');
+  const v = user.verification || {};
+  let kycHtml = '';
+
+  if (v.cnic) {
+    if (v.cnic.frontUrl) kycHtml += `
+      <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; text-align: center;">
+        <p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 8px;">CNIC FRONT</p>
+        <a href="${v.cnic.frontUrl}" target="_blank"><img src="${v.cnic.frontUrl}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;"></a>
+      </div>`;
+    if (v.cnic.backUrl) kycHtml += `
+      <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; text-align: center;">
+        <p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 8px;">CNIC BACK</p>
+        <a href="${v.cnic.backUrl}" target="_blank"><img src="${v.cnic.backUrl}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;"></a>
+      </div>`;
+  }
+
+  if (v.selfie?.url) kycHtml += `
+      <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; text-align: center;">
+        <p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 8px;">LIVE SELFIE</p>
+        <a href="${v.selfie.url}" target="_blank"><img src="${v.selfie.url}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;"></a>
+      </div>`;
+
+  if (v.shop?.documentUrl) kycHtml += `
+      <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; text-align: center;">
+        <p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 8px;">SHOP DOC</p>
+        <a href="${v.shop.documentUrl}" target="_blank"><img src="${v.shop.documentUrl}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;"></a>
+      </div>`;
+
+  if (kycGrid) kycGrid.innerHTML = kycHtml || '<p style="grid-column: 1/-1; color: #94a3b8; font-size: 13px;">No KYC intelligence assets submitted yet.</p>';
+
+  // Audit Pulse Stats
+  const pulse = document.getElementById('uDetPulse');
+  if (pulse) {
+    let statusColor = '#94a3b8';
+    let statusText = 'UNVERIFIED';
+    
+    if (v.cnic?.verified || v.shop?.verified) { statusColor = '#10b981'; statusText = 'OFFICIALLY VERIFIED'; }
+    else if (v.cnic?.submitted || v.shop?.submitted) { statusColor = '#f59e0b'; statusText = 'PENDING REVIEW'; }
+
+    pulse.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+         <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 10px ${statusColor};"></div>
+         <span style="font-size: 11px; font-weight: 900; color: ${statusColor}; letter-spacing: 0.05em;">${statusText}</span>
+      </div>
+      <div style="margin-top: 10px;">
+         <span style="display: block; font-size: 10px; color: #94a3b8;">Trust Score</span>
+         <div style="height: 4px; background: #f1f5f9; border-radius: 2px; margin-top: 4px;">
+            <div style="width: ${statusText === 'OFFICIALLY VERIFIED' ? '100%' : '30%'}; height: 100%; background: ${statusColor}; border-radius: 2px;"></div>
+         </div>
+      </div>
+    `;
+  }
+
+  modal.style.display = 'block';
+};
+
+window.closeUserDetailModal = function() {
+  const modal = document.getElementById('userDetailModal');
+  if (modal) modal.style.display = 'none';
+};
 function viewOrderDetails(orderId) {
     window.open(`orderstatus.html?orderId=${orderId}`, '_blank');
 }
@@ -3129,6 +3462,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+
 });
 
 
@@ -3622,6 +3957,7 @@ window.exportWalletData = async function () {
 // NOTIFICATION BROADCAST SYSTEM
 // ========================================
 
+
 window.openBroadcastModal = function() {
     document.getElementById('broadcastModal').style.display = 'block';
     document.getElementById('broadcastProgress').style.display = 'none';
@@ -3631,50 +3967,7 @@ window.closeBroadcastModal = function() {
     document.getElementById('broadcastModal').style.display = 'none';
 };
 
-window.sendUserAlert = async function() {
-      const uid = document.getElementById('alertTargetId').value;
-      const type = document.getElementById('userAlertType').value;
-      const title = document.getElementById('userAlertTitle').value.trim();
-      const message = document.getElementById('userAlertMessage').value.trim();
 
-      if (!title || !message) {
-          showError('Please provide both a title and message');
-          return;
-      }
-
-      try {
-          const auditorUid = firebase.auth().currentUser.uid;
-          
-          if (uid !== auditorUid) {
-              await db.ref(`users/${uid}/notifications`).push({
-                  title: title,
-                  message: message,
-                  type: type,
-                  timestamp: firebase.database.ServerValue.TIMESTAMP,
-                  read: false,
-                  adminAlert: true
-              });
-          }
-
-          // Always log to Global Trail
-          const auditorSnap = await db.ref('users/' + auditorUid).once('value');
-          const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
-
-          await db.ref('global_notifications/admin_alerts').push({
-              title: `Direct Alert Sent: ${title}`,
-              message: `Admin ${auditorName} sent a direct alert to user ${uid.substring(0,8)}...: ${message}`,
-              timestamp: firebase.database.ServerValue.TIMESTAMP,
-              userId: uid,
-              type: type
-          });
-
-          showSuccess('Alert sent and logged');
-          closeUserAlertModal();
-      } catch (e) {
-          console.error(e);
-          showError('Failed to send alert');
-      }
-  };
 
 window.sendBroadcast = async function() {
     const target = document.getElementById('broadcastTarget').value;
@@ -3767,49 +4060,9 @@ window.sendBroadcast = async function() {
     }
 };
 
-window.openUserAlertModal = function(userId, userName) {
-    document.getElementById('alertTargetId').value = userId;
-    document.getElementById('alertTargetName').textContent = userName;
-    document.getElementById('userAlertModal').style.display = 'block';
-};
 
-window.closeUserAlertModal = function() {
-    document.getElementById('userAlertModal').style.display = 'none';
-};
 
-window.sendUserAlert = async function() {
-    const uid = document.getElementById('alertTargetId').value;
-    const type = document.getElementById('userAlertType').value;
-    const title = document.getElementById('userAlertTitle').value.trim();
-    const message = document.getElementById('userAlertMessage').value.trim();
 
-    if (!title || !message) {
-        showError('Please provide both a title and message');
-        return;
-    }
-
-    try {
-        await db.ref(`users/${uid}/notifications`).push({
-            title: title,
-            message: message,
-            type: type,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            read: false,
-            adminAlert: true
-        });
-        showSuccess('Alert sent to user');
-        closeUserAlertModal();
-    } catch (e) {
-        showError('Failed to send alert: ' + e.message);
-    }
-};
-
-// Initialize Verification Search
-document.addEventListener('input', (e) => {
-  if (e.target.id === 'verificationSearch') {
-    updateVerificationTable(e.target.value);
-  }
-});
 
 // ========================================
 // FRAUD MONITOR MODULE
@@ -4056,3 +4309,102 @@ async function moderateAction(actionType, targetId, reportId, btnElement) {
     btnElement.innerHTML = originalText;
   }
 }
+
+/**
+ * Account Security & Password Management
+ */
+
+// Global toggle for password visibility in dashboard forms
+window.toggleDashboardPassword = function(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    const icon = input.parentElement.querySelector('.password-toggle i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+};
+
+// Core logic for updating the administrator password
+window.updateAdminPassword = async function() {
+    const currentPassEl = document.getElementById('currentPassword');
+    const newPassEl = document.getElementById('newPassword');
+    const confirmPassEl = document.getElementById('confirmPassword');
+    
+    const currentPassword = currentPassEl.value;
+    const newPassword = newPassEl.value;
+    const confirmPassword = confirmPassEl.value;
+    
+    // 1. Basic Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        showError('Please fill in all password fields.');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showError('New passwords do not match. Please try again.');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showError('New password must be at least 6 characters long.');
+        return;
+    }
+
+    const btn = document.querySelector('#passwordChangeForm .btn-primary');
+    const originalContent = btn.innerHTML;
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        
+        // Ensure we are using the AdminPanel auth instance
+        const user = window.auth.currentUser;
+        if (!user) {
+            throw new Error('Session inactive. Please log in again.');
+        }
+
+        // 2. Re-authenticate user (Security Requirement for sensitive data changes)
+        // We use the EmailAuthProvider from the global firebase object
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+        
+        try {
+            await user.reauthenticateWithCredential(credential);
+        } catch (authError) {
+            if (authError.code === 'auth/wrong-password') {
+                throw new Error('The current password you entered is incorrect.');
+            }
+            throw authError;
+        }
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+        // 3. Perform Password Update
+        await user.updatePassword(newPassword);
+        
+        // 4. Success UI & Cleanup
+        showSuccess('Password updated successfully! Redirecting to login...');
+        
+        currentPassEl.value = '';
+        newPassEl.value = '';
+        confirmPassEl.value = '';
+        
+        // 5. Force logout for security after password change
+        setTimeout(() => {
+            window.logout();
+        }, 2500);
+        
+    } catch (error) {
+        console.error('❌ Password update failure:', error);
+        showError(error.message || 'Failed to update password. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
+};
