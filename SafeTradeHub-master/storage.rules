@@ -1,0 +1,67 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated(); 
+    }
+
+    // Profile Images
+    match /users/{userId}/profile/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isOwner(userId) 
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Product Images
+    match /products/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isOwner(userId)
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
+    // KYC Documents
+    match /kyc/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Dispute Evidence
+    match /disputes/{userId}/{fileName} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Chat Images
+    match /chat-images/{chatId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated()
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Deposits - SIMPLIFIED
+    // Changed {fileName} to {allPaths=**} to match any file structure
+    // Removed size/type checks temporarily to debug
+    match /deposits/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

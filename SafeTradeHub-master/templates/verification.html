@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Status - SafeTradeHub</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="/static/js/firebase-config.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i> SafeTradeHub
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="orders.html" class="nav-item">
+                <i class="fas fa-box"></i> Orders
+            </a>
+            <a href="product-management.html" class="nav-item" id="navProducts" style="display: none;">
+                <i class="fas fa-tags"></i> Products
+            </a>
+            <a href="verification.html" class="nav-item active">
+                <i class="fas fa-check-circle"></i> Verification
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <i class="fas fa-wallet"></i> Wallet
+            </a>
+            <a href="messages.html" class="nav-item">
+                <i class="fas fa-envelope"></i> Messages
+            </a>
+            <a href="profile.html" class="nav-item">
+                <i class="fas fa-user"></i> Profile
+            </a>
+            <a href="settings.html" class="nav-item">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-mini-profile">
+                <img src="/static/images/avatar-placeholder.png" alt="User" class="user-avatar-small" id="userAvatar">
+                <div class="user-info-mini">
+                    <h4 id="userName">Loading...</h4>
+                    <span id="userRole">...</span>
+                </div>
+            </div>
+            <a href="#" onclick="logout()" class="nav-item" style="color: var(--danger);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <script>
+        // Immediate check to prevent flicker
+        (function () {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    if (user.role === 'Seller') {
+                        const navProducts = document.getElementById('navProducts');
+                        if (navProducts) navProducts.style.display = 'flex';
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data for sidebar:', e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div class="page-title">
+                <h1>Verification Status</h1>
+                <p>View your account verification progress and documents</p>
+            </div>
+            <a href="verify.html" class="action-btn"
+                style="padding: 0.75rem 1.5rem; flex-direction: row; gap: 0.5rem; background: var(--primary-color); color: white; border: none;">
+                <i class="fas fa-arrow-right" style="color: white; font-size: 1rem; margin: 0;"></i>
+                <span>Go to Verification Page</span>
+            </a>
+        </div>
+
+        <div class="content-grid" style="grid-template-columns: 1fr;">
+
+            <!-- Overall Status Card -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3>Current Status</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div id="overallStatusBadge" class="status-badge pending"
+                            style="font-size: 1.2rem; padding: 0.5rem 1.5rem;">Loading...</div>
+                        <p id="overallStatusText" style="color: var(--text-secondary); margin: 0;">Checking verification
+                            status...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Details Grid -->
+            <div class="stats-grid"
+                style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 0;">
+
+                <!-- Email & Phone -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Contact Verification</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <strong>Email</strong>
+                                <span id="emailStatusBadge" class="status-badge pending">Pending</span>
+                            </div>
+                            <p id="emailValue" style="color: var(--text-secondary); margin: 0;">...</p>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <strong>Phone</strong>
+                                <span id="phoneStatusBadge" class="status-badge pending">Pending</span>
+                            </div>
+                            <p id="phoneValue" style="color: var(--text-secondary); margin: 0;">...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Identity Documents -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Identity Documents</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                            <strong>Status</strong>
+                            <span id="identityStatusBadge" class="status-badge pending">Pending</span>
+                        </div>
+                        <div id="identityDocsContainer"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px;">
+                            <!-- Images will be injected here -->
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">No documents uploaded.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Documents (Seller Only) -->
+                <div class="dashboard-card" id="businessCard" style="display: none;">
+                    <div class="card-header">
+                        <h3>Business Documents</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                            <strong>Status</strong>
+                            <span id="businessStatusBadge" class="status-badge pending">Pending</span>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="margin: 0;"><strong>Name:</strong> <span id="businessName">-</span></p>
+                            <p style="margin: 5px 0 0;"><strong>Type:</strong> <span id="businessType">-</span></p>
+                        </div>
+                        <div id="businessDocsContainer"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px;">
+                            <!-- Images will be injected here -->
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">No documents uploaded.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const auth = firebase.auth();
+            const db = firebase.database();
+
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = 'auth.html?mode=signin';
+                    return;
+                }
+
+                // Load User Data
+                const userSnap = await db.ref('users/' + user.uid).once('value');
+                const userData = userSnap.val();
+
+                updateUserProfile(userData);
+
+                // Show Products link if seller
+                if (userData.role === 'Seller') {
+                    document.getElementById('navProducts').style.display = 'flex';
+                    document.getElementById('businessCard').style.display = 'block';
+                }
+
+                loadVerificationStatus(user.uid, userData);
+            });
+        });
+
+        function updateUserProfile(user) {
+            document.getElementById('userName').textContent = user.displayName || user.fullName || 'User';
+            document.getElementById('userRole').textContent = user.role || 'Buyer';
+            const avatar = document.getElementById('userAvatar');
+            if (user.profilePic || user.profile?.avatar) {
+                avatar.src = user.profilePic || user.profile?.avatar;
+            } else {
+                avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=random`;
+            }
+        }
+
+        async function loadVerificationStatus(uid, userData) {
+            const db = firebase.database();
+
+            const verifySnap = await db.ref('users/' + uid + '/verification').once('value');
+            const verification = verifySnap.val() || {};
+
+            // 1. Email Status
+            // Check both Firebase Auth and RTDB
+            const isEmailVerified = firebase.auth().currentUser.emailVerified || verification.email === true || verification.email?.verified === true;
+            updateBadge('emailStatusBadge', isEmailVerified);
+            document.getElementById('emailValue').textContent = firebase.auth().currentUser.email;
+
+            // Phone
+            // verification.phone is usually a boolean true/false in RTDB
+            const isPhoneVerified = verification.phone === true || verification.phone?.verified === true;
+            updateBadge('phoneStatusBadge', isPhoneVerified);
+            document.getElementById('phoneValue').textContent = userData.phone || 'Not provided';
+
+            // Identity
+            const cnicStatus = verification.cnic?.verified ? 'verified' : (verification.cnic?.submitted ? 'pending' : 'pending');
+            // If cnicStatus is 'pending' but not submitted, it's actually unverified/not started
+            const isCnicSubmitted = verification.cnic?.submitted;
+            const isCnicVerified = verification.cnic?.verified;
+
+            updateBadge('identityStatusBadge', isCnicVerified, isCnicSubmitted && !isCnicVerified);
+
+            const identityContainer = document.getElementById('identityDocsContainer');
+            if (verification.cnic?.frontUrl || verification.cnic?.backUrl || verification.selfie?.url) {
+                identityContainer.innerHTML = '';
+                if (verification.cnic?.frontUrl) appendImage(identityContainer, verification.cnic.frontUrl, 'CNIC Front');
+                if (verification.cnic?.backUrl) appendImage(identityContainer, verification.cnic.backUrl, 'CNIC Back');
+                if (verification.selfie?.url) appendImage(identityContainer, verification.selfie.url, 'Selfie');
+            } else {
+                identityContainer.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">No documents uploaded.</p>';
+            }
+
+            // Business (if seller)
+            if (userData.role === 'Seller') {
+                const shopStatus = verification.shop?.verified ? 'verified' : (verification.shop?.submitted ? 'pending' : 'pending');
+                const isShopSubmitted = verification.shop?.submitted;
+                const isShopVerified = verification.shop?.verified;
+
+                updateBadge('businessStatusBadge', isShopVerified, isShopSubmitted && !isShopVerified);
+
+                document.getElementById('businessName').textContent = verification.shop?.name || '-';
+                document.getElementById('businessType').textContent = verification.shop?.businessType || '-';
+
+                const businessContainer = document.getElementById('businessDocsContainer');
+                if (verification.shop?.photoUrls || verification.shop?.docUrls) {
+                    businessContainer.innerHTML = '';
+                    if (verification.shop?.photoUrls) verification.shop.photoUrls.forEach((url, i) => appendImage(businessContainer, url, `Photo ${i + 1}`));
+                    if (verification.shop?.docUrls) verification.shop.docUrls.forEach((url, i) => appendImage(businessContainer, url, `Doc ${i + 1}`));
+                } else {
+                    businessContainer.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">No documents uploaded.</p>';
+                }
+            }
+
+            // Overall Status
+            let allVerified = isEmailVerified && isPhoneVerified && verification.cnic?.verified;
+            if (userData.role === 'Seller') {
+                allVerified = allVerified && verification.shop?.verified;
+            }
+
+            const overallBadge = document.getElementById('overallStatusBadge');
+            const overallText = document.getElementById('overallStatusText');
+
+            if (allVerified) {
+                overallBadge.textContent = 'Verified';
+                overallBadge.className = 'status-badge completed';
+                overallText.textContent = 'Your account is fully verified.';
+            } else {
+                // Check if submitted but pending
+                const isPending = (verification.cnic?.submitted && !verification.cnic?.verified) ||
+                    (userData.role === 'Seller' && verification.shop?.submitted && !verification.shop?.verified);
+
+                if (isPending) {
+                    overallBadge.textContent = 'In Review';
+                    overallBadge.className = 'status-badge pending';
+                    overallBadge.style.background = '#fef3c7';
+                    overallBadge.style.color = '#d97706';
+                    overallText.textContent = 'Your documents are currently under review.';
+                } else {
+                    overallBadge.textContent = 'Unverified';
+                    overallBadge.className = 'status-badge cancelled';
+                    overallText.textContent = 'Please complete the verification process.';
+                }
+            }
+        }
+
+        function updateBadge(elementId, isVerified, isPending = false) {
+            const el = document.getElementById(elementId);
+            if (isVerified) {
+                el.textContent = 'Verified';
+                el.className = 'status-badge completed';
+            } else if (isPending) {
+                el.textContent = 'Pending';
+                el.className = 'status-badge pending';
+            } else {
+                el.textContent = 'Unverified';
+                el.className = 'status-badge cancelled';
+            }
+        }
+
+        function appendImage(container, url, label) {
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.innerHTML = `
+            <a href="${url}" target="_blank">
+                <img src="${url}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+            </a>
+            <div style="font-size: 10px; color: #666; margin-top: 4px;">${label}</div>
+        `;
+            container.appendChild(div);
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => window.location.href = 'index.html');
+        }
+    </script>
+</body>
+
+</html>

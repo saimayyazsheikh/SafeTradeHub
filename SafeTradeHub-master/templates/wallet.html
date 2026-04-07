@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallet - SafeTradeHub</title>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="stylesheet" href="/static/css/wallet.css">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+  <!-- Firebase Configuration -->
+  <!-- Success Modal -->
+  <div id="successModal" class="modal">
+    <div class="modal-content success-content">
+      <div class="success-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3>Payment Submitted!</h3>
+      <p>Your deposit request has been submitted successfully.</p>
+      <p class="success-subtext">We will verify your payment and update your wallet balance shortly.</p>
+      <button class="btn-primary btn-full" onclick="closeSuccessModal()">Got it</button>
+    </div>
+  </div>
+
+  <script src="/static/js/firebase-config.js"></script>
+</head>
+
+<body>
+
+  <!-- Sidebar -->
+  <aside class="dashboard-sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-shield-alt"></i> SafeTradeHub
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a href="orders.html" class="nav-item">
+        <i class="fas fa-box"></i> Orders
+      </a>
+      <a href="product-management.html" class="nav-item" id="navProducts" style="display: none;">
+        <i class="fas fa-tags"></i> Products
+      </a>
+      <a href="verification.html" class="nav-item">
+        <i class="fas fa-check-circle"></i> Verification
+      </a>
+      <a href="wallet.html" class="nav-item active">
+        <i class="fas fa-wallet"></i> Wallet
+      </a>
+      <a href="messages.html" class="nav-item">
+        <i class="fas fa-envelope"></i> Messages
+      </a>
+      <a href="profile.html" class="nav-item">
+        <i class="fas fa-user"></i> Profile
+      </a>
+      <a href="settings.html" class="nav-item">
+        <i class="fas fa-cog"></i> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-mini-profile">
+        <img src="/static/images/avatar-placeholder.png" alt="User" class="user-avatar-small" id="userAvatar">
+        <div class="user-info-mini">
+          <h4 id="userName">Loading...</h4>
+          <span id="userRole">...</span>
+        </div>
+      </div>
+      <a href="#" onclick="logout()" class="nav-item" style="color: var(--danger);">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </aside>
+
+  <script>
+    // Immediate check to prevent flicker
+    (function () {
+      const userData = localStorage.getItem('userData');
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          if (user.role === 'Seller') {
+            const navProducts = document.getElementById('navProducts');
+            if (navProducts) navProducts.style.display = 'flex';
+          }
+        } catch (e) {
+          console.error('Error parsing user data for sidebar:', e);
+        }
+      }
+    })();
+  </script>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="dashboard-topbar">
+      <div class="page-title">
+        <h1>Token Wallet</h1>
+        <p>Manage your tokens, add funds, and track transactions</p>
+      </div>
+      <button class="action-btn" onclick="openDepositModal()"
+        style="flex-direction: row; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--primary-color); color: white; border: none;">
+        <i class="fas fa-plus" style="color: white; font-size: 1rem; margin: 0;"></i>
+        <span>Add Tokens</span>
+      </button>
+    </div>
+
+    <div class="content-grid" style="grid-template-columns: 1fr;">
+
+      <!-- Wallet Stats -->
+      <div class="stats-grid">
+        <!-- Available Balance -->
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="walletBalance">RS 0.00</h3>
+            <p>Available Balance</p>
+          </div>
+        </div>
+
+        <!-- Total Deposited -->
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <i class="fas fa-arrow-down"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="totalDeposited">RS 0.00</h3>
+            <p>Total Deposited</p>
+          </div>
+        </div>
+
+        <!-- Total Spent -->
+        <div class="stat-card">
+          <div class="stat-icon orange">
+            <i class="fas fa-arrow-up"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="totalSpent">RS 0.00</h3>
+            <p>Total Spent</p>
+          </div>
+        </div>
+
+        <!-- In Escrow -->
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="escrowHeld">RS 0.00</h3>
+            <p>In Escrow</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions & History -->
+      <div class="content-grid" style="grid-template-columns: 1fr 300px; gap: 1.5rem;">
+
+        <!-- Transaction History -->
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h3>Transaction History</h3>
+            <div style="display: flex; gap: 10px;">
+              <select id="transactionTypeFilter" style="padding: 6px; border-radius: 6px; border: 1px solid #ddd;">
+                <option value="all">All</option>
+                <option value="deposit">Deposits</option>
+                <option value="escrow_hold">Escrow Holds</option>
+                <option value="escrow_release">Escrow Releases</option>
+                <option value="refund">Refunds</option>
+              </select>
+              <button class="btn-icon view" onclick="applyFilters()" title="Filter">
+                <i class="fas fa-filter"></i>
+              </button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsList">
+                  <!-- Dynamic content -->
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination-container" style="padding: 1rem; display: flex; justify-content: center;">
+              <div class="pagination" id="transactionPagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Side Panel -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3>Quick Actions</h3>
+            </div>
+            <div class="card-body">
+              <div style="display: grid; gap: 1rem;">
+                <button class="action-btn" onclick="openDepositModal()"
+                  style="width: 100%; text-align: left; align-items: flex-start;">
+                  <i class="fas fa-credit-card"></i>
+                  <span>Add Tokens</span>
+                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Deposit funds instantly</small>
+                </button>
+                <button class="action-btn" onclick="viewEscrowTransactions()"
+                  style="width: 100%; text-align: left; align-items: flex-start;">
+                  <i class="fas fa-shield-alt"></i>
+                  <span>Escrow History</span>
+                  <small style="color: var(--text-secondary); font-size: 0.8rem;">View secure transactions</small>
+                </button>
+                <button class="action-btn" onclick="downloadStatement()"
+                  style="width: 100%; text-align: left; align-items: flex-start;">
+                  <i class="fas fa-download"></i>
+                  <span>Statement</span>
+                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Download PDF report</small>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Deposit Modal -->
+  <div id="depositModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Tokens to Wallet</h3>
+        <button class="modal-close" onclick="closeDepositModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <form id="depositForm" onsubmit="return false;">
+          <div class="form-group">
+            <label for="depositAmount">Amount (RS)</label>
+            <input type="number" id="depositAmount" min="1" step="1" required placeholder="Enter amount">
+            <div class="amount-suggestions">
+              <button type="button" class="amount-btn" onclick="setAmount(500)">RS 500</button>
+              <button type="button" class="amount-btn" onclick="setAmount(1000)">RS 1000</button>
+              <button type="button" class="amount-btn" onclick="setAmount(5000)">RS 5000</button>
+              <button type="button" class="amount-btn" onclick="setAmount(10000)">RS 10000</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Select Payment Method</label>
+            <div class="payment-methods">
+              <!-- Easypaisa -->
+              <label class="payment-method" onclick="showPaymentDetails('easypaisa')">
+                <input type="radio" name="paymentMethod" value="easypaisa" required>
+                <div class="method-content">
+                  <img src="/static/images/easypaisa.png" alt="Easypaisa" class="method-img method-img-easypaisa">
+                  <small>Mobile Wallet</small>
+                </div>
+              </label>
+
+              <!-- Jazzcash -->
+              <label class="payment-method" onclick="showPaymentDetails('jazzcash')">
+                <input type="radio" name="paymentMethod" value="jazzcash">
+                <div class="method-content">
+                  <img src="/static/images/jazzcash.png" alt="JazzCash" class="method-img">
+                  <small>Mobile Wallet</small>
+                </div>
+              </label>
+
+              <!-- Meezan Bank -->
+              <label class="payment-method" onclick="showPaymentDetails('meezan')">
+                <input type="radio" name="paymentMethod" value="meezan">
+                <div class="method-content">
+                  <img src="/static/images/meezan.png" alt="Meezan Bank" class="method-img method-img-meezan">
+                  <small>Bank Transfer</small>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Account Details Section (Hidden by default) -->
+          <div id="accountDetailsSection" class="account-details-box"
+            style="display: none; background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #e9ecef;">
+            <h4 style="margin-top: 0; color: var(--text-primary); font-size: 0.95rem;">Payment Details</h4>
+            <div id="accountInfo" style="font-size: 0.9rem; color: var(--text-secondary);">
+              <!-- Dynamic Content -->
+            </div>
+            <div class="copy-action" style="margin-top: 0.5rem; text-align: right;">
+              <button type="button" class="btn-sm btn-outline" onclick="copyAccountDetails()">
+                <i class="fas fa-copy"></i> Copy Details
+              </button>
+            </div>
+          </div>
+
+          <!-- Screenshot Upload -->
+          <div class="form-group">
+            <label for="paymentScreenshot">Upload Payment Screenshot</label>
+            <div class="file-upload-wrapper"
+              style="border: 2px dashed #ddd; padding: 1.5rem; text-align: center; border-radius: 8px; cursor: pointer;"
+              onclick="document.getElementById('paymentScreenshot').click()">
+              <input type="file" id="paymentScreenshot" accept="image/*" style="display: none;"
+                onchange="previewScreenshot(this)" required>
+              <div id="uploadPlaceholder">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #aaa; margin-bottom: 0.5rem;"></i>
+                <p style="margin: 0; color: #666;">Click to upload screenshot</p>
+                <small style="color: #999;">JPG, PNG (Max 5MB)</small>
+              </div>
+              <img id="screenshotPreview" src="" alt="Preview"
+                style="max-width: 100%; max-height: 200px; display: none; margin-top: 1rem; border-radius: 4px;">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="agreeTerms" required>
+              <span>I confirm that I have sent the payment to the above account.</span>
+            </label>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
+        <button class="btn btn-primary" id="proceedDepositBtn" onclick="processDeposit()">
+          <i class="fas fa-check"></i> Submit Payment
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Processing your request...</p>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script>
+    // Sidebar User Profile Logic (Inline for simplicity, or move to common JS)
+    document.addEventListener('DOMContentLoaded', () => {
+      const auth = firebase.auth();
+      const db = firebase.database();
+
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          window.location.href = 'auth.html?mode=signin';
+          return;
+        }
+
+        // Load User Data for Sidebar
+        const userSnap = await db.ref('users/' + user.uid).once('value');
+        const userData = userSnap.val();
+
+        document.getElementById('userName').textContent = userData.displayName || userData.fullName || 'User';
+        document.getElementById('userRole').textContent = userData.role || 'Buyer';
+
+        const avatar = document.getElementById('userAvatar');
+        if (userData.profilePic || userData.profile?.avatar) {
+          avatar.src = userData.profilePic || userData.profile?.avatar;
+        } else {
+          avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.displayName || 'User')}&background=random`;
+        }
+
+        if (userData.role === 'Seller') {
+          document.getElementById('navProducts').style.display = 'flex';
+        }
+      });
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => window.location.href = 'index.html');
+    }
+  </script>
+  <script src="/static/js/wallet.js"></script>
+</body>
+
+</html>

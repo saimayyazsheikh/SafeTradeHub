@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Home</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=1.3" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+      <nav class="header-actions" aria-label="Top actions">
+        <!-- Chatbot Container (Hidden by Default) -->
+        <div id="chatbot-container" class="chatbot-container">
+          <!-- Chatbot UI will be injected here by js/chatbot.js -->
+        </div>
+
+        <!-- FAQ Button -->
+        <button class="faq-btn" onclick="toggleChat()">
+          <span class="faq-icon">?</span>
+          <span class="faq-text">FAQ's</span>
+        </button>
+
+        <!-- Navigation will be updated by HeaderManager -->
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero / Search -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <h1>Find Your Best Product</h1>
+
+      <!-- Search & Filter Module -->
+      <div class="search-filter-container">
+        <!-- Search Bar -->
+        <div class="search-bar-wrapper">
+          <input type="text" id="searchInput" placeholder="Search for products, services, and more..."
+            aria-label="Search products">
+          <button id="searchBtn" class="search-icon-btn" aria-label="Search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filters Row -->
+        <div class="filters-row">
+          <select id="categoryFilter" class="filter-select" aria-label="Filter by category">
+            <option value="">All Categories</option>
+            <option value="Mobile">Mobile</option>
+            <option value="Electronics">Electronics</option>
+            <option value="Services">Services</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Fashion">Fashion</option>
+            <option value="Beauty">Beauty</option>
+            <option value="Book">Book</option>
+            <option value="Sports">Sports</option>
+            <option value="Gym">Gym</option>
+            <option value="Animal & Pets">Animal & Pets</option>
+            <option value="Computers">Computers</option>
+            <option value="Home">Home</option>
+          </select>
+
+          <input type="text" id="locationFilter" placeholder="Location (e.g., Karachi)" class="filter-input"
+            aria-label="Filter by location">
+
+          <select id="sortFilter" class="filter-select" aria-label="Sort results">
+            <option value="recent">Recent Listings</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="rating">Highest Rating</option>
+          </select>
+
+          <button id="applyFilters" class="btn primary filter-apply-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" style="width: 18px; height: 18px;">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Search
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="section">
+    <div class="container">
+      <ul class="categories" aria-label="Browse categories">
+        <!-- Row 1 -->
+        <li class="cat">
+          <span class="cat-icon" aria-hidden="true">
+            <img src="/static/images/mobile.avif" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Mobile</span>
+          <span class="cat-sub">Mobile</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/camera.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Camera</span>
+          <span class="cat-sub">Electronics</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/service.png" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Service</span>
+          <span class="cat-sub">Services</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/chair.webp" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Chair</span>
+          <span class="cat-sub">Furniture</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/dress.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Dress</span>
+          <span class="cat-sub">Fashion</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/makeup.jpeg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Makeup</span>
+          <span class="cat-sub">Beauty</span>
+        </li>
+        <!-- Row 2 -->
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/book.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Book</span>
+          <span class="cat-sub">Book</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/bat.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Bat</span>
+          <span class="cat-sub">Sports</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/dumbell.webp" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Dumbbell</span>
+          <span class="cat-sub">Gym</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/pet.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Pet Care</span>
+          <span class="cat-sub">Animal & Pets</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/laptop.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Laptop</span>
+          <span class="cat-sub">Computers</span>
+        </li>
+        <li class="cat">
+          <span class="cat-icon">
+            <img src="/static/images/homeappliances.jpg" alt="" loading="lazy" />
+          </span>
+          <span class="cat-title">Appliance</span>
+          <span class="cat-sub">Home</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Recommended -->
+  <section class="section">
+    <div class="container recs-header">
+      <h2>Recommended Products &amp; Services</h2>
+      <div class="recs-ctrl">
+        <button class="icon-btn arrow" id="recsNext" aria-label="View more">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 4l8 8-8 8" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="recs" id="recs">
+        <div class="loading-skeleton" style="height: 300px; border-radius: 20px;"></div>
+        <div class="loading-skeleton" style="height: 300px; border-radius: 20px;"></div>
+        <div class="loading-skeleton" style="height: 300px; border-radius: 20px;"></div>
+        <div class="loading-skeleton" style="height: 300px; border-radius: 20px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trade Pro Features -->
+  <section class="section">
+    <div class="container">
+      <div class="features">
+        <h3>Trade Pro : Subscribe To Pro</h3>
+        <ul>
+          <li>Escrow Payments</li>
+          <li>Fast Delivery</li>
+          <li>Verified Badge</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose Us -->
+  <section class="section">
+    <div class="container">
+      <h2 class="center">WHY CHOOSE US</h2>
+      <div class="why">
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="/static/images/securepayment.png" alt="Safe Payments">
+          </div>
+          <p class="why-text">Secure Payments</p>
+        </div>
+
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="/static/images/24-7services.avif" alt="24/7 Service">
+          </div>
+          <p class="why-text">24-7 Service</p>
+        </div>
+
+        <div class="why-item">
+          <div class="why-logo">
+            <img src="/static/images/trustedseller.png" alt="Trusted Sellers">
+          </div>
+          <p class="why-text">Trusted Sellers</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>All Rights Reserved By Safe Trade Hub</p>
+    </div>
+  </footer>
+
+
+  <!-- External JavaScript Files -->
+  <script src="/static/js/app-state.js"></script>
+  <script src="/static/js/cart.js"></script>
+  <script src="/static/js/navigation.js"></script>
+
+  <!-- Essential JavaScript Functions -->
+  <script>
+    // Toggle chatbot visibility
+    function toggleChat() {
+      const chatContainer = document.getElementById('chatbot-container');
+      chatContainer.classList.toggle('show');
+    }
+
+    // Request notification permission and show notification
+    function requestNotificationPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(function (permission) {
+          if (permission === 'granted') {
+            new Notification('SafeTradeHub Notifications', {
+              body: 'You will now receive notifications about your transactions!',
+              icon: '/favicon.ico'
+            });
+          } else {
+            alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+          }
+        });
+      } else {
+        alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+      }
+    }
+
+    // Enhanced search functionality
+    function performSearch(query) {
+      if (!query || query.trim() === '') return;
+
+      // Store search query
+      localStorage.setItem('searchQuery', query.trim());
+
+      // Redirect to search results
+      window.location.href = `search-results.html?q=${encodeURIComponent(query.trim())}`;
+    }
+
+    // Initialize application on page load
+    document.addEventListener('DOMContentLoaded', async function () {
+      console.log('🚀 SafeTradeHub: Starting initialization...');
+
+      try {
+        // WAIT for AuthManager to be completely ready
+        let authReady = false;
+        let attempts = 0;
+        while (!authReady && attempts < 50) {
+          if (window.AuthManager) {
+            try {
+              await window.AuthManager.waitForInit();
+              authReady = true;
+              console.log('✅ AuthManager ready after', attempts, 'attempts');
+            } catch (error) {
+              console.warn('⚠️ AuthManager not ready, attempt', attempts, error);
+            }
+          }
+          if (!authReady) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+        }
+
+        // Force authentication check and header update
+        if (window.AuthManager) {
+          const isAuth = window.AuthManager.isAuthenticated();
+          const user = window.AuthManager.getCurrentUser();
+          console.log('🔐 Final auth state - authenticated:', isAuth, 'user:', user);
+
+          // Force header update
+          if (window.HeaderManager) {
+            window.HeaderManager.updateHeaderState();
+          }
+        }
+
+        // Update cart count if function exists
+        if (typeof setBadge === 'function') {
+          setBadge();
+        }
+
+        // Update cart count from cart.js
+        if (typeof updateCartCount === 'function') {
+          updateCartCount();
+        }
+
+        console.log('✅ SafeTradeHub: Initialization complete');
+      } catch (error) {
+        console.error('❌ SafeTradeHub: Initialization error:', error);
+      }
+
+      // Handle search form submission
+      const searchForm = document.querySelector('.search');
+      if (searchForm) {
+        searchForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          const searchInput = this.querySelector('input[type="search"]');
+          if (searchInput) {
+            performSearch(searchInput.value);
+          }
+        });
+      }
+
+      // Close chatbot when clicking outside
+      document.addEventListener('click', function (e) {
+        const chatContainer = document.getElementById('chatbot-container');
+        const chatButton = e.target.closest('button[onclick="toggleChat()"]');
+
+        if (!chatButton && !chatContainer.contains(e.target) && chatContainer.classList.contains('show')) {
+          chatContainer.classList.remove('show');
+        }
+      });
+
+      // Show welcome notification for new users
+      if (!localStorage.getItem('welcomeShown')) {
+        setTimeout(() => {
+          if (typeof showNotification === 'function') {
+            showNotification('Welcome to SafeTradeHub! 🎉 Your secure marketplace with escrow protection.', 'success');
+          }
+          localStorage.setItem('welcomeShown', 'true');
+        }, 2000);
+      }
+    });
+
+    // Global notification system
+    function showNotification(message, type = 'info') {
+      // Remove existing notifications
+      const existingNotifications = document.querySelectorAll('.notification');
+      existingNotifications.forEach(notification => notification.remove());
+
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span class="notification-message">${message}</span>
+          <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+
+      // Add to page
+      document.body.appendChild(notification);
+
+      // Show notification
+      setTimeout(() => notification.classList.add('show'), 100);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // Make functions globally available
+    window.showNotification = showNotification;
+    window.performSearch = performSearch;
+  </script>
+
+  <!-- Include JavaScript modules -->
+  <script src="/static/js/app-state.js"></script>
+  <script src="/static/js/cart.js"></script>
+  <script src="/static/js/navigation.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/product-search.js"></script>
+  <script src="/static/js/home-products.js"></script>
+  <script src="/static/js/chatbot.js"></script>
+  <script src="/static/js/seller-chat.js"></script>
+
+</body>
+
+</html>

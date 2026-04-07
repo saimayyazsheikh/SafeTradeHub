@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Comparison Module</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Price Comparison Assistant</h1>
+            <p>Get real-time price suggestions for your listings.</p>
+        </header>
+
+        <main>
+            <section class="input-section">
+                <form id="price-form">
+                    <div class="form-group">
+                        <label for="title">Product Title</label>
+                        <input type="text" id="title" name="title" placeholder="e.g. iPhone 13 Pro Max 256GB" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category">
+                            <option value="mobiles">Mobiles</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="vehicles">Vehicles</option>
+                            <option value="fashion">Fashion</option>
+                            <option value="others">Others</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description (Optional)</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Add details to improve matching..."></textarea>
+                    </div>
+
+                    <button type="submit" id="submit-btn">
+                        <span class="btn-text">Analyze Price</span>
+                        <span class="loader hidden"></span>
+                    </button>
+                </form>
+            </section>
+
+            <section class="results-section hidden" id="results-section">
+                <div class="insights-card">
+                    <h2>Market Insights</h2>
+                    <div class="price-stats">
+                        <div class="stat">
+                            <span class="label">Min Price</span>
+                            <span class="value" id="min-price">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Average</span>
+                            <span class="value" id="avg-price">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="label">Max Price</span>
+                            <span class="value" id="max-price">-</span>
+                        </div>
+                    </div>
+                    <div class="recommendation">
+                        <h3>Recommended Price Range</h3>
+                        <div class="range-display">
+                            <span id="rec-min">-</span> - <span id="rec-max">-</span> <span class="currency">PKR</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="listings-list">
+                    <h3>Similar Listings Found</h3>
+                    <div id="listings-container">
+                        <!-- Listings will be injected here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

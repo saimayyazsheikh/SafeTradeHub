@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - SafeTradeHub</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .settings-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .settings-header p {
+            margin: 0.5rem 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .settings-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-control:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .toggle-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Input */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="/static/js/firebase-config.js"></script>
+    <script src="/static/js/auth-manager.js"></script>
+    <script src="/static/js/header-manager.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i> SafeTradeHub
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="orders.html" class="nav-item">
+                <i class="fas fa-box"></i> Orders
+            </a>
+            <a href="product-management.html" class="nav-item" id="navProducts" style="display: none;">
+                <i class="fas fa-tags"></i> Products
+            </a>
+            <a href="verification.html" class="nav-item">
+                <i class="fas fa-check-circle"></i> Verification
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <i class="fas fa-wallet"></i> Wallet
+            </a>
+            <a href="messages.html" class="nav-item">
+                <i class="fas fa-envelope"></i> Messages
+            </a>
+            <a href="profile.html" class="nav-item">
+                <i class="fas fa-user"></i> Profile
+            </a>
+            <a href="settings.html" class="nav-item active">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-mini-profile">
+                <img src="/static/images/avatar-placeholder.png" alt="User" class="user-avatar-small" id="userAvatar">
+                <div class="user-info-mini">
+                    <h4 id="userName">Loading...</h4>
+                    <span id="userRole">...</span>
+                </div>
+            </div>
+            <a href="#" onclick="handleSignOut()" class="nav-item" style="color: var(--danger);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div class="page-title">
+                <h1>Settings</h1>
+                <p>Manage your account preferences and security</p>
+            </div>
+        </div>
+
+        <div class="settings-container">
+
+            <!-- Security Settings -->
+            <div class="settings-section">
+                <div class="settings-header">
+                    <h2>Security</h2>
+                    <p>Manage your password and account security</p>
+                </div>
+                <div class="settings-body">
+                    <form id="securityForm">
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="currentPassword" class="form-control" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="newPassword" class="form-control" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirmPassword" class="form-control" placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Password</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="settings-section">
+                <div class="settings-header">
+                    <h2>Notifications</h2>
+                    <p>Choose how you want to be notified</p>
+                </div>
+                <div class="settings-body">
+                    <div class="toggle-switch">
+                        <div>
+                            <div class="toggle-label">Email Notifications</div>
+                            <div class="toggle-description">Receive updates about your orders and account</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="emailNotif" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-switch">
+                        <div>
+                            <div class="toggle-label">Push Notifications</div>
+                            <div class="toggle-description">Get real-time alerts on your device</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pushNotif" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-switch">
+                        <div>
+                            <div class="toggle-label">Marketing Emails</div>
+                            <div class="toggle-description">Receive offers and promotions</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="marketingNotif">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <button id="saveNotifBtn" class="btn btn-primary" style="margin-top: 1rem;">Save
+                        Preferences</button>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="settings-section" style="border: 1px solid #fee2e2;">
+                <div class="settings-header" style="background-color: #fef2f2;">
+                    <h2 style="color: #dc2626;">Danger Zone</h2>
+                    <p>Irreversible account actions</p>
+                </div>
+                <div class="settings-body">
+                    <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                        Once you delete your account, there is no going back. Please be certain.
+                    </p>
+                    <button onclick="confirmDeleteAccount()" class="btn btn-danger">Delete Account</button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/static/js/settings.js"></script>
+    <script>
+        // Sidebar Flicker Fix
+        (function () {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    if (user.role === 'Seller') {
+                        const navProducts = document.getElementById('navProducts');
+                        if (navProducts) navProducts.style.display = 'flex';
+                    }
+                    // Update Mini Profile
+                    document.getElementById('userName').textContent = user.name || 'User';
+                    document.getElementById('userRole').textContent = user.role || 'Buyer';
+                    if (user.profile && user.profile.avatar) {
+                        document.getElementById('userAvatar').src = user.profile.avatar;
+                    } else if (user.profilePic) {
+                        document.getElementById('userAvatar').src = user.profilePic;
+                    } else {
+                        document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`;
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data for sidebar:', e);
+                }
+            }
+        })();
+    </script>
+</body>
+
+</html>

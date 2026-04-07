@@ -1,0 +1,9 @@
+flask
+flask-cors
+firebase-admin
+google-cloud-vision
+python-dotenv
+requests
+beautifulsoup4
+selenium
+webdriver_manager

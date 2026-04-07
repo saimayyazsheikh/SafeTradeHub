@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Product Details – Safe Trade Hub</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/product-upload.css" />
+    <!-- Reusing upload CSS for form elements and layout styles where applicable, or I should create product-detail.css -->
+    <style>
+        /* Inline minimal styles for detail page specifically, can move to css file later */
+        .product-detail-section {
+            padding: 40px 0;
+            background: #f8fafc;
+            min-height: calc(100vh - 200px);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        .image-gallery {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-image {
+            width: 100%;
+            height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .thumbnail-list {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        .thumbnail {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .thumbnail:hover,
+        .thumbnail.active {
+            border-color: var(--primary);
+        }
+
+        .product-info-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            color: #1e293b;
+        }
+
+        .product-meta {
+            display: flex;
+            gap: 15px;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-auction {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .badge-fixed {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .price-area {
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .current-price-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .current-price {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .bid-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .action-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .bid-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bid-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .btn-large {
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .description-area {
+            margin-top: 40px;
+        }
+
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .specs-table th,
+        .specs-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        .specs-table th {
+            color: #64748b;
+            font-weight: 600;
+            width: 40%;
+        }
+
+        .seller-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .seller-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        @media (max-width: 768px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .bidding-history {
+            margin-top: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .bid-history-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+        }
+
+        .bid-history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .bid-history-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+    <!-- Firebase Configuration -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+            authDomain: "safetradehub-def1d.firebaseapp.com",
+            databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+            projectId: "safetradehub-def1d",
+            storageBucket: "safetradehub-def1d.firebasestorage.app",
+            messagingSenderId: "633146502278",
+            appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+            measurementId: "G-1857Q7JPKZ"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+    </script>
+
+    <!-- Load authentication system -->
+    <script src="/static/js/auth-manager.js"></script>
+    <script src="/static/js/header-manager.js"></script>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="index.html" class="logo">SafeTradeHub</a>
+            <nav class="header-actions">
+                <!-- Navigation will be updated by HeaderManager -->
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section class="breadcrumb-section">
+            <div class="container">
+                <nav class="breadcrumb">
+                    <a href="index.html">Home</a>
+                    <span class="breadcrumb-separator">›</span>
+                    <a href="#" id="categoryBreadcrumb">Products</a>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-current" id="productBreadcrumb">Loading...</span>
+                </nav>
+            </div>
+        </section>
+
+        <!-- Product Detail Section -->
+        <section class="product-detail-section">
+            <div class="container">
+                <div id="loadingState" style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="margin: 0 auto;"></div>
+                    <p>Loading product details...</p>
+                </div>
+
+                <div id="productContent" class="detail-grid" style="display: none;">
+                    <!-- Left: Image Gallery -->
+                    <div class="image-gallery">
+                        <img id="mainImage" src="" alt="Product Image" class="main-image">
+                        <div id="thumbnailList" class="thumbnail-list">
+                            <!-- Thumbnails injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Info & Actions -->
+                    <div class="product-info-card">
+                        <h1 id="productTitle" class="product-title"></h1>
+                        <div class="product-meta">
+                            <span id="productCategory" class="badge"
+                                style="background: #f1f5f9; color: #64748b;">Category</span>
+                            <span id="productCondition" class="badge"
+                                style="background: #f1f5f9; color: #64748b;">Condition</span>
+                            <span id="locationBadge" style="display: flex; align-items: center; gap: 4px;">
+                                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                                    <path fill="currentColor"
+                                        d="M12,2C15.31,2 18,4.66 18,7.95C18,12.41 12,19 12,19C12,19 6,12.41 6,7.95C6,4.66 8.69,2 12,2M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6Z" />
+                                </svg>
+                                <span id="productLocation">Location</span>
+                            </span>
+                        </div>
+
+                        <div class="price-area">
+                            <div id="priceLabel" class="current-price-label">Price</div>
+                            <div id="productPrice" class="current-price"></div>
+
+                            <!-- Auction specific info -->
+                            <div id="auctionInfo" class="bid-info" style="display: none;">
+                                <span><strong id="bidCount">0</strong> Bids</span>
+                                <span>Time Left: <strong id="timeLeft" style="color: #ef4444;">--</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="action-area">
+                            <!-- Fixed Price Actions -->
+                            <div id="fixedPriceActions" style="display: none;">
+                                <button id="addToCartBtn" class="btn btn-primary btn-large full-width"
+                                    style="width: 100%;">Add to Cart</button>
+                            </div>
+
+                            <!-- Auction Actions -->
+                            <div id="auctionActions" style="display: none;">
+                                <div class="bid-input-group">
+                                    <input type="number" id="bidAmount" class="bid-input"
+                                        placeholder="Enter bid amount">
+                                    <button id="placeBidBtn" class="btn btn-primary btn-large">Place Bid</button>
+                                </div>
+                                <div class="form-hint" id="minBidHint">Enter RS <span id="minNextBid"></span> or more
+                                </div>
+                            </div>
+
+                            <button id="chatSellerBtn" class="btn btn-outline full-width"
+                                style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 8px;">
+                                <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24">
+                                    <path fill="currentColor"
+                                        d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12C20,16.41 16.41,20 12,20C7.59,20 4,16.41 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
+                                </svg>
+                                Chat with Seller
+                            </button>
+                        </div>
+
+                        <div class="seller-info">
+                            <div class="seller-avatar" id="sellerAvatar">S</div>
+                            <div class="seller-details">
+                                <div style="font-weight: 700; color: #1e293b;" id="sellerName">Seller Name</div>
+                                <div style="font-size: 0.8rem; color: #64748b;">Joined 2025</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs for Description/Specs (Simplified to vertical stack for now) -->
+                    <div class="description-area"
+                        style="grid-column: 1 / -1; background: white; padding: 30px; border-radius: 16px;">
+                        <h2>Description</h2>
+                        <p id="productDescription" style="color: #475569; line-height: 1.6;"></p>
+
+                        <h3 style="margin-top: 30px;">Specifications</h3>
+                        <table class="specs-table">
+                            <tbody id="specsTableBody">
+                                <!-- Specs injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Bidding History (Auction Only) -->
+                    <div id="biddingHistorySection" class="bidding-history" style="grid-column: 1 / -1; display: none;">
+                        <h2>Bidding History</h2>
+                        <ul id="bidHistoryList" class="bid-history-list">
+                            <!-- Bids injected here -->
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/product-detail.js"></script>
+    <script src="/static/js/seller-chat.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Allow authenticated users to read/write their own chats
+    match /chats/{chatId} {
+      // Allow create if authenticated
+      allow create: if request.auth != null;
+      
+      // Allow read/update if user is a participant
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Allow read/create if user is a participant of the parent chat
+        allow read, create: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

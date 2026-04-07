@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Verify Profile</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">SafeTradeHub</a>
+      <nav class="header-actions">
+        <a class="link" href="auth.html?mode=signin" id="who"></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="verification-section">
+      <div class="container" style="max-width:1200px">
+        <!-- Enhanced Header -->
+        <div class="verification-header">
+          <div class="header-content">
+            <h1>Complete Your Verification</h1>
+            <p class="header-subtitle">Verify your identity to access all SafeTradeHub features and start selling</p>
+          </div>
+          <div class="verification-progress">
+            <div class="progress-circle" id="progressCircle">
+              <span class="progress-text" id="progressText">0%</span>
+            </div>
+            <div class="progress-info">
+              <div class="progress-label">Verification Progress</div>
+              <div class="progress-steps" id="progressSteps">0 of 6 steps completed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enhanced Status Summary -->
+        <div class="verification-grid">
+          <aside class="status-card">
+            <div class="card-header">
+              <h3>Verification Status</h3>
+              <div class="verification-level" id="verificationLevel">Basic</div>
+            </div>
+            <div class="status-summary">
+              <div class="status-item" id="emailStatus">
+                <div class="status-content">
+                  <div class="status-title">Email Verification</div>
+                  <div class="status-desc">Email address verified</div>
+                </div>
+                <div class="status-badge pending">Pending</div>
+              </div>
+              <div class="status-item" id="phoneStatus">
+                <div class="status-content">
+                  <div class="status-title">Phone Verification</div>
+                  <div class="status-desc">Phone number verified</div>
+                </div>
+                <div class="status-badge pending">Pending</div>
+              </div>
+
+              <div class="status-item" id="identityStatus">
+                <div class="status-content">
+                  <div class="status-title">Identity Verification</div>
+                  <div class="status-desc">CNIC & Selfie verification</div>
+                </div>
+                <div class="status-badge pending">Pending</div>
+              </div>
+              <div class="status-item" id="shopStatus" style="display: none;">
+                <div class="status-content">
+                  <div class="status-title">Shop Verification</div>
+                  <div class="status-desc">Business verification</div>
+                </div>
+                <div class="status-badge pending">Pending</div>
+              </div>
+            </div>
+            <div class="verification-benefits">
+              <h4>Verification Benefits</h4>
+              <ul>
+                <li>• Access to all marketplace features</li>
+                <li>• Higher trust score from buyers</li>
+                <li>• Priority customer support</li>
+                <li>• Advanced seller tools</li>
+              </ul>
+            </div>
+          </aside>
+
+          <div class="steps-card">
+            <!-- Step 1: Email Verification -->
+            <div class="verification-step" id="emailStep">
+              <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <h3>Email Verification</h3>
+                  <p class="step-description">Verify your email address to secure your account</p>
+                </div>
+                <div class="step-status">
+                  <span id="badgeEmail" class="status-badge pending">Pending</span>
+                </div>
+              </div>
+              <div class="step-body">
+                <div class="step-info">
+                  <div class="info-content">
+                    <p>We've sent a verification link to your email address. Please check your inbox and click the link
+                      to verify your email.</p>
+                    <p class="email-address" id="userEmail">user@example.com</p>
+                  </div>
+                </div>
+                <div class="step-actions">
+                  <button class="btn secondary" id="resendEmailBtn">
+                    Resend Email
+                  </button>
+                  <button class="btn primary" id="refreshEmailBtn">
+                    Check Status
+                  </button>
+                </div>
+                <div class="step-help">
+                  <p><strong>Tip:</strong> Check your spam folder if you don't see the email</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Phone Verification -->
+            <div class="verification-step" id="phoneStep">
+              <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <h3>Phone Verification</h3>
+                  <p class="step-description">Verify your phone number with SMS OTP</p>
+                </div>
+                <div class="step-status">
+                  <span id="badgePhone" class="status-badge pending">Pending</span>
+                </div>
+              </div>
+              <div class="step-body">
+                <div class="step-info">
+                  <div class="info-content">
+                    <p>Enter your phone number to receive a verification code via SMS. This helps us verify your
+                      identity and contact you if needed.</p>
+                  </div>
+                </div>
+                <div class="phone-form">
+                  <div class="form-group">
+                    <label for="phoneInput">Phone Number</label>
+                    <div class="phone-input-group">
+                      <input id="phoneInput" type="tel" placeholder="300 123 4567" class="phone-input" />
+                    </div>
+                    <small class="form-help">Enter your Pakistani phone number</small>
+                  </div>
+
+                  <div class="form-group" id="otpRow" style="display: none;">
+                    <label for="otpCode">Verification Code</label>
+                    <input id="otpCode" type="text" placeholder="Enter 6-digit code" maxlength="6" class="otp-input" />
+                    <small class="form-help">Enter the 6-digit code sent to your phone</small>
+                  </div>
+
+                  <div class="form-actions">
+                    <button class="btn primary" id="sendOtpBtn">
+                      Send OTP
+                    </button>
+                    <button class="btn secondary" id="verifyOtpBtn" style="display:none;">
+                      Verify Code
+                    </button>
+                    <button class="btn secondary" id="resendOtpBtn" style="display:none;">
+                      Resend OTP
+                    </button>
+                  </div>
+                </div>
+                <div id="recaptcha-container"></div>
+                <div class="step-help">
+                  <p><strong>Note:</strong> SMS charges may apply. Code expires in 5 minutes.</p>
+                </div>
+              </div>
+            </div>
+
+
+
+            <!-- Step 4: Identity Verification -->
+            <div class="verification-step" id="identityStep">
+              <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <h3>Identity Verification</h3>
+                  <p class="step-description">Upload your CNIC and selfie for identity verification</p>
+                </div>
+                <div class="step-status">
+                  <span id="badgeCnic" class="status-badge pending">Pending</span>
+                </div>
+              </div>
+              <div class="step-body">
+                <div class="step-info">
+                  <div class="info-content">
+                    <p>Upload clear photos of your CNIC (front and back) and a selfie. Our admin team will review these
+                      documents to verify your identity.</p>
+                  </div>
+                </div>
+
+                <!-- CNIC Upload Section -->
+                <div class="document-upload-section">
+                  <h4>CNIC Document Upload</h4>
+                  <div class="upload-grid">
+                    <div class="upload-item">
+                      <div class="upload-area" id="cnicFrontArea">
+                        <div class="upload-text">
+                          <h5>CNIC Front</h5>
+                          <p>Upload the front side of your CNIC</p>
+                        </div>
+                        <input id="cnicFront" type="file" accept="image/*" hidden />
+                        <button class="upload-btn" onclick="document.getElementById('cnicFront').click()">
+                          Choose File
+                        </button>
+                      </div>
+                      <div class="file-preview" id="cnicFrontPreview"></div>
+                    </div>
+                    <div class="upload-item">
+                      <div class="upload-area" id="cnicBackArea">
+                        <div class="upload-text">
+                          <h5>CNIC Back</h5>
+                          <p>Upload the back side of your CNIC</p>
+                        </div>
+                        <input id="cnicBack" type="file" accept="image/*" hidden />
+                        <button class="upload-btn" onclick="document.getElementById('cnicBack').click()">
+                          Choose File
+                        </button>
+                      </div>
+                      <div class="file-preview" id="cnicBackPreview"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Selfie Upload Section -->
+                <div class="document-upload-section">
+                  <h4>Selfie Upload</h4>
+                  <div class="upload-item single">
+                    <div class="upload-area" id="selfieArea">
+                      <div class="upload-text">
+                        <h5>Live Selfie Required</h5>
+                        <p>You must take a live selfie using your camera for identity verification</p>
+                      </div>
+
+                      <!-- Hidden file input for selfie (populated by camera or manual) -->
+                      <input id="selfie" type="file" accept="image/*" style="display:none; margin: 10px auto;" />
+
+                      <div class="camera-section" style="position: relative;">
+                        <video id="cameraPreview" width="300" height="225" autoplay
+                          style="display:none; border-radius: 8px; margin: 10px 0; border: 2px solid #3b82f6;"></video>
+                        <canvas id="photoCanvas" width="300" height="225" style="display:none;"></canvas>
+                        <div id="capturedImageDisplay" style="display:none; text-align: center; margin: 10px 0;">
+                          <img id="capturedImage"
+                            style="max-width: 300px; border-radius: 8px; border: 3px solid #22c55e; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);">
+                        </div>
+                      </div>
+                      <div class="camera-controls">
+                        <button class="btn primary" id="startCameraBtn">
+                          Start Camera
+                        </button>
+                        <button class="btn primary" id="capturePhotoBtn" style="display:none;">
+                          Capture Photo
+                        </button>
+                        <button class="btn secondary" id="retakePhotoBtn" style="display:none;">
+                          Retake
+                        </button>
+                      </div>
+                    </div>
+                    <div class="file-preview" id="selfiePreview"></div>
+                  </div>
+                </div>
+
+                <div class="upload-requirements">
+                  <h5>Upload Requirements</h5>
+                  <ul>
+                    <li>• Clear, high-quality images (minimum 800x600px)</li>
+                    <li>• All text should be clearly readable</li>
+                    <li>• Good lighting and no shadows</li>
+                    <li>• File size under 5MB per image</li>
+                    <li>• Supported formats: JPG, PNG</li>
+                  </ul>
+                </div>
+
+                <div class="form-actions">
+                  <button class="btn primary" id="uploadCnicBtn">
+                    Upload Documents
+                  </button>
+                </div>
+
+                <div class="step-help">
+                  <p><strong>Security:</strong> Your documents are encrypted and only accessible to our verification
+                    team</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5: Shop Verification (Sellers Only) -->
+            <div class="verification-step" id="shopStep" style="display:none">
+              <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                  <h3>Business Verification</h3>
+                  <p class="step-description">Verify your business to start selling on SafeTradeHub</p>
+                </div>
+                <div class="step-status">
+                  <span id="badgeShop" class="status-badge pending">Pending</span>
+                </div>
+              </div>
+              <div class="step-body">
+                <div class="step-info">
+                  <div class="info-icon">🏪</div>
+                  <div class="info-content">
+                    <p>As a seller, you need to verify your business to start listing products. This helps build trust
+                      with buyers and ensures compliance with our marketplace policies.</p>
+                  </div>
+                </div>
+
+                <div class="shop-form">
+                  <h4>Business Business Information</h4>
+                  <div class="form-row two">
+                    <div class="form-group">
+                      <label for="shopName">Business Name</label>
+                      <input id="shopName" type="text" placeholder="My Store Name" />
+                    </div>
+                    <div class="form-group">
+                      <label for="businessType">Business Type</label>
+                      <select id="businessType">
+                        <option value="">Select Business Type</option>
+                        <option value="individual">Individual Seller</option>
+                        <option value="retail">Retail Store</option>
+                        <option value="wholesale">Wholesale Business</option>
+                        <option value="online">Online Store</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="shopAddr">Business Address</label>
+                    <textarea id="shopAddr" rows="3"
+                      placeholder="Complete business address including city and postal code"></textarea>
+                  </div>
+
+                  <!-- Business Location Verification -->
+                  <div class="location-verification-section">
+                    <h4>Business Location Verification</h4>
+                    <p>Please share your business location to verify your address</p>
+                    <div class="location-controls">
+                      <button class="btn secondary" id="getBusinessLocationBtn">
+                        Use My Location
+                      </button>
+                      <button class="btn secondary" id="openMapBtn">
+                        Select on Map
+                      </button>
+                      <div id="businessLocationStatus" class="location-status"></div>
+                    </div>
+                    <div id="businessLocationDisplay" class="location-display" style="display: none;">
+                      <div class="location-info">
+                        <h6>Business Location Captured</h6>
+                        <p id="businessLocationCoords"></p>
+                        <small id="businessLocationTime"></small>
+                      </div>
+                    </div>
+                    <!-- Map Container -->
+                    <div id="mapContainer" style="display:none; margin-top:16px;">
+                      <div id="map"
+                        style="height: 300px; width: 100%; border-radius: 8px; border: 2px solid #e5e7eb; z-index: 1;">
+                      </div>
+                      <p style="font-size:0.85rem; color:#6b7280; margin-top:8px; text-align:center;">Click on the map
+                        to select your shop location</p>
+                    </div>
+                  </div>
+
+                  <div class="form-row two">
+                    <div class="form-group">
+                      <label for="businessPhone">Business Phone</label>
+                      <input id="businessPhone" type="tel" placeholder="+92 300 123 4567" />
+                    </div>
+                    <div class="form-group">
+                      <label for="businessEmail">Business Email</label>
+                      <input id="businessEmail" type="email" placeholder="business@example.com" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="document-upload-section">
+                  <h4>Business Photos</h4>
+                  <div class="upload-grid">
+                    <div class="upload-item">
+                      <div class="upload-area" id="shopPhotosArea">
+                        <div class="upload-icon">Photo</div>
+                        <div class="upload-text">
+                          <h5>Shop Photos</h5>
+                          <p>Upload photos of your physical store or workspace</p>
+                        </div>
+                        <input id="shopPhotos" type="file" accept="image/*" multiple hidden />
+                        <button class="upload-btn" onclick="document.getElementById('shopPhotos').click()">
+                          Choose Photos
+                        </button>
+                      </div>
+                      <div class="file-preview" id="shopPhotosPreview"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="document-upload-section">
+                  <h4>Business Documents</h4>
+                  <div class="upload-grid">
+                    <div class="upload-item">
+                      <div class="upload-area" id="shopDocsArea">
+                        <div class="upload-icon">Photo</div>
+                        <div class="upload-text">
+                          <h5>Business Documents</h5>
+                          <p>Upload photos of business license, registration, or utility bills</p>
+                        </div>
+                        <input id="shopDocs" type="file" accept="image/*" multiple hidden />
+                        <button class="upload-btn" onclick="document.getElementById('shopDocs').click()">
+                          Choose Photos
+                        </button>
+                      </div>
+                      <div class="file-preview" id="shopDocsPreview"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="upload-requirements">
+                  <h5>Document Requirements</h5>
+                  <ul>
+                    <li>• Business registration certificate or license</li>
+                    <li>• Utility bill (electricity, gas, water) in business name</li>
+                    <li>• Bank statement or tax document</li>
+                    <li>• Clear photos of your physical store/workspace</li>
+                    <li>• All documents should be recent (within 6 months)</li>
+                  </ul>
+                </div>
+
+                <div class="form-actions">
+                  <button class="btn primary" id="uploadShopBtn">
+                    Submit Business Verification
+                  </button>
+                </div>
+
+                <div class="step-help">
+                  <p><strong>Note:</strong> Business verification typically takes 1-3 business days</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>All Rights Reserved By Safe Trade Hub</p>
+    </div>
+  </footer>
+
+  <script>
+    /* Firebase init */
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let user, userRef, userData, confirmationResult;
+
+    /* Helpers */
+    const $ = (id) => document.getElementById(id);
+    const badge = (id, ok) => { const b = $(id); b.textContent = ok ? 'Verified' : 'Pending'; b.className = 'badge ' + (ok ? 'ok' : ''); };
+    function statusListRender(v) {
+      const items = [
+        ['Email', v.email],
+        ['Phone', v.phone],
+
+        ['CNIC', v.cnic?.verified || v.cnic?.submitted],
+        ['Selfie', v.selfie?.verified || v.selfie?.submitted],
+        ['Shop (Seller only)', v.shop?.verified || v.shop?.submitted]
+      ].map(([label, ok]) => `<li><span class="dot ${ok ? 'ok' : ''}"></span>${label}: <strong>${ok ? 'Submitted/OK' : 'Pending'}</strong></li>`).join('');
+      $('statusList').innerHTML = items;
+    }
+
+    /* Enhanced UI Update Functions */
+    function updateVerificationUI(verification) {
+      // Update status badges
+      updateBadge('badgeEmail', verification.email);
+      updateBadge('badgePhone', verification.phone);
+
+      updateBadge('badgeCnic', verification.cnic);
+      updateBadge('badgeShop', verification.shop);
+
+      // Update status items
+      updateStatusItem('emailStatus', verification.email, 'Email', 'Email address verified');
+      updateStatusItem('phoneStatus', verification.phone, 'Phone', 'Phone number verified');
+
+      updateStatusItem('identityStatus', verification.cnic, 'Identity', 'CNIC & Selfie verification');
+      updateStatusItem('shopStatus', verification.shop, 'Shop', 'Business verification');
+
+      // Update verification level
+      const completedSteps = Object.values(verification).filter(v => v === true || (v && v.verified)).length;
+      const level = completedSteps >= 4 ? 'Verified' : completedSteps >= 2 ? 'Partial' : 'Basic';
+      $('verificationLevel').textContent = level;
+
+      // Update step UI (hide buttons if verified OR submitted)
+      updateStepUI('email', verification.email);
+      updateStepUI('phone', verification.phone);
+      updateStepUI('identity', { cnic: verification.cnic, selfie: verification.selfie });
+      updateStepUI('shop', verification.shop);
+    }
+
+    function updateStepUI(type, status) {
+      // status can be boolean (email/phone) or object (cnic/shop) or composite (identity)
+      let isVerified = false;
+      let isSubmitted = false;
+      let isRejected = false;
+      let rejectionReason = "";
+
+      if (type === 'identity') {
+        isVerified = status.cnic?.verified; // Main check on CNIC
+        isSubmitted = status.cnic?.submitted;
+        isRejected = status.cnic?.status === 'rejected';
+        rejectionReason = status.cnic?.rejectionReason || "Documents were not clear or valid.";
+      } else {
+        isVerified = (typeof status === 'boolean') ? status : status?.verified;
+        isSubmitted = (typeof status === 'object') ? status?.submitted : false;
+
+        // For shop
+        if (typeof status === 'object' && status?.status === 'rejected') {
+          isRejected = true;
+          rejectionReason = status.rejectionReason || "Business details could not be verified.";
+        }
+      }
+
+      if (!isVerified && !isSubmitted && !isRejected) return;
+
+      if (type === 'email') {
+        const step = document.getElementById('emailStep');
+        const actions = step.querySelector('.step-actions');
+        if (actions) {
+          actions.style.display = 'none';
+          if (!step.querySelector('.verified-message')) {
+            const msg = document.createElement('div');
+            msg.className = 'verified-message';
+            msg.innerHTML = '✅ Email Verified Successfully';
+            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
+            step.querySelector('.step-body').appendChild(msg);
+          }
+        }
+      } else if (type === 'phone') {
+        const step = document.getElementById('phoneStep');
+        const form = step.querySelector('.phone-form');
+        if (form) {
+          form.style.display = 'none';
+          if (!step.querySelector('.verified-message')) {
+            const msg = document.createElement('div');
+            msg.className = 'verified-message';
+            msg.innerHTML = '✅ Phone Verified Successfully';
+            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
+            step.querySelector('.step-body').appendChild(msg);
+          }
+        }
+      } else if (type === 'identity') {
+        const step = document.getElementById('identityStep');
+
+        // Elements to toggle
+        const uploadSections = step.querySelectorAll('.document-upload-section');
+        const requirements = step.querySelector('.upload-requirements');
+        const actions = step.querySelector('.form-actions');
+        const stepHelp = step.querySelector('.step-help');
+
+        // Hide all form elements
+        uploadSections.forEach(s => s.style.display = 'none');
+        if (requirements) requirements.style.display = 'none';
+        if (actions) actions.style.display = 'none';
+        if (stepHelp) stepHelp.style.display = 'none';
+
+        if (!step.querySelector('.verified-message')) {
+          const msg = document.createElement('div');
+          msg.className = 'verified-message';
+
+          if (isVerified) {
+            msg.innerHTML = '✅ Identity Verified Successfully';
+            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
+          } else if (isRejected) {
+            msg.innerHTML = `
+              <div style="margin-bottom: 8px;">❌ Identity Verification Rejected</div>
+              <div style="font-weight: 400; font-size: 0.9em; margin-bottom: 12px;">Reason: ${rejectionReason}</div>
+             `;
+            msg.style.cssText = 'color: #dc2626; background: #fef2f2; padding: 16px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center; border: 1px solid #fee2e2;';
+
+            const reuploadBtn = document.createElement('button');
+            reuploadBtn.textContent = 'Upload Documents Again';
+            reuploadBtn.className = 'btn primary sm'; // Using primary for call to action
+            reuploadBtn.style.cssText = 'margin-top: 10px; font-size: 0.9rem; padding: 6px 16px; cursor: pointer; background-color: #ef4444; border-color: #ef4444;';
+            reuploadBtn.onclick = () => {
+              msg.remove();
+              const preview = step.querySelector('.doc-preview-container');
+              if (preview) preview.remove();
+
+              // Show all form elements
+              step.querySelectorAll('.document-upload-section').forEach(s => s.style.display = 'block');
+              if (requirements) requirements.style.display = 'block';
+              if (actions) actions.style.display = 'block';
+              if (stepHelp) stepHelp.style.display = 'block';
+            };
+            msg.appendChild(reuploadBtn);
+
+          } else {
+            msg.innerHTML = '<div>⏳ Documents Submitted. Pending Admin Review.</div>';
+            msg.style.cssText = 'color: #d97706; background: #fffbeb; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center; border: 1px solid #fcd34d;';
+
+            const reuploadBtn = document.createElement('button');
+            reuploadBtn.textContent = 'Re-upload Documents';
+            reuploadBtn.className = 'btn secondary sm';
+            reuploadBtn.style.cssText = 'margin-top: 10px; font-size: 0.8rem; padding: 4px 12px; cursor: pointer;';
+            reuploadBtn.onclick = () => {
+              msg.remove();
+              const preview = step.querySelector('.doc-preview-container');
+              if (preview) preview.remove();
+
+              // Show all form elements
+              step.querySelectorAll('.document-upload-section').forEach(s => s.style.display = 'block');
+              if (requirements) requirements.style.display = 'block';
+              if (actions) actions.style.display = 'block';
+              if (stepHelp) stepHelp.style.display = 'block';
+            };
+            msg.appendChild(reuploadBtn);
+          }
+          step.querySelector('.step-body').appendChild(msg);
+
+          // Show uploaded images if submitted (and not verified/rejected, or even if rejected to show what was wrong?)
+          // Usually if rejected we want them to re-upload, but showing what was sent helps.
+          // For now, consistent with pending:
+          if (isSubmitted && status.cnic && status.selfie && !isVerified) {
+            // If rejected, we still might want to verify they are hidden or shown? 
+            // Let's show them so they know what they uploaded.
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'doc-preview-container';
+            previewContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; opacity: 0.8;';
+
+            const images = [
+              { src: status.cnic.frontUrl, label: 'CNIC Front' },
+              { src: status.cnic.backUrl, label: 'CNIC Back' },
+              { src: status.selfie.url, label: 'Selfie' }
+            ];
+
+            images.forEach(img => {
+              if (img.src) {
+                const wrapper = document.createElement('div');
+                wrapper.style.textAlign = 'center';
+                wrapper.innerHTML = `
+                          <img src="${img.src}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                          <div style="font-size: 10px; color: #666; margin-top: 4px;">${img.label}</div>
+                      `;
+                previewContainer.appendChild(wrapper);
+              }
+            });
+            step.querySelector('.step-body').appendChild(previewContainer);
+          }
+        }
+      } else if (type === 'shop') {
+        const step = document.getElementById('shopStep');
+
+        // Elements to toggle
+        const shopForm = step.querySelector('.shop-form');
+        const uploadSections = step.querySelectorAll('.document-upload-section');
+        const requirements = step.querySelector('.upload-requirements');
+        const actions = step.querySelector('.form-actions');
+
+        // Hide all form elements
+        if (shopForm) shopForm.style.display = 'none';
+        uploadSections.forEach(s => s.style.display = 'none');
+        if (requirements) requirements.style.display = 'none';
+        if (actions) actions.style.display = 'none';
+
+        if (!step.querySelector('.verified-message')) {
+          const msg = document.createElement('div');
+          msg.className = 'verified-message';
+
+          if (isVerified) {
+            msg.innerHTML = '✅ Business Verified Successfully';
+            msg.style.cssText = 'color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center;';
+          } else if (isRejected) {
+            msg.innerHTML = `
+              <div style="margin-bottom: 8px;">❌ Business Verification Rejected</div>
+              <div style="font-weight: 400; font-size: 0.9em; margin-bottom: 12px;">Reason: ${rejectionReason}</div>
+             `;
+            msg.style.cssText = 'color: #dc2626; background: #fef2f2; padding: 16px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center; border: 1px solid #fee2e2;';
+
+            const reuploadBtn = document.createElement('button');
+            reuploadBtn.textContent = 'Update Business Details';
+            reuploadBtn.className = 'btn primary sm';
+            reuploadBtn.style.cssText = 'margin-top: 10px; font-size: 0.9rem; padding: 6px 16px; cursor: pointer; background-color: #ef4444; border-color: #ef4444;';
+            reuploadBtn.onclick = () => {
+              msg.remove();
+              const preview = step.querySelector('.shop-preview-container');
+              if (preview) preview.remove();
+
+              // Show all form elements
+              if (shopForm) shopForm.style.display = 'block';
+              uploadSections.forEach(s => s.style.display = 'block');
+              if (requirements) requirements.style.display = 'block';
+              if (actions) actions.style.display = 'flex'; // actions usually flex
+            };
+            msg.appendChild(reuploadBtn);
+          } else {
+            msg.innerHTML = '<div>⏳ Business Documents Submitted. Pending Admin Review.</div>';
+            msg.style.cssText = 'color: #d97706; background: #fffbeb; padding: 12px; border-radius: 8px; margin-top: 16px; font-weight: 600; text-align: center; border: 1px solid #fcd34d;';
+
+            const reuploadBtn = document.createElement('button');
+            reuploadBtn.textContent = 'Re-upload Documents';
+            reuploadBtn.className = 'btn secondary sm';
+            reuploadBtn.style.cssText = 'margin-top: 10px; font-size: 0.8rem; padding: 4px 12px; cursor: pointer;';
+            reuploadBtn.onclick = () => {
+              msg.remove();
+              const preview = step.querySelector('.shop-preview-container');
+              if (preview) preview.remove();
+
+              // Show all form elements
+              if (shopForm) shopForm.style.display = 'block';
+              uploadSections.forEach(s => s.style.display = 'block');
+              if (requirements) requirements.style.display = 'block';
+              if (actions) actions.style.display = 'flex'; // actions usually flex
+            };
+            msg.appendChild(reuploadBtn);
+          }
+          step.querySelector('.step-body').appendChild(msg);
+
+          // Show submitted data if pending or rejected
+          if (isSubmitted && status) {
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'shop-preview-container';
+            previewContainer.style.cssText = 'background: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 16px; border: 1px solid #e5e7eb;';
+
+            // Business Details
+            let detailsHtml = `
+              <h5 style="margin:0 0 12px 0; font-size:0.95rem; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:8px;">Submitted Details</h5>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:0.9rem;">
+                <div><span style="color:#6b7280;">Name:</span> <span style="font-weight:500;">${status.name || '-'}</span></div>
+                <div><span style="color:#6b7280;">Type:</span> <span style="font-weight:500;">${status.businessType || '-'}</span></div>
+                <div style="grid-column:span 2;"><span style="color:#6b7280;">Address:</span> <span style="font-weight:500;">${status.address || '-'}</span></div>
+                <div><span style="color:#6b7280;">Phone:</span> <span style="font-weight:500;">${status.phone || '-'}</span></div>
+                <div><span style="color:#6b7280;">Email:</span> <span style="font-weight:500;">${status.email || '-'}</span></div>
+            `;
+
+            if (status.locationData) {
+              detailsHtml += `
+                <div style="grid-column:span 2; margin-top:4px;">
+                  <span style="color:#6b7280;">Location:</span> 
+                  <span style="font-weight:500; font-family:monospace;">${status.locationData.coords?.latitude}, ${status.locationData.coords?.longitude}</span>
+                  <div style="font-size:0.8rem; color:#10b981;">✓ Verified via Map</div>
+                </div>
+              `;
+            }
+            detailsHtml += `</div>`;
+
+            // Photos
+            if (status.photoUrls && status.photoUrls.length > 0) {
+              detailsHtml += `
+                <h5 style="margin:16px 0 8px 0; font-size:0.9rem; color:#374151;">Business Photos</h5>
+                <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
+                  ${status.photoUrls.map(url => `<img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:4px; border:1px solid #ddd;">`).join('')}
+                </div>
+              `;
+            }
+
+            // Docs (now photos)
+            if (status.docUrls && status.docUrls.length > 0) {
+              detailsHtml += `
+                <h5 style="margin:16px 0 8px 0; font-size:0.9rem; color:#374151;">Business Documents</h5>
+                <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
+                  ${status.docUrls.map(url => `<img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:4px; border:1px solid #ddd;">`).join('')}
+                </div>
+              `;
+            }
+
+            previewContainer.innerHTML = detailsHtml;
+            step.querySelector('.step-body').appendChild(previewContainer);
+          }
+        }
+      }
+    }
+
+    function updateStatusItem(elementId, status, title, description) {
+      const element = $(elementId);
+      if (!element) return;
+
+      const isVerified = (typeof status === 'boolean') ? status : status?.verified;
+      const isSubmitted = (typeof status === 'object') ? status?.submitted : false;
+
+      let isRejected = false;
+      if (typeof status === 'object') {
+        // Check composite Identity (CNIC) or Shop object
+        if (status.cnic) {
+          isRejected = status.cnic.status === 'rejected';
+        } else {
+          isRejected = status.status === 'rejected';
+        }
+      }
+
+      const badge = element.querySelector('.status-badge');
+      if (badge) {
+        if (isVerified) {
+          badge.textContent = 'Verified';
+          badge.className = 'status-badge verified';
+        } else if (isRejected) {
+          badge.textContent = 'Rejected';
+          badge.className = 'status-badge error'; // Red badge
+          badge.style.background = '#fee2e2';
+          badge.style.color = '#dc2626';
+          badge.style.border = '1px solid #ef4444';
+        } else if (isSubmitted) {
+          badge.textContent = 'Pending';
+          badge.className = 'status-badge pending'; // Keep it yellow
+          badge.style.background = ''; // Reset inline styles
+          badge.style.color = '';
+          badge.style.border = '';
+        } else {
+          badge.textContent = 'Pending';
+          badge.className = 'status-badge pending';
+          badge.style.background = '';
+          badge.style.color = '';
+          badge.style.border = '';
+        }
+      }
+    }
+
+    function updateProgress(verification) {
+      const steps = [
+        verification.email,
+        verification.phone,
+
+        verification.cnic?.verified,
+        verification.shop?.verified
+      ];
+
+      const completedSteps = steps.filter(step => step === true || (step && step.verified)).length;
+      const totalSteps = userData?.role === 'Seller' ? 4 : 3;
+      const percentage = Math.round((completedSteps / totalSteps) * 100);
+
+      $('progressText').textContent = `${percentage}%`;
+      $('progressSteps').textContent = `${completedSteps} of ${totalSteps} steps completed`;
+
+      // Update progress circle background
+      const circle = $('progressCircle');
+      if (circle) {
+        circle.style.background = `conic-gradient(#10b981 ${percentage * 3.6}deg, rgba(255, 255, 255, 0.2) 0deg)`;
+      }
+
+      // Show Success State if 100%
+      const successContainer = document.getElementById('verificationSuccess');
+      if (percentage === 100) {
+        if (!successContainer) {
+          const container = document.createElement('div');
+          container.id = 'verificationSuccess';
+          container.style.cssText = `
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        text-align: center;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+        animation: slideDown 0.5s ease-out;
+      `;
+
+          const role = userData?.role || 'Buyer';
+          const ctaText = role === 'Seller' ? 'Go to dashboard' : 'Buy Your Favorite Product';
+          const ctaLink = role === 'Seller' ? 'dashboard.html' : 'index.html';
+          const ctaIcon = role === 'Seller' ? '🚀' : '🛍️';
+
+          container.innerHTML = `
+        <div style="font-size: 3rem; margin-bottom: 10px;">🎉</div>
+        <h2 style="margin: 0 0 8px 0; font-size: 1.8rem;">You are Verified!</h2>
+        <p style="margin: 0 0 20px 0; opacity: 0.9; font-size: 1.1rem;">
+          Congratulations! Your identity has been fully verified. You now have full access to SafeTradeHub.
+        </p>
+        <a href="${ctaLink}" class="btn" style="
+          background: white;
+          color: #059669;
+          padding: 12px 32px;
+          border-radius: 50px;
+          font-weight: 700;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          transition: transform 0.2s;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          <span>${ctaIcon}</span> ${ctaText}
+        </a>
+      `;
+
+          // Insert after header
+          const header = document.querySelector('.verification-header');
+          if (header && header.parentNode) {
+            header.parentNode.insertBefore(container, header.nextSibling);
+          }
+        }
+      } else {
+        if (successContainer) successContainer.remove();
+      }
+    }
+
+
+    function updateBadge(id, status) {
+      const element = $(id);
+      if (!element) return;
+
+      const isVerified = (typeof status === 'boolean') ? status : status?.verified;
+      const isSubmitted = (typeof status === 'object') ? status?.submitted : false;
+
+      if (isVerified) {
+        element.textContent = 'Verified';
+        element.className = 'status-badge verified';
+      } else if (isSubmitted) {
+        element.textContent = 'Pending'; // Or "Submitted" if preferred
+        element.className = 'status-badge pending';
+      } else {
+        element.textContent = 'Pending';
+        element.className = 'status-badge pending';
+      }
+    }
+
+    /* Load user & doc */
+    auth.onAuthStateChanged(async (u) => {
+      if (!u) { location.href = 'auth.html?mode=signin'; return; }
+      user = u;
+      $('who').textContent = u.email || u.phoneNumber || u.uid;
+      userRef = db.ref('users/' + u.uid);
+      const snap = await userRef.once('value');
+      userData = snap.exists() ? snap.val() : null;
+      if (!userData) {
+        // Create shell if missing (e.g., signed in user before join flow)
+        userData = {
+          displayName: u.displayName || '',
+          email: u.email || '',
+          phone: u.phoneNumber || '',
+          role: 'Buyer',
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          verification: {
+            email: !!u.email && u.emailVerified,
+            phone: !!u.phoneNumber,
+
+            cnic: { submitted: false, verified: false },
+            selfie: { submitted: false, verified: false },
+            shop: { submitted: false, verified: false }
+          },
+          status: 'pending'
+        };
+        await userRef.update(userData);
+      }
+      // prefill phone & badges
+      if (userData.phone) $('phoneInput').value = userData.phone;
+      const v = userData.verification || {};
+
+      // Update new UI elements
+      updateVerificationUI(v);
+      updateProgress(v);
+
+      // Show seller verification if user is seller
+      if ((userData.role || 'Buyer') === 'Seller') {
+        $('shopStep').style.display = 'block';
+        $('shopStatus').style.display = 'flex';
+      }
+
+      // Update user email display
+      if (user.email) {
+        $('userEmail').textContent = user.email;
+      }
+    });
+
+    /* Toast Notification System */
+    function showToast(type, title, message) {
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+
+      // Icon selection
+      let icon = '';
+      if (type === 'success') icon = '<span style="color:#10b981; margin-right:8px; font-size:1.2rem;">✓</span>';
+      if (type === 'error') icon = '<span style="color:#ef4444; margin-right:8px; font-size:1.2rem;">✕</span>';
+      if (type === 'warning') icon = '<span style="color:#f59e0b; margin-right:8px; font-size:1.2rem;">!</span>';
+
+      notification.innerHTML = `
+        <div class="notification-content">
+          <div class="notification-message" style="display:flex; align-items:flex-start;">
+            ${icon}
+            <div>
+              <div style="font-weight:700; font-size:0.95rem; margin-bottom:2px;">${title}</div>
+              <div style="font-size:0.85rem; color:#6b7280;">${message}</div>
+            </div>
+          </div>
+          <button class="notification-close" onclick="this.closest('.notification').remove()">&times;</button>
+        </div>
+      `;
+
+      document.body.appendChild(notification);
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        notification.classList.add('show');
+      });
+
+      // Auto dismiss
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // ===== Email verification (drop-in replacement) =====
+    $('resendEmailBtn').addEventListener('click', async () => {
+      try {
+        const u = firebase.auth().currentUser;
+        if (!u || !u.email) return showToast('error', 'Error', 'Sign in with an email account first.');
+        const actionCodeSettings = {
+          url: 'http://127.0.0.1:5500/verify.html?mode=verifyEmail',
+          handleCodeInApp: false
+        };
+        await u.sendEmailVerification(actionCodeSettings);
+
+        showToast('success', 'Success', 'Verification email sent. Check Inbox/Spam.');
+      } catch (e) {
+        console.error('sendEmailVerification error:', e);
+        showToast('error', 'Error', e.message || 'Failed to send verification email');
+      }
+    });
+
+    // ===== Email Verification Check (Manual & Auto) =====
+    const checkEmailVerification = async (manual = false) => {
+      const u = firebase.auth().currentUser;
+      if (!u) return;
+
+      await u.reload(); // Force refresh from Firebase Auth
+      if (u.emailVerified) {
+        // Update RTDB
+        await db.ref('users/' + u.uid).update({
+          'verification/email': true
+        });
+
+        // Update UI
+        badge('badgeEmail', true);
+        updateStatusItem('emailStatus', true, 'Email', 'Email address verified');
+
+        // Update progress
+        if (userData) {
+          userData.verification.email = true;
+          updateProgress(userData.verification);
+        }
+
+        if (manual) {
+          showToast('success', 'Verified', 'Email verified successfully!');
+        }
+
+        // Stop polling if verified
+        if (emailCheckInterval) clearInterval(emailCheckInterval);
+      } else {
+        if (manual) {
+          showToast('warning', 'Pending', 'Email not verified yet. Please check your inbox.');
+        }
+      }
+    };
+
+    $('refreshEmailBtn').addEventListener('click', () => checkEmailVerification(true));
+
+    // Auto-poll every 3 seconds if email is not verified
+    let emailCheckInterval;
+    auth.onAuthStateChanged((u) => {
+      if (u && !u.emailVerified) {
+        if (emailCheckInterval) clearInterval(emailCheckInterval);
+        emailCheckInterval = setInterval(() => checkEmailVerification(false), 3000);
+      } else if (emailCheckInterval) {
+        clearInterval(emailCheckInterval);
+      }
+    });
+
+    // In your onAuthStateChanged block (after you set userRef/userData), keep/ensure this handler:
+    /* --- Email link handler: robust to timing/race --- */
+    (async function handleEmailLinkIfPresent() {
+      const params = new URLSearchParams(location.search);
+      const mode = params.get('mode');
+      const oobCode = params.get('oobCode');
+      if (mode !== 'verifyEmail' || !oobCode) return;
+
+      try {
+        // Mark the email verified with Firebase
+        await auth.applyActionCode(oobCode);
+        await auth.currentUser?.reload();
+
+        // Write verification=true without depending on userRef timing
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          await db.ref('users/' + uid).update({
+            'verification/email': true
+          });
+          badge('badgeEmail', true);
+        }
+
+        showNotification('Email verified successfully', 'success');
+        setTimeout(() => location.reload(), 1500);
+      } catch (e) {
+        console.error('applyActionCode error:', e);
+        showNotification(`${e.code || ''} ${e.message || e}`, 'error');
+      } finally {
+        // Clean URL so it doesn't re-run after reload
+        const url = new URL(location.href);
+        ['mode', 'oobCode', 'apiKey', 'lang', 'continueUrl'].forEach(k => url.searchParams.delete(k));
+        history.replaceState({}, '', url.toString());
+      }
+    })();
+
+
+    //Email Resend
+    $('resendEmailBtn').addEventListener('click', async () => {
+      try {
+        const u = firebase.auth().currentUser;
+        if (!u || !u.email) return showNotification('Sign in with an email account first.', 'error');
+
+        // Use the exact origin you are on (127.0.0.1 or localhost)
+        const base = location.origin; // e.g. http://127.0.0.1:5500 or http://localhost:5500
+        const actionCodeSettings = {
+          url: `${base}/verify.html?mode=verifyEmail`,
+          handleCodeInApp: false
+        };
+
+        await u.sendEmailVerification(actionCodeSettings);
+        showNotification('Verification email sent. Check Inbox/Spam.', 'success');
+      } catch (e) {
+        console.error('sendEmailVerification error:', e);
+        showNotification(`${e.code || ''} ${e.message || e}`, 'error');
+      }
+    });
+
+
+    /* ===== Phone OTP (REPLACE YOUR OLD BLOCK WITH THIS) ===== */
+    let appVerifier;
+
+    function initRecaptcha() {
+      if (!appVerifier) {
+        appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+        appVerifier.render(); // important on localhost
+      }
+    }
+
+    function requireE164(p) {
+      const v = (p || '').trim();
+      if (!v.startsWith('+')) throw new Error('Enter phone in international format, e.g. +92xxxxxxxxxx');
+      return v;
+    }
+
+    $('sendOtpBtn').addEventListener('click', async () => {
+      try {
+        const u = firebase.auth().currentUser;
+        if (!u) return showNotification('Please sign in first.', 'error');
+        initRecaptcha();
+        const phone = requireE164($('phoneInput').value);
+        confirmationResult = await u.linkWithPhoneNumber(phone, appVerifier);
+        $('otpRow').style.display = 'block';
+        $('sendOtpBtn').style.display = 'none';
+        $('verifyOtpBtn').style.display = 'inline-flex';
+        $('resendOtpBtn').style.display = 'inline-flex';
+        showNotification('OTP sent successfully.', 'success');
+      } catch (e) {
+        showNotification(e.message, 'error');
+      }
+    });
+
+    $('verifyOtpBtn').addEventListener('click', async () => {
+      try {
+        if (!confirmationResult) return showNotification('Please request an OTP first.', 'error');
+        const code = $('otpCode').value.trim();
+        const cred = await confirmationResult.confirm(code); // completes linking
+        await cred.user.reload();
+        await userRef.update({
+          phone: cred.user.phoneNumber,
+          'verification/phone': true
+        });
+        badge('badgePhone', true);
+        showNotification('Phone verified successfully.', 'success');
+        setTimeout(() => location.reload(), 1500);
+      } catch (e) {
+        showNotification(e.message, 'error');
+      }
+    });
+
+
+
+    /* Business Location */
+    let businessLocationData = null;
+
+    document.getElementById('getBusinessLocationBtn')?.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showNotification('Geolocation not available on this device.', 'error');
+        return;
+      }
+
+      const statusDiv = document.getElementById('businessLocationStatus');
+      const displayDiv = document.getElementById('businessLocationDisplay');
+      const coordsP = document.getElementById('businessLocationCoords');
+      const timeSmall = document.getElementById('businessLocationTime');
+
+      statusDiv.innerHTML = '<span style="color: #3b82f6;">Getting location...</span>';
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude.toFixed(6);
+          const lng = position.coords.longitude.toFixed(6);
+          const timestamp = new Date().toLocaleString();
+
+          businessLocationData = {
+            latitude: lat,
+            longitude: lng,
+            timestamp: timestamp,
+            accuracy: position.coords.accuracy
+          };
+
+          // Show success status
+          statusDiv.innerHTML = '<span style="color: #22c55e;">✓ Location captured successfully</span>';
+
+          // Show location display
+          coordsP.textContent = `Coordinates: ${lat}, ${lng}`;
+          timeSmall.textContent = `Captured: ${timestamp}`;
+          displayDiv.style.display = 'block';
+
+          // Hide the button after successful capture
+          document.getElementById('getBusinessLocationBtn').style.display = 'none';
+
+        },
+        (error) => {
+          let errorMessage = 'Unable to get location. ';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage += 'Please allow location access.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage += 'Location information unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage += 'Location request timed out.';
+              break;
+            default:
+              errorMessage += 'Unknown error occurred.';
+              break;
+          }
+          statusDiv.innerHTML = `<span style="color: #ef4444;">${errorMessage}</span>`;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+
+    /* Map Integration */
+    let map, marker;
+    const mapContainer = document.getElementById('mapContainer');
+
+    document.getElementById('openMapBtn')?.addEventListener('click', () => {
+      if (mapContainer.style.display === 'none') {
+        mapContainer.style.display = 'block';
+
+        // Initialize map if not already done
+        if (!map) {
+          // Default to Pakistan center or user's location if available
+          const defaultLat = 30.3753;
+          const defaultLng = 69.3451;
+
+          map = L.map('map').setView([defaultLat, defaultLng], 5);
+
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+          }).addTo(map);
+
+          // Handle map clicks
+          map.on('click', async (e) => {
+            const { lat, lng } = e.latlng;
+
+            // Update marker
+            if (marker) marker.remove();
+            marker = L.marker([lat, lng]).addTo(map);
+
+            // Reverse Geocoding
+            try {
+              showNotification('Fetching address...', 'info');
+              const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+              const data = await response.json();
+
+              if (data && data.display_name) {
+                document.getElementById('shopAddr').value = data.display_name;
+
+                // Update hidden location data
+                businessLocationData = {
+                  coords: { latitude: lat, longitude: lng },
+                  timestamp: Date.now(),
+                  address: data.display_name
+                };
+
+                // Show success UI
+                const displayDiv = document.getElementById('businessLocationDisplay');
+                const coordsP = document.getElementById('businessLocationCoords');
+                const timeSmall = document.getElementById('businessLocationTime');
+
+                displayDiv.style.display = 'block';
+                coordsP.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                timeSmall.textContent = new Date().toLocaleString();
+
+                showNotification('Address updated from map', 'success');
+              }
+            } catch (error) {
+              console.error('Geocoding error:', error);
+              showNotification('Failed to fetch address details', 'error');
+            }
+          });
+
+          // Try to get user location for initial view
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+              const { latitude, longitude } = pos.coords;
+              map.setView([latitude, longitude], 15);
+              if (marker) marker.remove();
+              marker = L.marker([latitude, longitude]).addTo(map);
+            });
+          }
+        }
+      } else {
+        mapContainer.style.display = 'none';
+      }
+    });
+
+    function getBusinessLocationData() {
+      return businessLocationData;
+    }
+
+
+    // File upload preview functionality
+    function setupFilePreview(inputId, previewId) {
+      const input = $(inputId);
+      const preview = $(previewId);
+
+      if (!input || !preview) return;
+
+      input.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Preview" />`;
+            preview.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    // Setup file previews for all upload inputs
+    setupFilePreview('cnicFront', 'cnicFrontPreview');
+    setupFilePreview('cnicBack', 'cnicBackPreview');
+    setupFilePreview('selfie', 'selfiePreview');
+
+    // Multiple file preview for shop photos and docs
+    function setupMultipleFilePreview(inputId, previewId) {
+      const input = $(inputId);
+      const preview = $(previewId);
+
+      if (!input || !preview) return;
+
+      input.addEventListener('change', function (e) {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+          preview.innerHTML = ''; // Clear previous previews
+          files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              const img = document.createElement('img');
+              img.src = e.target.result;
+              img.alt = "Preview";
+              preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+          });
+          preview.style.display = 'block';
+        } else {
+          preview.innerHTML = '';
+          preview.style.display = 'none';
+        }
+      });
+    }
+
+    setupMultipleFilePreview('shopPhotos', 'shopPhotosPreview');
+    setupMultipleFilePreview('shopDocs', 'shopDocsPreview');
+
+    // Legacy Cloudinary handlers removed
+  </script>
+
+  <style>
+    /* light UI helpers reusing your palette */
+    .verify-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .verify-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .form-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .form-card .form-row {
+      margin-bottom: 12px;
+    }
+
+    .form-row.two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-row input,
+    .form-row textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .radio {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 12px;
+    }
+
+    .step {
+      border: 1px dashed #e6e9f4;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .step-body {
+      margin-top: 10px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .badge {
+      background: #fff3cd;
+      color: #7a5d00;
+      border: 1px solid #ffe69c;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .badge.ok {
+      background: #dcfce7;
+      color: #14532d;
+      border-color: #86efac;
+    }
+
+    .status-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .status-list .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .status-list .dot.ok {
+      background: #22c55e;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    /* Custom Notification Toast */
+    .notification-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 400px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .notification-toast.show {
+      transform: translateX(0);
+    }
+
+    .notification-toast.success {
+      border-left-color: #22c55e;
+    }
+
+    .notification-toast.error {
+      border-left-color: #ef4444;
+    }
+
+    .notification-toast.info {
+      border-left-color: #3b82f6;
+    }
+
+    .notification-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .notification-toast.success .notification-icon {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .notification-toast.error .notification-icon {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .notification-toast.info .notification-icon {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .notification-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notification-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #1f2937;
+    }
+
+    .notification-message {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+  </style>
+
+  <!-- Cloudinary helpers -->
+  <script>
+    // Custom Notification Helper
+    function showNotification(message, type = 'info', title = null) {
+      // Remove existing notification
+      const existing = document.querySelector('.notification-toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = `notification-toast ${type}`;
+
+      let icon = '';
+      let defaultTitle = '';
+
+      if (type === 'success') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        defaultTitle = 'Success';
+      } else if (type === 'error') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        defaultTitle = 'Error';
+      } else {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+        defaultTitle = 'Information';
+      }
+
+      toast.innerHTML = `
+        <div class="notification-icon">${icon}</div>
+        <div class="notification-content">
+          <span class="notification-title">${title || defaultTitle}</span>
+          <span class="notification-message">${message}</span>
+        </div>
+      `;
+
+      document.body.appendChild(toast);
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        toast.classList.add('show');
+      });
+
+      // Auto dismiss
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function ensureImage(file, maxMB = 8) {
+      if (!file) throw new Error('Please select a file');
+      if (!/^image\//.test(file.type)) throw new Error('Only image files allowed');
+      if (file.size > maxMB * 1024 * 1024) throw new Error(`Max ${maxMB}MB per file`);
+    }
+
+    async function uploadToFirebase(file, path) {
+      if (!file) throw new Error('No file selected');
+      // Create a unique filename to avoid overwrites if needed, or keep simple
+      const fileName = Date.now() + '_' + file.name;
+      const ref = firebase.storage().ref().child(path + '/' + fileName);
+      const snapshot = await ref.put(file);
+      const url = await snapshot.ref.getDownloadURL();
+      return { url, id: ref.fullPath };
+    }
+
+    async function handleCNICUpload(frontFile, backFile, uid) {
+      ensureImage(frontFile); ensureImage(backFile);
+      const base = `kyc/${uid}/cnic`;
+      const front = await uploadToFirebase(frontFile, base);
+      const back = await uploadToFirebase(backFile, base);
+
+      await db.ref('users/' + uid).update({
+        'verification/cnic': {
+          submitted: true, verified: false,
+          frontUrl: front.url, backUrl: back.url,
+          frontId: front.id, backId: back.id
+        },
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      console.log('CNIC uploaded');
+    }
+
+    async function handleSelfieUpload(selfieFile, uid) {
+      ensureImage(selfieFile);
+      const base = `kyc/${uid}/selfie`;
+      const self = await uploadToFirebase(selfieFile, base);
+
+      await db.ref('users/' + uid).update({
+        'verification/selfie': { submitted: true, verified: false, url: self.url, id: self.id },
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      console.log('Selfie uploaded');
+    }
+
+    async function handleShopUpload(photoFiles, docFiles, uid) {
+      const base = `kyc/${uid}/shop`;
+      const photoUrls = [], photoIds = [], docUrls = [], docIds = [];
+
+      for (const f of photoFiles) { ensureImage(f, 10); const { url, id } = await uploadToFirebase(f, `${base}/photos`); photoUrls.push(url); photoIds.push(id); }
+      for (const f of docFiles) { const { url, id } = await uploadToFirebase(f, `${base}/docs`); docUrls.push(url); docIds.push(id); }
+
+      // include name/address from inputs
+      const name = document.getElementById('shopName')?.value?.trim() || null;
+      const businessType = document.getElementById('businessType')?.value || null;
+      const address = document.getElementById('shopAddr')?.value?.trim() || null;
+      const phone = document.getElementById('businessPhone')?.value?.trim() || null;
+      const email = document.getElementById('businessEmail')?.value?.trim() || null;
+      const locationData = getBusinessLocationData();
+
+      await db.ref('users/' + uid).update({
+        'verification/shop': {
+          submitted: true, verified: false,
+          name, address, businessType, phone, email, locationData,
+          photoUrls, docUrls, photoIds, docIds
+        },
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      showNotification('Shop documents submitted successfully', 'success');
+      setTimeout(() => location.reload(), 1500);
+    }
+  </script>
+
+  <!-- Wire UI → Cloudinary handlers -->
+  <script>
+    const byId = (x) => document.getElementById(x);
+
+    // CNIC
+    // Identity Verification (CNIC + Selfie)
+    byId('uploadCnicBtn')?.addEventListener('click', async () => {
+      const btn = byId('uploadCnicBtn');
+      const u = firebase.auth().currentUser; if (!u) return showNotification('Please sign in', 'error');
+
+      const front = byId('cnicFront')?.files?.[0];
+      const back = byId('cnicBack')?.files?.[0];
+
+      // Check for selfie file OR captured blob
+      let selfieFile = byId('selfie')?.files?.[0];
+      if (!selfieFile && capturedPhoto) {
+        // Convert blob to file if captured from camera
+        selfieFile = new File([capturedPhoto], "selfie.jpg", { type: "image/jpeg" });
+      }
+
+      if (!front || !back || !selfieFile) {
+        return showNotification('Please upload all required documents: CNIC front, CNIC back, and selfie', 'error');
+      }
+
+      // Add loading state
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'Uploading...';
+
+      try {
+        // 1. Upload CNIC
+        await handleCNICUpload(front, back, u.uid);
+
+        // 2. Upload Selfie
+        await handleSelfieUpload(selfieFile, u.uid);
+
+        showNotification('All identity documents uploaded successfully!', 'success');
+
+        btn.innerHTML = 'Success!';
+
+        setTimeout(() => location.reload(), 1500);
+
+        // Update UI to show pending status immediately
+        updateBadge('badgeCnic', false); // Pending verification
+        updateStatusItem('identityStatus', false, 'Identity', 'Documents submitted, pending review');
+
+      } catch (e) {
+        showNotification(e.message, 'error');
+        // Reset button only on error
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    });
+
+    // Selfie
+    byId('uploadSelfieBtn')?.addEventListener('click', async () => {
+      const u = firebase.auth().currentUser; if (!u) return showNotification('Please sign in', 'error');
+      const f = byId('selfie')?.files?.[0];
+      try { await handleSelfieUpload(f, u.uid); } catch (e) { showNotification(e.message, 'error'); }
+    });
+
+    // Shop (seller only)
+    byId('uploadShopBtn')?.addEventListener('click', async () => {
+      const btn = byId('uploadShopBtn');
+      const u = firebase.auth().currentUser; if (!u) return showNotification('Please sign in', 'error');
+      const photos = Array.from(byId('shopPhotos')?.files || []);
+      const docs = Array.from(byId('shopDocs')?.files || []);
+
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'Uploading...';
+
+      try {
+        await handleShopUpload(photos, docs, u.uid);
+        btn.innerHTML = 'Success!';
+      } catch (e) {
+        showNotification(e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    });
+  </script>
+
+  <!-- Camera Functionality for Live Selfie -->
+  <script>
+    let cameraStream = null;
+    let capturedPhoto = null;
+
+    // Get DOM elements
+    const startCameraBtn = document.getElementById('startCameraBtn');
+    const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+    const retakePhotoBtn = document.getElementById('retakePhotoBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const photoCanvas = document.getElementById('photoCanvas');
+    const capturedImageDisplay = document.getElementById('capturedImageDisplay');
+    const capturedImage = document.getElementById('capturedImage');
+    const selfiePreview = document.getElementById('selfiePreview');
+
+    // Start camera
+    startCameraBtn?.addEventListener('click', async () => {
+      capturedPhoto = null;
+
+      // Reset UI: Clear file input if retaking
+      const selfieInput = document.getElementById('selfie');
+      if (selfieInput) {
+        selfieInput.value = ''; // Clear file selection
+
+      }
+      const successLabel = document.getElementById('selfieSuccessLabel');
+      if (successLabel) successLabel.style.display = 'none';
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: 300,
+            height: 225,
+            facingMode: 'user'
+          }
+        });
+
+        cameraPreview.srcObject = cameraStream;
+        cameraPreview.style.display = 'block';
+        capturedImageDisplay.style.display = 'none';
+
+        startCameraBtn.style.display = 'none';
+        capturePhotoBtn.style.display = 'inline-block';
+        retakePhotoBtn.style.display = 'none';
+
+        // Clear any previous preview
+        selfiePreview.innerHTML = '';
+
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        showNotification('Unable to access camera. Please ensure you have granted camera permissions.', 'error');
+      }
+    });
+
+    // Capture photo
+    capturePhotoBtn?.addEventListener('click', () => {
+      try {
+        const context = photoCanvas.getContext('2d');
+
+        // Draw video frame to canvas
+        context.drawImage(cameraPreview, 0, 0, 300, 225);
+
+        // Get image as data URL
+        const imageDataURL = photoCanvas.toDataURL('image/jpeg', 0.9);
+
+        // Show captured image
+        capturedImage.src = imageDataURL;
+        // Show captured image
+        capturedImage.src = imageDataURL;
+        // capturedImageDisplay.style.display = 'block'; // Hide large preview as per user request
+
+        // Hide camera preview
+        cameraPreview.style.display = 'none';
+
+        // Update buttons
+        capturePhotoBtn.style.display = 'none';
+        retakePhotoBtn.style.display = 'inline-block';
+
+        // Show success message in preview area
+        // Show success message in preview area
+        selfiePreview.innerHTML = ''; // Clear large success message area
+
+        // Convert to blob for upload
+        photoCanvas.toBlob((blob) => {
+          capturedPhoto = blob;
+
+          // Populate file input with captured blob
+          const selfieInput = document.getElementById('selfie');
+          if (selfieInput) {
+            const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            selfieInput.files = dataTransfer.files;
+
+            // Ensure input remains hidden to prevent manual upload
+            selfieInput.style.display = 'none';
+
+            // Show custom "File Ready" indicator
+            let successLabel = document.getElementById('selfieSuccessLabel');
+            if (!successLabel) {
+              successLabel = document.createElement('div');
+              successLabel.id = 'selfieSuccessLabel';
+              successLabel.style.cssText = 'background: #f0fdf4; border: 1px solid #22c55e; color: #15803d; padding: 8px 12px; border-radius: 6px; margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;';
+              selfieInput.parentNode.appendChild(successLabel);
+            }
+            successLabel.innerHTML = `
+              <img src="${imageDataURL}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: 500;">selfie.jpg</span>
+                <span style="font-size: 0.75rem; color: #666;">Ready to upload</span>
+              </div>
+              <span style="margin-left: auto; font-size: 0.8rem; background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px;">Captured</span>
+            `;
+            successLabel.style.display = 'flex';
+          }
+
+          console.log('Photo captured successfully, blob size:', blob.size);
+        }, 'image/jpeg', 0.9);
+
+        // Stop camera stream
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(track => track.stop());
+          cameraStream = null;
+        }
+
+      } catch (error) {
+        console.error('Error capturing photo:', error);
+        alert('Error capturing photo. Please try again.');
+      }
+    });
+
+    // Retake photo
+    retakePhotoBtn?.addEventListener('click', () => {
+      // Clear displays
+      capturedImageDisplay.style.display = 'none';
+      selfiePreview.innerHTML = '';
+      capturedPhoto = null;
+
+      // Reset buttons
+      retakePhotoBtn.style.display = 'none';
+      startCameraBtn.style.display = 'inline-block';
+    });
+
+    // Function to get selfie data for upload
+    function getSelfieData() {
+      return capturedPhoto;
+    }
+  </script>
+
+  <style>
+    /* Enhanced Verification Styles */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .verification-section {
+      padding: 32px 0;
+      background: #f8fafc;
+      flex: 1;
+    }
+
+    .verification-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: linear-gradient(135deg, #1e90ff, #0066cc, #004499, #002266);
+      border-radius: 20px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(30, 144, 255, 0.3);
+    }
+
+    .header-content h1 {
+      margin: 0 0 8px 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .header-subtitle {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .verification-progress {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .progress-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .progress-text {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .progress-info {
+      text-align: left;
+    }
+
+    .progress-label {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .progress-steps {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .verification-grid {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 24px;
+    }
+
+    .status-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+      height: fit-content;
+      position: sticky;
+      top: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .card-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .verification-level {
+      background: #f3f4f6;
+      color: #374151;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-summary {
+      margin-bottom: 24px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-icon {
+      font-size: 1.5rem;
+    }
+
+    .status-content {
+      flex: 1;
+    }
+
+    .status-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .status-desc {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .status-badge.verified {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .verification-benefits {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .verification-benefits h4 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .verification-benefits ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .verification-benefits li {
+      padding: 4px 0;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+
+    .steps-card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+    }
+
+    .verification-step {
+      margin-bottom: 32px;
+      padding: 24px;
+      border: 2px solid #e5e7eb;
+      border-radius: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .verification-step:hover {
+      border-color: #d1d5db;
+      box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+    }
+
+    .verification-step.completed {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .verification-step.completed .step-number {
+      background: #10b981;
+      color: white;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h3 {
+      margin: 0 0 4px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .step-description {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+
+    .step-status {
+      margin-left: auto;
+    }
+
+    .step-body {
+      margin-left: 56px;
+    }
+
+    .step-info {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 12px;
+    }
+
+    .info-icon {
+      font-size: 1.5rem;
+    }
+
+    .info-content p {
+      margin: 0 0 8px 0;
+      color: #374151;
+    }
+
+    .email-address {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .form-row.two .form-group {
+      flex: 1;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .country-select {
+      width: 120px;
+      flex-shrink: 0;
+    }
+
+    .form-help {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .step-actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+
+    .btn-icon {
+      font-size: 1rem;
+    }
+
+    .step-help {
+      padding: 12px 16px;
+      background: #fef3c7;
+      border-radius: 8px;
+      border-left: 4px solid #f59e0b;
+    }
+
+    .step-help p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #92400e;
+    }
+
+    .document-upload-section {
+      margin: 24px 0;
+    }
+
+    .document-upload-section h4 {
+      margin: 0 0 16px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .upload-item {
+      position: relative;
+    }
+
+    .upload-area {
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+    }
+
+    .upload-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .upload-text h5 {
+      margin: 0 0 4px 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .upload-text p {
+      margin: 0 0 16px 0;
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+
+    .upload-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .file-preview {
+      margin-top: 12px;
+      display: none;
+    }
+
+    .file-preview img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .upload-requirements {
+      background: #f0f9ff;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .upload-requirements h5 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e40af;
+    }
+
+    .upload-requirements ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .upload-requirements li {
+      padding: 4px 0;
+      font-size: 0.875rem;
+      color: #1e40af;
+    }
+
+    .location-section {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+
+    .location-header h4 {
+      margin: 0 0 8px 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .location-header p {
+      margin: 0 0 16px 0;
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+
+    .location-input {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .location-input input {
+      flex: 1;
+    }
+
+    .otp-section {
+      background: #f0fdf4;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #bbf7d0;
+    }
+
+    .otp-input-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .otp-input-group input {
+      flex: 1;
+      text-align: center;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+    }
+
+    .phone-form {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 16px 0;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .shop-form {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 16px 0;
+    }
+
+    .shop-form h4 {
+      margin: 0 0 16px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    /* Clean Status Layout */
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-content {
+      flex: 1;
+    }
+
+    .step-info {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 16px 0;
+    }
+
+    .info-content {
+      width: 100%;
+    }
+
+    /* Professional Phone Input Styling */
+    .phone-input-group {
+      display: flex;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+      transition: border-color 0.2s ease;
+    }
+
+    .phone-input-group:focus-within {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .country-code {
+      background: #f8fafc;
+      border-right: 1px solid #d1d5db;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #374151;
+      display: flex;
+      align-items: center;
+      min-width: 60px;
+      justify-content: center;
+    }
+
+    .phone-input {
+      flex: 1;
+      border: none;
+      padding: 12px 16px;
+      font-size: 16px;
+      outline: none;
+      background: transparent;
+    }
+
+    .phone-input::placeholder {
+      color: #9ca3af;
+    }
+
+    .otp-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 16px;
+      text-align: center;
+      letter-spacing: 2px;
+      font-weight: 600;
+      transition: border-color 0.2s ease;
+    }
+
+    .otp-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .otp-input::placeholder {
+      color: #9ca3af;
+      letter-spacing: normal;
+      font-weight: normal;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .form-help {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn.primary:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn.secondary {
+      background: #f8fafc;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn.secondary:hover {
+      background: #f1f5f9;
+      border-color: #9ca3af;
+    }
+
+    /* Camera Section Styling */
+    .camera-section {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .camera-controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    #cameraPreview {
+      border: 2px solid #e5e7eb;
+      background: #f9fafb;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .upload-area {
+      text-align: center;
+      padding: 24px;
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+    }
+
+    .upload-area:hover {
+      border-color: #3b82f6;
+      background: #f0f9ff;
+    }
+
+    .upload-text h5 {
+      margin: 0 0 8px 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .upload-text p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+
+    /* Captured Photo Preview Styling */
+    .captured-photo-container {
+      text-align: center;
+      padding: 20px;
+      background: #f0fdf4;
+      border: 2px solid #bbf7d0;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .success-message {
+      margin-bottom: 16px;
+    }
+
+    .success-message h6 {
+      margin: 0 0 8px 0;
+      color: #15803d;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .success-message p {
+      margin: 0;
+      color: #166534;
+      font-size: 0.9rem;
+    }
+
+    .captured-selfie {
+      max-width: 250px;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      border: 3px solid #22c55e;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+      margin: 16px 0;
+    }
+
+    .photo-info {
+      margin-top: 12px;
+    }
+
+    .photo-info small {
+      color: #15803d;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    /* Business Location Verification Styling */
+    .location-verification-section {
+      margin: 20px 0;
+      padding: 20px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f9fafb;
+    }
+
+    .location-verification-section h4 {
+      margin: 0 0 8px 0;
+      color: #374151;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .location-verification-section p {
+      margin: 0 0 16px 0;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+
+    .location-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .location-status {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .location-display {
+      background: #f0fdf4;
+      border: 2px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .location-info h6 {
+      margin: 0 0 8px 0;
+      color: #15803d;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .location-info p {
+      margin: 0 0 4px 0;
+      color: #166534;
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+
+    .location-info small {
+      color: #15803d;
+      font-size: 0.8rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .verification-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .verification-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+      }
+
+      .verification-progress {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .step-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .step-body {
+        margin-left: 0;
+      }
+
+      .form-row {
+        flex-direction: column;
+      }
+
+      .upload-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+
+</body>
+
+</html>
