@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Furniture – Safe Trade Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+      <nav class="header-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Category Header -->
+  <section class="category-header">
+    <div class="container">
+      <div class="category-breadcrumb">
+        <a href="index.html">Home</a>
+        <span>›</span>
+        <span>Furniture</span>
+      </div>
+      <h1>Furniture & Home Decor</h1>
+      <div class="category-stats">
+        <span id="productCount">12 products available</span>
+        <span>•</span>
+        <span>From $89 to $599</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <!-- Search and Filters -->
+      <div class="search-filters-container">
+        <!-- Search Bar -->
+        <div class="search-container">
+          <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Search furniture..." class="search-input">
+            <button id="clearSearch" class="clear-search" style="display: none;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Filters -->
+        <div class="quick-filters">
+          <button class="filter-chip active" data-filter="all">All</button>
+          <button class="filter-chip" data-filter="chairs">Chairs</button>
+          <button class="filter-chip" data-filter="tables">Tables</button>
+          <button class="filter-chip" data-filter="sofas">Sofas</button>
+          <button class="filter-chip" data-filter="storage">Storage</button>
+        </div>
+
+        <!-- Advanced Filters -->
+        <div class="advanced-filters">
+          <div class="filter-group">
+            <label for="sortBy">Sort by:</label>
+            <select id="sortBy" class="filter-select">
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="name">Name A-Z</option>
+              <option value="rating">Rating</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="priceRange">Price Range:</label>
+            <select id="priceRange" class="filter-select">
+              <option value="all">All Prices</option>
+              <option value="under-150">Under $150</option>
+              <option value="150-300">$150 - $300</option>
+              <option value="300-500">$300 - $500</option>
+              <option value="over-500">Over $500</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="condition">Condition:</label>
+            <select id="condition" class="filter-select">
+              <option value="all">All Conditions</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+              <option value="refurbished">Refurbished</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="brand">Brand:</label>
+            <select id="brand" class="filter-select">
+              <option value="all">All Brands</option>
+              <option value="ikea">IKEA</option>
+              <option value="wayfair">Wayfair</option>
+              <option value="west-elm">West Elm</option>
+              <option value="generic">Generic</option>
+            </select>
+          </div>
+          <button id="clearFilters" class="clear-filters-btn">
+            <i class="fas fa-times"></i>
+            Clear All
+          </button>
+        </div>
+      </div>
+      
+      <div class="recs" id="grid"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
+
+  <!-- Product detail modal -->
+  <div id="productModal" class="modal" aria-hidden="true" role="dialog">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <button class="icon-btn" id="closeModal" aria-label="Close" style="position:absolute;top:12px;right:12px">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+  const CART_KEY='sthub_cart';
+  function getCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY))||[] } catch { return [] } }
+  function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
+  function cartCount(){ return getCart().reduce((a,i)=> a + (i.qty||1), 0); }
+  function updateCartCount(){ const b=document.getElementById('cartCount'); if(b) b.textContent=cartCount(); }
+  function addToCart(product, qty=1){ const cart=getCart(); const i=cart.findIndex(x=>x.id===product.id); if(i>-1) cart[i].qty += qty; else cart.push({...product, qty}); saveCart(cart); updateCartCount(); alert('Added to cart: '+product.title); }
+  document.addEventListener('click', (e)=>{ const btn=e.target.closest('[data-add-to-cart]'); if(!btn) return; const product={ id:btn.dataset.id, title:btn.dataset.name, price:parseFloat(btn.dataset.price||'0'), img:btn.dataset.img, desc:btn.dataset.desc }; addToCart(product,1); });
+
+  // Enhanced furniture products data
+  const allProducts = [
+    {id:'furn-chair-1', name:'Office Chair Pro', price:199.00, img:'images/chair.webp', desc:'Ergonomic office chair with lumbar support.', category:'chairs', brand:'ikea', condition:'new', rating:4.6},
+    {id:'furn-table-1', name:'Dining Table Set', price:399.00, img:'images/chair.webp', desc:'6-person dining table with chairs.', category:'tables', brand:'wayfair', condition:'new', rating:4.7},
+    {id:'furn-sofa-1', name:'3-Seater Sofa', price:599.00, img:'images/chair.webp', desc:'Comfortable 3-seater sofa in gray.', category:'sofas', brand:'west-elm', condition:'new', rating:4.8},
+    {id:'furn-storage-1', name:'Bookshelf Unit', price:149.00, img:'images/chair.webp', desc:'5-shelf bookshelf for storage.', category:'storage', brand:'ikea', condition:'new', rating:4.4},
+    {id:'furn-chair-2', name:'Dining Chair Set', price:89.00, img:'images/chair.webp', desc:'Set of 4 wooden dining chairs.', category:'chairs', brand:'generic', condition:'new', rating:4.3},
+    {id:'furn-table-2', name:'Coffee Table', price:179.00, img:'images/chair.webp', desc:'Modern glass coffee table.', category:'tables', brand:'wayfair', condition:'new', rating:4.5},
+    {id:'furn-sofa-2', name:'L-Shaped Sectional', price:799.00, img:'images/chair.webp', desc:'Large L-shaped sectional sofa.', category:'sofas', brand:'west-elm', condition:'new', rating:4.9},
+    {id:'furn-storage-2', name:'Wardrobe Cabinet', price:299.00, img:'images/chair.webp', desc:'2-door wardrobe with mirror.', category:'storage', brand:'ikea', condition:'new', rating:4.6},
+    {id:'furn-chair-3', name:'Accent Chair', price:129.00, img:'images/chair.webp', desc:'Stylish accent chair for living room.', category:'chairs', brand:'generic', condition:'new', rating:4.2},
+    {id:'furn-table-3', name:'Side Table', price:79.00, img:'images/chair.webp', desc:'Small side table for bedroom.', category:'tables', brand:'wayfair', condition:'new', rating:4.1},
+    {id:'furn-sofa-3', name:'Recliner Chair', price:349.00, img:'images/chair.webp', desc:'Comfortable recliner chair.', category:'sofas', brand:'generic', condition:'new', rating:4.4},
+    {id:'furn-storage-3', name:'TV Stand', price:199.00, img:'images/chair.webp', desc:'Modern TV stand with storage.', category:'storage', brand:'ikea', condition:'new', rating:4.5}
+  ];
+
+  let filteredProducts = [...allProducts];
+  let currentFilters = {
+    search: '',
+    category: 'all',
+    priceRange: 'all',
+    condition: 'all',
+    brand: 'all',
+    sortBy: 'featured'
+  };
+
+  function render(list){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = list.map(p=>`
+      <article class="card" data-product-id="${p.id}">
+        <div class="card-img">
+          <img src="${p.img}" alt="${p.name}" loading="lazy">
+          ${p.price > 300 ? '<div class="card-badge">Premium</div>' : ''}
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">${p.name}</h3>
+          <p class="card-description">${p.desc}</p>
+          <div class="card-price">$${p.price.toFixed(2)}</div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-primary" data-add-to-cart data-id="${p.id}" data-name="${p.name}" data-price="${p.price.toFixed(2)}" data-img="${p.img}" data-desc="${p.desc}">
+              Add to Cart
+            </button>
+            <button class="card-btn card-btn-secondary" onclick="openDetail('${p.id}')">
+              View Details
+            </button>
+          </div>
+        </div>
+      </article>`).join('');
+  }
+
+  function applyFilters() {
+    let filtered = [...allProducts];
+    
+    // Search filter
+    if (currentFilters.search) {
+      const searchTerm = currentFilters.search.toLowerCase();
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchTerm) ||
+        product.desc.toLowerCase().includes(searchTerm) ||
+        product.category.toLowerCase().includes(searchTerm) ||
+        product.brand.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Category filter
+    if (currentFilters.category !== 'all') {
+      filtered = filtered.filter(product => product.category === currentFilters.category);
+    }
+    
+    // Price range filter
+    if (currentFilters.priceRange !== 'all') {
+      filtered = filtered.filter(product => {
+        const price = product.price;
+        switch (currentFilters.priceRange) {
+          case 'under-150': return price < 150;
+          case '150-300': return price >= 150 && price <= 300;
+          case '300-500': return price >= 300 && price <= 500;
+          case 'over-500': return price > 500;
+          default: return true;
+        }
+      });
+    }
+    
+    // Condition filter
+    if (currentFilters.condition !== 'all') {
+      filtered = filtered.filter(product => product.condition === currentFilters.condition);
+    }
+    
+    // Brand filter
+    if (currentFilters.brand !== 'all') {
+      filtered = filtered.filter(product => product.brand === currentFilters.brand);
+    }
+    
+    // Sort
+    switch (currentFilters.sortBy) {
+      case 'price-low':
+        filtered.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high':
+        filtered.sort((a, b) => b.price - a.price);
+        break;
+      case 'name':
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'rating':
+        filtered.sort((a, b) => b.rating - a.rating);
+        break;
+      default:
+        // Keep original order for featured
+        break;
+    }
+    
+    filteredProducts = filtered;
+    render(filteredProducts);
+    updateProductStats();
+  }
+
+  function updateProductStats() {
+    const count = filteredProducts.length;
+    const minPrice = Math.min(...filteredProducts.map(p => p.price));
+    const maxPrice = Math.max(...filteredProducts.map(p => p.price));
+    
+    document.getElementById('productCount').textContent = `${count} product${count !== 1 ? 's' : ''} available`;
+    document.querySelector('.category-stats span:nth-child(3)').textContent = `From $${minPrice.toFixed(0)} to $${maxPrice.toFixed(0)}`;
+  }
+
+  function clearAllFilters() {
+    currentFilters = {
+      search: '',
+      category: 'all',
+      priceRange: 'all',
+      condition: 'all',
+      brand: 'all',
+      sortBy: 'featured'
+    };
+    
+    document.getElementById('searchInput').value = '';
+    document.getElementById('clearSearch').style.display = 'none';
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.classList.remove('active');
+      if (chip.dataset.filter === 'all') chip.classList.add('active');
+    });
+    document.getElementById('sortBy').value = 'featured';
+    document.getElementById('priceRange').value = 'all';
+    document.getElementById('condition').value = 'all';
+    document.getElementById('brand').value = 'all';
+    
+    applyFilters();
+  }
+
+  // Event listeners
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    currentFilters.search = e.target.value;
+    document.getElementById('clearSearch').style.display = e.target.value ? 'block' : 'none';
+    applyFilters();
+  });
+
+  document.getElementById('clearSearch').addEventListener('click', () => {
+    document.getElementById('searchInput').value = '';
+    currentFilters.search = '';
+    document.getElementById('clearSearch').style.display = 'none';
+    applyFilters();
+  });
+
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilters.category = chip.dataset.filter;
+      applyFilters();
+    });
+  });
+
+  document.getElementById('sortBy').addEventListener('change', (e) => {
+    currentFilters.sortBy = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('priceRange').addEventListener('change', (e) => {
+    currentFilters.priceRange = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('condition').addEventListener('change', (e) => {
+    currentFilters.condition = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('brand').addEventListener('change', (e) => {
+    currentFilters.brand = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
+
+  // Initialize
+  render(filteredProducts);
+  updateCartCount();
+  updateProductStats();
+
+  // -------- Details Modal --------
+  const modal = document.getElementById('productModal');
+  const modalContent = document.getElementById('modalContent');
+  const closeModalBtn = document.getElementById('closeModal');
+  closeModalBtn.addEventListener('click', ()=> modal.classList.remove('show'));
+  modal.addEventListener('click', (e)=>{ if(e.target.classList.contains('modal-backdrop')) modal.classList.remove('show'); });
+
+  function stars(n){ return '★★★★★☆☆☆☆☆'.slice(5 - Math.round(Math.max(0, Math.min(5,n)))) .slice(0,5).replace(/./g,(c,i)=> i < Math.round(n) ? '★' : '☆'); }
+
+  function openDetail(id){
+    const p = allProducts.find(x=>x.id===id);
+    if(!p) return;
+    const sampleReviews = [
+      {by:'John', rating:5, text:'Excellent quality and very comfortable.'},
+      {by:'Maria', rating:4, text:'Great value for money, highly recommended.'},
+      {by:'Alex', rating:5, text:'Perfect addition to my home office.'}
+    ];
+    const escrowHtml = `
+      <h3>How Escrow Works</h3>
+      <div class="escrow-steps">
+        <div class="escrow-step active"><span class="num">1</span><span class="label">Pay & Hold</span></div>
+        <div class="escrow-step"><span class="num">2</span><span class="label">Seller Ships to Escrow Location</span></div>
+        <div class="escrow-step"><span class="num">3</span><span class="label">Verification at Escrow</span></div>
+        <div class="escrow-step"><span class="num">4</span><span class="label">Buyer Confirms Delivery</span></div>
+        <div class="escrow-step"><span class="num">5</span><span class="label">Funds Released to Seller</span></div>
+      </div>
+      <p class="escrow-note">Payments are held securely until delivery confirmation. Disputes can be raised for refunds — admins review and take appropriate action.</p>`;
+
+    modalContent.innerHTML = `
+      <div class="product-detail-grid">
+        <img class="product-image-large" src="${p.img}" alt="${p.name}">
+        <div class="product-info">
+          <h2>${p.name}</h2>
+          <div class="product-price-large">$${p.price.toFixed(2)}</div>
+          <p><strong>Category:</strong> ${p.category.charAt(0).toUpperCase() + p.category.slice(1)}</p>
+          <p><strong>Brand:</strong> ${p.brand.charAt(0).toUpperCase() + p.brand.slice(1)}</p>
+          <p><strong>Condition:</strong> ${p.condition.charAt(0).toUpperCase() + p.condition.slice(1)}</p>
+          <p><strong>Rating:</strong> ${p.rating}/5 ⭐</p>
+          <p class="product-description">${p.desc}</p>
+          <div class="product-actions">
+            <button class="product-btn product-btn-primary" data-add-to-cart data-id="${p.id}" data-name="${p.name}" data-price="${p.price.toFixed(2)}" data-img="${p.img}" data-desc="${p.desc}">
+              Add to Cart
+            </button>
+            <button class="product-btn product-btn-secondary" onclick="modal.classList.remove('show')">
+              Close
+            </button>
+          </div>
+          <div class="escrow-section">
+            ${escrowHtml}
+          </div>
+          <div class="product-reviews">
+            <h3>Customer Reviews</h3>
+            <div class="reviews-grid">
+              ${sampleReviews.map(r=>`
+                <div class="review-item">
+                  <div class="review-header">
+                    <span class="review-author">${r.by}</span>
+                    <div class="review-rating">${stars(r.rating)}</div>
+                  </div>
+                  <div class="review-text">${r.text}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    modal.classList.add('show');
+  }
+
+  document.addEventListener('click', (e)=>{
+    const card = e.target.closest('.card');
+    if (!card) return;
+    if (e.target.closest('[data-add-to-cart]')) return; // let cart button work
+    const id = card.getAttribute('data-product-id');
+    if (id) openDetail(id);
+  });
+  </script>
+
+  <style>
+  /* Search and Filters Styles */
+  .search-filters-container {
+    margin-bottom: 32px;
+  }
+
+  .search-container {
+    margin-bottom: 20px;
+  }
+
+  .search-bar {
+    position: relative;
+    max-width: 500px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 12px 16px 12px 45px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+  }
+
+  .clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .clear-search:hover {
+    color: #6b7280;
+  }
+
+  .quick-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    padding: 8px 16px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+  }
+
+  .filter-chip:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+  }
+
+  .filter-chip.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+  }
+
+  .advanced-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 20px;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .filter-group label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+  }
+
+  .filter-select {
+    padding: 10px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .clear-filters-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #f3f4f6;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+  }
+
+  .clear-filters-btn:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+  }
+
+  /* Card Styles */
+  .card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.10);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(16, 24, 40, 0.12), 0 4px 12px rgba(16, 24, 40, 0.08);
+    border-color: #d1d9ff;
+  }
+
+  .card-img {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+  }
+
+  .card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .card:hover .card-img img {
+    transform: scale(1.05);
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #ff6b6b;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .card-content {
+    padding: 20px;
+  }
+
+  .card-title {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+    transition: color 0.3s ease;
+  }
+
+  .card:hover .card-title {
+    color: #3b82f6;
+  }
+
+  .card-description {
+    margin: 0 0 12px 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .card-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #059669;
+    margin-bottom: 16px;
+    transition: color 0.3s ease;
+  }
+
+  .card:hover .card-price {
+    color: #047857;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .card-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .card-btn-primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .card-btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .card-btn-secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+  }
+
+  .card-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #d1d5db;
+  }
+
+  /* Modal Styles */
+  .modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:1000; }
+  .modal.show{ display:flex; }
+  .modal-backdrop{ position:absolute; inset:0; background:rgba(2,6,23,.45); }
+  .modal-panel{ position:relative; background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); width:min(920px, 92%); max-height:90vh; overflow:auto; padding:16px; }
+  .product-detail-grid{ display:grid; grid-template-columns: 320px 1fr; gap:16px; }
+  @media (max-width: 820px){ .product-detail-grid{ grid-template-columns:1fr; } }
+  .product-image-large{ width:100%; height:280px; border-radius:14px; object-fit:cover; border:1px solid #e6ebff; background:#f3f6ff; }
+  .product-price-large{ font-weight:800; font-size:1.2rem; margin:6px 0; }
+  .product-actions{ display:flex; gap:12px; margin:16px 0; }
+  .product-btn{ padding:12px 24px; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition:all 0.3s ease; }
+  .product-btn-primary{ background:#3b82f6; color:white; }
+  .product-btn-primary:hover{ background:#2563eb; }
+  .product-btn-secondary{ background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; }
+  .product-btn-secondary:hover{ background:#e5e7eb; }
+  .escrow-section{ margin:20px 0; padding:16px; background:#f8fafc; border-radius:8px; }
+  .escrow-steps{ display:flex; gap:8px; margin:16px 0; overflow-x:auto; }
+  .escrow-step{ display:flex; flex-direction:column; align-items:center; min-width:80px; padding:8px; border-radius:8px; background:#f3f4f6; transition:all 0.3s ease; }
+  .escrow-step.active{ background:#dbeafe; color:#1e40af; }
+  .escrow-step .num{ width:24px; height:24px; border-radius:50%; background:#6b7280; color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; margin-bottom:4px; }
+  .escrow-step.active .num{ background:#3b82f6; }
+  .escrow-step .label{ font-size:10px; text-align:center; line-height:1.2; }
+  .escrow-note{ font-size:14px; color:#6b7280; margin-top:12px; padding:12px; background:#f9fafb; border-radius:8px; }
+  .product-reviews{ margin-top:20px; }
+  .reviews-grid{ display:grid; gap:12px; margin-top:12px; }
+  .review-item{ padding:12px; border:1px solid #e5e7eb; border-radius:8px; background:white; }
+  .review-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .review-author{ font-weight:600; color:#374151; }
+  .review-rating{ color:#fbbf24; }
+  .review-text{ color:#6b7280; font-size:14px; }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .advanced-filters {
+      grid-template-columns: 1fr;
+    }
+    
+    .quick-filters {
+      justify-content: center;
+    }
+    
+    .card-actions {
+      flex-direction: column;
+    }
+  }
+  </style>
+</body>
+</html>

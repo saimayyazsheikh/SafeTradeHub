@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – User Management</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Firebase v8 (matches your project) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <!-- Google Sign-In -->
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  <meta name="google-signin-client_id" content="YOUR_GOOGLE_CLIENT_ID">
+</head>
+<body class="page-auth">
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">SafeTradeHub</a>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container" style="max-width:720px">
+    <h1 id="authTitle" style="margin:0 0 12px">Join</h1>
+
+    <!-- Join -->
+    <form id="joinForm" class="form-card" autocomplete="off">
+      <div class="auth-header">
+        <h2>Create Your Account</h2>
+        <p class="auth-subtitle">Join SafeTradeHub as a buyer or seller</p>
+      </div>
+
+      <div class="form-row">
+        <label>Full Name</label>
+        <input id="j_name" type="text" required placeholder="Enter your full name" />
+      </div>
+      <div class="form-row two">
+        <div>
+          <label>Email</label>
+          <input id="j_email" type="email" required placeholder="your@email.com" />
+        </div>
+        <div>
+          <label>Phone (E.164, e.g. +92…)</label>
+          <input id="j_phone" type="tel" required placeholder="+92xxxxxxxxx" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Password</label>
+        <input id="j_pass" type="password" minlength="6" required placeholder="Minimum 6 characters" />
+        <div class="password-strength" id="passwordStrength"></div>
+      </div>
+
+      <fieldset class="form-row role-selection">
+        <legend>Choose Your Role</legend>
+        <div class="role-cards">
+          <label class="role-card">
+            <input type="radio" name="role" value="Buyer" checked />
+            <div class="role-content">
+              <div class="role-icon">🛒</div>
+              <div class="role-title">Buyer</div>
+              <div class="role-desc">Browse and purchase products safely</div>
+            </div>
+          </label>
+          <label class="role-card">
+            <input type="radio" name="role" value="Seller" />
+            <div class="role-content">
+              <div class="role-icon">🏪</div>
+              <div class="role-title">Seller</div>
+              <div class="role-desc">List products and grow your business</div>
+            </div>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="terms-agreement">
+        <label class="checkbox">
+          <input type="checkbox" id="termsAgreement" required />
+          <span>I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></span>
+        </label>
+      </div>
+
+      <button class="btn primary" type="submit" style="width:100%;margin-top:16px">
+        <span class="btn-text">Create Account</span>
+        <span class="btn-loading" style="display:none">Creating...</span>
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <button class="btn google-btn" type="button" id="googleSignUp">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <p class="auth-switch">Already have an account? <a href="auth.html?mode=signin">Sign in</a></p>
+    </form>
+
+    <!-- Sign in -->
+    <form id="signinForm" class="form-card" style="display:none" autocomplete="off">
+      <div class="auth-header">
+        <h2>Welcome Back</h2>
+        <p class="auth-subtitle">Sign in to your SafeTradeHub account</p>
+      </div>
+
+      <div class="form-row">
+        <label>Email</label>
+        <input id="s_email" type="email" required placeholder="your@email.com" />
+      </div>
+      <div class="form-row">
+        <label>Password</label>
+        <input id="s_pass" type="password" required placeholder="Enter your password" />
+        <div class="forgot-password">
+          <a href="#" onclick="showPasswordReset()">Forgot password?</a>
+        </div>
+      </div>
+
+      <button class="btn primary" type="submit" style="width:100%;margin-top:16px">
+        <span class="btn-text">Sign In</span>
+        <span class="btn-loading" style="display:none">Signing in...</span>
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <button class="btn google-btn" type="button" id="googleSignIn">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <p class="auth-switch">New here? <a href="auth.html?mode=join">Create an account</a></p>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
+
+<script>
+/* Firebase init (reuse your config) */
+const firebaseConfig = {
+  apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+  authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+  projectId: "safe-trade-hub-a57cb",
+  storageBucket: "safe-trade-hub-a57cb.appspot.com",   // <-- fix
+  messagingSenderId: "509522351934",
+  appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+  measurementId: "G-060FYYP5DD"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+/* Mode switch */
+const params = new URLSearchParams(location.search);
+const isSignin = params.get('mode') === 'signin';
+document.getElementById('authTitle').textContent = isSignin ? 'Sign In' : 'Join';
+document.getElementById('joinForm').style.display   = isSignin ? 'none' : 'block';
+document.getElementById('signinForm').style.display = isSignin ? 'block' : 'none';
+
+/* Enhanced Join flow with better UX */
+document.getElementById('joinForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  
+  const name  = document.getElementById('j_name').value.trim();
+  const email = document.getElementById('j_email').value.trim();
+  const phone = document.getElementById('j_phone').value.trim();
+  const pass  = document.getElementById('j_pass').value;
+  const role  = [...document.querySelectorAll('input[name="role"]')].find(r=>r.checked).value;
+  const terms = document.getElementById('termsAgreement').checked;
+
+  // Validation
+  if (!terms) {
+    showError('Please accept the Terms of Service and Privacy Policy');
+    return;
+  }
+
+  if (!validatePassword(pass)) {
+    showError('Password must be at least 6 characters with letters and numbers');
+    return;
+  }
+
+  if (!validatePhone(phone)) {
+    showError('Please enter a valid phone number in international format (e.g., +92xxxxxxxxx)');
+    return;
+  }
+
+  setLoading(true, 'joinForm');
+
+  try{
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await cred.user.updateProfile({ displayName: name });
+
+    /* Enhanced user document with better structure */
+    const userDoc = {
+      displayName: name,
+      email, phone, role,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+      preferences: {
+        notifications: true,
+        marketing: false,
+        language: 'en'
+      },
+      verification: {
+        email: false,
+        phone: false,
+        address: { submitted:false, verified:false, address:null, lat:null, lng:null },
+        cnic:    { submitted:false, verified:false, frontUrl:null, backUrl:null },
+        selfie:  { submitted:false, verified:false, url:null },
+        shop:    { submitted:false, verified:false, name:null, address:null, docUrls:[], photoUrls:[] }
+      },
+      status: 'pending', // overall
+      isActive: true,
+      profileComplete: false
+    };
+    await db.collection('users').doc(cred.user.uid).set(userDoc);
+
+    // Send email verification
+    await cred.user.sendEmailVerification({
+      url: `${window.location.origin}/verify.html?mode=verifyEmail`,
+      handleCodeInApp: false
+    });
+
+    showSuccess('Account created successfully! Please check your email for verification.');
+    
+    // Redirect to verification dashboard after a short delay
+    setTimeout(() => {
+      location.href = 'verify.html';
+    }, 2000);
+
+  }catch(err){
+    handleAuthError(err);
+  } finally {
+    setLoading(false, 'joinForm');
+  }
+});
+
+/* Enhanced Sign-in */
+document.getElementById('signinForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  
+  const email = document.getElementById('s_email').value.trim();
+  const pass = document.getElementById('s_pass').value;
+
+  setLoading(true, 'signinForm');
+
+  try{
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    
+    // Update last login time
+    await db.collection('users').doc(cred.user.uid).update({
+      lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showSuccess('Welcome back!');
+    setTimeout(() => {
+      location.href = 'dashboard.html';
+    }, 1000);
+
+  }catch(err){
+    handleAuthError(err);
+  } finally {
+    setLoading(false, 'signinForm');
+  }
+});
+
+/* Google Authentication */
+document.getElementById('googleSignUp').addEventListener('click', () => handleGoogleAuth('signup'));
+document.getElementById('googleSignIn').addEventListener('click', () => handleGoogleAuth('signin'));
+
+async function handleGoogleAuth(mode) {
+  setLoading(true, mode === 'signup' ? 'joinForm' : 'signinForm');
+  
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+    
+    // Check if user exists in Firestore
+    const userDoc = await db.collection('users').doc(user.uid).get();
+    
+    if (!userDoc.exists) {
+      // New user - create document
+      const userData = {
+        displayName: user.displayName,
+        email: user.email,
+        phone: user.phoneNumber || '',
+        role: 'Buyer', // Default role for Google signups
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+        preferences: {
+          notifications: true,
+          marketing: false,
+          language: 'en'
+        },
+        verification: {
+          email: true, // Google emails are pre-verified
+          phone: false,
+          address: { submitted:false, verified:false, address:null, lat:null, lng:null },
+          cnic:    { submitted:false, verified:false, frontUrl:null, backUrl:null },
+          selfie:  { submitted:false, verified:false, url:null },
+          shop:    { submitted:false, verified:false, name:null, address:null, docUrls:[], photoUrls:[] }
+        },
+        status: 'pending',
+        isActive: true,
+        profileComplete: false,
+        provider: 'google'
+      };
+      
+      await db.collection('users').doc(user.uid).set(userData);
+      showSuccess('Account created successfully!');
+    } else {
+      // Existing user - update last login
+      await db.collection('users').doc(user.uid).update({
+        lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showSuccess('Welcome back!');
+    }
+    
+    setTimeout(() => {
+      location.href = 'dashboard.html';
+    }, 1000);
+    
+  } catch (err) {
+    handleAuthError(err);
+  } finally {
+    setLoading(false, mode === 'signup' ? 'joinForm' : 'signinForm');
+  }
+}
+
+/* Helper Functions */
+function validatePassword(password) {
+  return password.length >= 6 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+}
+
+function validatePhone(phone) {
+  return /^\+[1-9]\d{1,14}$/.test(phone);
+}
+
+function setLoading(loading, formId) {
+  const form = document.getElementById(formId);
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const btnLoading = submitBtn.querySelector('.btn-loading');
+  
+  if (loading) {
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    submitBtn.disabled = true;
+  } else {
+    btnText.style.display = 'inline';
+    btnLoading.style.display = 'none';
+    submitBtn.disabled = false;
+  }
+}
+
+function showError(message) {
+  // Remove existing error messages
+  const existingError = document.querySelector('.error-message');
+  if (existingError) existingError.remove();
+  
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'error-message';
+  errorDiv.textContent = message;
+  errorDiv.style.cssText = 'color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 14px;';
+  
+  const form = document.querySelector('.form-card');
+  form.insertBefore(errorDiv, form.firstChild);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (errorDiv.parentNode) errorDiv.remove();
+  }, 5000);
+}
+
+function showSuccess(message) {
+  // Remove existing messages
+  const existingMessage = document.querySelector('.success-message');
+  if (existingMessage) existingMessage.remove();
+  
+  const successDiv = document.createElement('div');
+  successDiv.className = 'success-message';
+  successDiv.textContent = message;
+  successDiv.style.cssText = 'color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 14px;';
+  
+  const form = document.querySelector('.form-card');
+  form.insertBefore(successDiv, form.firstChild);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (successDiv.parentNode) successDiv.remove();
+  }, 5000);
+}
+
+function handleAuthError(error) {
+  let message = 'An error occurred. Please try again.';
+  
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      message = 'This email is already registered. Please sign in instead.';
+      break;
+    case 'auth/invalid-email':
+      message = 'Please enter a valid email address.';
+      break;
+    case 'auth/weak-password':
+      message = 'Password should be at least 6 characters.';
+      break;
+    case 'auth/user-not-found':
+      message = 'No account found with this email. Please create an account.';
+      break;
+    case 'auth/wrong-password':
+      message = 'Incorrect password. Please try again.';
+      break;
+    case 'auth/user-disabled':
+      message = 'This account has been disabled. Please contact support.';
+      break;
+    case 'auth/too-many-requests':
+      message = 'Too many failed attempts. Please try again later.';
+      break;
+    case 'auth/popup-closed-by-user':
+      message = 'Google sign-in was cancelled. Please try again.';
+      break;
+    default:
+      message = error.message || message;
+  }
+  
+  showError(message);
+}
+
+// Password reset function
+function showPasswordReset() {
+  const email = document.getElementById('s_email').value;
+  if (!email) {
+    showError('Please enter your email address first.');
+    return;
+  }
+  
+  auth.sendPasswordResetEmail(email)
+    .then(() => {
+      showSuccess('Password reset email sent! Check your inbox.');
+    })
+    .catch((error) => {
+      handleAuthError(error);
+    });
+}
+
+/* Password strength indicator */
+document.getElementById('j_pass').addEventListener('input', function() {
+  const password = this.value;
+  const strengthDiv = document.getElementById('passwordStrength');
+  
+  let strength = 0;
+  let strengthText = '';
+  let strengthColor = '';
+  
+  if (password.length >= 6) strength++;
+  if (password.length >= 8) strength++;
+  if (/[A-Z]/.test(password)) strength++;
+  if (/[a-z]/.test(password)) strength++;
+  if (/[0-9]/.test(password)) strength++;
+  if (/[^A-Za-z0-9]/.test(password)) strength++;
+  
+  switch (strength) {
+    case 0:
+    case 1:
+      strengthText = 'Very Weak';
+      strengthColor = '#dc2626';
+      break;
+    case 2:
+      strengthText = 'Weak';
+      strengthColor = '#ea580c';
+      break;
+    case 3:
+      strengthText = 'Fair';
+      strengthColor = '#d97706';
+      break;
+    case 4:
+      strengthText = 'Good';
+      strengthColor = '#059669';
+      break;
+    case 5:
+    case 6:
+      strengthText = 'Strong';
+      strengthColor = '#16a34a';
+      break;
+  }
+  
+  if (password.length > 0) {
+    strengthDiv.innerHTML = `<div style="color: ${strengthColor}; font-size: 12px; margin-top: 4px;">Password strength: ${strengthText}</div>`;
+  } else {
+    strengthDiv.innerHTML = '';
+  }
+});
+</script>
+
+<style>
+/* Enhanced Auth Styles */
+.page-auth {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  min-height: 100vh;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-header h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.auth-subtitle {
+  color: #64748b;
+  font-size: 16px;
+  margin: 0;
+}
+
+.form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(16, 24, 40, 0.08), 0 4px 12px rgba(16, 24, 40, 0.05);
+  padding: 32px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.form-row {
+  margin-bottom: 20px;
+}
+
+.form-row label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.form-row input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.form-row input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-row.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Role Selection */
+.role-selection {
+  border: none;
+  padding: 0;
+  margin: 24px 0;
+}
+
+.role-selection legend {
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.role-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.role-card {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.role-card:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+
+.role-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.role-card input[type="radio"]:checked + .role-content {
+  color: #1e40af;
+}
+
+.role-card input[type="radio"]:checked {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.role-content {
+  text-align: center;
+}
+
+.role-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.role-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.role-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* Terms Agreement */
+.terms-agreement {
+  margin: 20px 0;
+}
+
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.checkbox a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.checkbox a:hover {
+  text-decoration: underline;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  position: relative;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+}
+
+.btn.primary:active {
+  transform: translateY(0);
+}
+
+.btn.google-btn {
+  background: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btn.google-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Divider */
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 24px 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.divider span {
+  background: #ffffff;
+  padding: 0 16px;
+  position: relative;
+}
+
+/* Auth Switch */
+.auth-switch {
+  text-align: center;
+  margin-top: 24px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.auth-switch a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+/* Forgot Password */
+.forgot-password {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.forgot-password a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+/* Password Strength */
+.password-strength {
+  margin-top: 8px;
+}
+
+/* Loading States */
+.btn-loading {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .form-card {
+    padding: 24px;
+    margin: 0 16px;
+  }
+  
+  .role-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-row.two {
+    grid-template-columns: 1fr;
+  }
+  
+  .auth-header h2 {
+    font-size: 24px;
+  }
+}
+
+/* Error and Success Messages */
+.error-message, .success-message {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+</body>
+</html>

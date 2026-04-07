@@ -1,0 +1,191 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Cart</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+
+      <nav class="header-actions" aria-label="Top actions">
+        <!-- Chat -->
+        <button class="icon-btn" aria-label="Chat" title="Chat" onclick="toggleChat()">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+          </svg>
+        </button>
+
+        <!-- Notifications -->
+        <button class="icon-btn" aria-label="Notifications" title="Notifications">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/>
+            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+        </button>
+
+        <!-- Cart (current page) -->
+        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
+            <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
+          </svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+
+        <a class="link" href="auth.html?mode=signin">Sign In</a>
+        <a class="btn primary" href="auth.html?mode=join">Join</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Cart -->
+  <section class="section cart-wrap">
+    <div class="container">
+      <h1 style="margin:0 0 16px">Your Cart</h1>
+
+      <div class="cart-grid">
+        <!-- Items -->
+        <div class="cart-card">
+          <div id="cartItems"></div>
+          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px">
+            <button class="btn clear-btn" id="clearCartBtn">Clear Cart</button>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <aside class="cart-card summary" aria-label="Order summary">
+          <h3 style="margin:0 0 8px">Summary</h3>
+          <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
+          <div class="total-line"><span>Shipping</span><span>Free</span></div>
+          <hr style="border:none;border-top:1px solid #eef1f6; margin:8px 0">
+          <div class="total-line" style="font-size:1.1rem"><span>Total</span><strong id="grandTotal">—</strong></div>
+          <button class="btn primary" id="processOrderBtn">Proceed to Checkout</button>
+          <p class="muted-note" style="color:var(--muted); font-size:.9rem; margin-top:8px">
+            * MVP: creates a local order and clears the cart.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>All Rights Reserved By Safe Trade Hub</p>
+    </div>
+  </footer>
+
+  <!-- Chat container -->
+  <div id="chatbot-container" class="chatbot-container">
+    <iframe src="https://safetradehub-d797d24354d2.herokuapp.com/chatbot" frameborder="0" width="100%" height="100%" style="border-radius: 26px;"></iframe>
+  </div>
+
+<script>
+/* ========== Cart logic (single source of truth) ========== */
+const CART_KEY   = 'sthub_cart';
+const ORDERS_KEY = 'sthub_orders';
+
+/* Optional: migrate any legacy key */
+(function migrateCartKey(){
+  const legacy = localStorage.getItem('sth_cart');
+  const current = localStorage.getItem(CART_KEY);
+  if (legacy && !current) localStorage.setItem(CART_KEY, legacy);
+})();
+
+const money = (n) => new Intl.NumberFormat(undefined, { style:'currency', currency:'USD' }).format(n);
+
+function readCart(){
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch {}
+  if (!Array.isArray(arr)) arr = [];
+  // normalize legacy fields
+  return arr.map(i => ({
+    id: i.id,
+    title: i.title || i.name || 'Item',
+    price: Number(i.price) || 0,
+    img: i.img || '',
+    qty: Number(i.qty) || 1
+  }));
+}
+function writeCart(items){ localStorage.setItem(CART_KEY, JSON.stringify(items)); }
+function cartCount(){ return readCart().reduce((n,i)=> n + (i.qty || 1), 0); }
+function setCartBadge(){ const el = document.getElementById('cartCount'); if (el) el.textContent = cartCount(); }
+
+function toggleChat(){ document.getElementById('chatbot-container').classList.toggle('show'); }
+
+/* Render */
+function renderCart(){
+  const list = document.getElementById('cartItems');
+  const items = readCart();
+  setCartBadge();
+
+  if(!items.length){
+    list.innerHTML = `
+      <p style="color:var(--muted)">Your cart is empty.</p>
+      <a class="btn" href="index.html" style="margin-top:8px">Continue shopping</a>`;
+    document.getElementById('subtotal').textContent   = money(0);
+    document.getElementById('grandTotal').textContent = money(0);
+    return;
+  }
+
+  list.innerHTML = items.map((it, idx) => `
+    <div class="cart-row">
+      <img src="${it.img}" alt="" />
+      <div>
+        <div style="font-weight:700">${it.title}</div>
+        <div class="price" style="margin-top:4px">${money(it.price)}</div>
+      </div>
+      <div class="qty">
+        <input type="number" min="1" value="${it.qty}" data-idx="${idx}" />
+      </div>
+      <div class="line-total">${money(it.price * it.qty)}</div>
+      <button class="icon-btn" aria-label="Remove" data-remove="${idx}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6v12m8-12v12M5 6l1-3h12l1 3M9 6h6"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  const subtotal = items.reduce((s,i)=> s + i.price * i.qty, 0);
+  document.getElementById('subtotal').textContent   = money(subtotal);
+  document.getElementById('grandTotal').textContent = money(subtotal);
+}
+
+/* Events */
+document.addEventListener('input', (e) => {
+  if(!e.target.matches('.qty input')) return;
+  const idx   = +e.target.dataset.idx;
+  const items = readCart();
+  items[idx].qty = Math.max(1, parseInt(e.target.value || '1', 10));
+  writeCart(items);
+  renderCart();
+});
+
+document.addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-remove]');
+  if(!rm) return;
+  const idx   = +rm.dataset.remove;
+  const items = readCart();
+  items.splice(idx, 1);
+  writeCart(items);
+  renderCart();
+});
+
+document.getElementById('clearCartBtn').addEventListener('click', ()=>{
+  writeCart([]); renderCart();
+});
+
+document.getElementById('processOrderBtn').addEventListener('click', ()=>{
+   // Go to escrow checkout
+  location.href = 'checkout.html';
+});
+
+/* init */
+renderCart();
+</script>
+</body>
+</html>
