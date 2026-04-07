@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Management – Safe Trade Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/product-management.css" />
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">SafeTradeHub</a>
+      <nav class="header-actions">
+        <!-- Navigation will be updated by HeaderManager -->
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Breadcrumb -->
+    <section class="breadcrumb-section">
+      <div class="container">
+        <nav class="breadcrumb">
+          <a href="index.html">Home</a>
+          <span class="breadcrumb-separator">›</span>
+          <a href="dashboard.html">Dashboard</a>
+          <span class="breadcrumb-separator">›</span>
+          <span class="breadcrumb-current">Product Management</span>
+        </nav>
+      </div>
+    </section>
+
+    <!-- Management Header -->
+    <section class="management-header">
+      <div class="container">
+        <div class="header-content">
+          <div class="header-text">
+            <h1>Product Management</h1>
+            <p class="header-subtitle">Manage your product listings, track performance, and handle orders</p>
+          </div>
+          <div class="header-actions">
+            <a href="product-upload.html" class="btn btn-primary">
+              <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+              </svg>
+              Add New Product
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistics Cards -->
+    <section class="stats-section">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon active">
+              <svg viewBox="0 0 24 24">
+                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number" id="activeProducts">0</div>
+              <div class="stat-label">Active Products</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon sold">
+              <svg viewBox="0 0 24 24">
+                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number" id="soldProducts">0</div>
+              <div class="stat-label">Sold Products</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon draft">
+              <svg viewBox="0 0 24 24">
+                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number" id="draftProducts">0</div>
+              <div class="stat-label">Draft Products</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon revenue">
+              <svg viewBox="0 0 24 24">
+                <path d="M7,15H9C9,16.08 10.37,17 12,17C13.63,17 15,16.08 15,15C15,13.9 13.96,13.5 11.76,12.97C9.64,12.44 7,11.78 7,9C7,7.21 8.47,5.69 10.5,5.18V3H13.5V5.18C15.53,5.69 17,7.21 17,9H15C15,7.92 13.63,7 12,7C10.37,7 9,7.92 9,9C9,10.1 10.04,10.5 12.24,11.03C14.36,11.56 17,12.22 17,15C17,16.79 15.53,18.31 13.5,18.82V21H10.5V18.82C8.47,18.31 7,16.79 7,15Z"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-number" id="totalRevenue">$0</div>
+              <div class="stat-label">Total Revenue</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filters and Search -->
+    <section class="filters-section">
+      <div class="container">
+        <div class="filters-container">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="text" id="productSearch" placeholder="Search products..." class="search-input">
+          </div>
+
+          <div class="filter-controls">
+            <select id="statusFilter" class="filter-select">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="sold">Sold</option>
+              <option value="draft">Draft</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <select id="categoryFilter" class="filter-select">
+              <option value="">All Categories</option>
+              <option value="mobile">Mobile</option>
+              <option value="camera">Camera</option>
+              <option value="computers">Computers</option>
+              <option value="fashion">Fashion</option>
+              <option value="beauty">Beauty</option>
+              <option value="books">Books</option>
+              <option value="furniture">Furniture</option>
+              <option value="gym">Gym</option>
+              <option value="home">Home</option>
+              <option value="services">Services</option>
+              <option value="sports">Sports</option>
+              <option value="pets">Pets</option>
+            </select>
+
+            <select id="sortBy" class="filter-select">
+              <option value="createdAt">Date Created</option>
+              <option value="name">Product Name</option>
+              <option value="price">Price</option>
+              <option value="views">Views</option>
+              <option value="favorites">Favorites</option>
+            </select>
+
+            <button id="clearFilters" class="btn btn-secondary">
+              <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Products Grid -->
+    <section class="products-section">
+      <div class="container">
+        <div class="products-header">
+          <h2>Your Products</h2>
+          <div class="view-controls">
+            <button id="gridView" class="view-btn active" data-view="grid">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+            <button id="listView" class="view-btn" data-view="list">
+              <svg viewBox="0 0 24 24">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="productsContainer" class="products-container grid-view">
+          <!-- Products will be loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,16.5L18,9.5L16.5,8L11,13.5L7.5,10L6,11.5L11,16.5Z"/>
+            </svg>
+          </div>
+          <h3>No products found</h3>
+          <p>Start by adding your first product to begin selling on SafeTradeHub.</p>
+          <a href="product-upload.html" class="btn btn-primary">Add Your First Product</a>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="loading-state">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading products...</p>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination" style="display: none;">
+          <!-- Pagination will be generated here -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Product Actions Modal -->
+  <div id="productActionsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalProductName">Product Actions</h3>
+        <button class="modal-close" onclick="closeProductActionsModal()">
+          <svg viewBox="0 0 24 24">
+            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="action-buttons">
+          <button id="editProduct" class="action-btn edit">
+            <svg viewBox="0 0 24 24">
+              <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+            </svg>
+            Edit Product
+          </button>
+          
+          <button id="markAsSold" class="action-btn sold">
+            <svg viewBox="0 0 24 24">
+              <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+            </svg>
+            Mark as Sold
+          </button>
+          
+          <button id="toggleStatus" class="action-btn status">
+            <svg viewBox="0 0 24 24">
+              <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,16.5L18,9.5L16.5,8L11,13.5L7.5,10L6,11.5L11,16.5Z"/>
+            </svg>
+            <span id="toggleStatusText">Toggle Status</span>
+          </button>
+          
+          <button id="viewAnalytics" class="action-btn analytics">
+            <svg viewBox="0 0 24 24">
+              <path d="M22,21H2V3H4V19H6V17H10V19H12V16H16V19H18V17H22V21Z"/>
+            </svg>
+            View Analytics
+          </button>
+          
+          <button id="duplicateProduct" class="action-btn duplicate">
+            <svg viewBox="0 0 24 24">
+              <path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+            </svg>
+            Duplicate Product
+          </button>
+          
+          <button id="deleteProduct" class="action-btn delete">
+            <svg viewBox="0 0 24 24">
+              <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+            </svg>
+            Delete Product
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="confirmationTitle">Confirm Action</h3>
+        <button class="modal-close" onclick="closeConfirmationModal()">
+          <svg viewBox="0 0 24 24">
+            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmationMessage">Are you sure you want to perform this action?</p>
+        <div class="confirmation-actions">
+          <button id="confirmAction" class="btn btn-primary">Confirm</button>
+          <button onclick="closeConfirmationModal()" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p id="loadingText">Processing...</p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/product-management.js"></script>
+</body>
+</html>
