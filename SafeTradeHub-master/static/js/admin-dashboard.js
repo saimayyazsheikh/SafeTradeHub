@@ -290,7 +290,7 @@ async function getDashboardStats() {
     const escrows = getLocalStorageData('escrows');
     const disputes = getLocalStorageData('disputes');
 
-    
+    console.log('Stats Check:', {
       users: users.length,
       products: products.length,
       orders: orders.length,
