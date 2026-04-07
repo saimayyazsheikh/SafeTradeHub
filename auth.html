@@ -12,6 +12,10 @@
   <!-- Google Sign-In -->
   <script src="https://apis.google.com/js/platform.js" async defer></script>
   <meta name="google-signin-client_id" content="YOUR_GOOGLE_CLIENT_ID">
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
 </head>
 <body class="page-auth">
 <header class="site-header">
@@ -169,6 +173,191 @@ document.getElementById('authTitle').textContent = isSignin ? 'Sign In' : 'Join'
 document.getElementById('joinForm').style.display   = isSignin ? 'none' : 'block';
 document.getElementById('signinForm').style.display = isSignin ? 'block' : 'none';
 
+/* Real-time Validation Feedback */
+function setupRealTimeValidation() {
+  const emailInput = document.getElementById('j_email');
+  const phoneInput = document.getElementById('j_phone');
+  const passwordInput = document.getElementById('j_pass');
+  const nameInput = document.getElementById('j_name');
+  
+  // Sign-in form validation
+  const signinEmailInput = document.getElementById('s_email');
+  const signinPasswordInput = document.getElementById('s_pass');
+  
+  // Email validation feedback (Join form)
+  if (emailInput) {
+    emailInput.addEventListener('blur', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Please enter an email from a trusted provider (Gmail, Outlook, Yahoo, etc.)');
+      } else {
+        this.style.borderColor = email ? '#10b981' : '';
+        clearFieldError(this);
+      }
+    });
+    
+    emailInput.addEventListener('input', function() {
+      if (this.style.borderColor === 'rgb(220, 38, 38)') { // red
+        this.style.borderColor = '';
+        clearFieldError(this);
+      }
+    });
+  }
+  
+  // Sign-in Email validation feedback
+  if (signinEmailInput) {
+    signinEmailInput.addEventListener('blur', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Please enter an email from a trusted provider (Gmail, Outlook, Yahoo, etc.)');
+      } else {
+        this.style.borderColor = email ? '#10b981' : '';
+        clearFieldError(this);
+      }
+    });
+    
+    signinEmailInput.addEventListener('input', function() {
+      if (this.style.borderColor === 'rgb(220, 38, 38)') { // red
+        this.style.borderColor = '';
+        clearFieldError(this);
+      }
+    });
+  }
+  
+  // Sign-in Password validation feedback
+  if (signinPasswordInput) {
+    signinPasswordInput.addEventListener('blur', function() {
+      const password = this.value;
+      if (password && password.length < 1) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Please enter your password');
+      } else if (password && password.length < 6) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Password must be at least 6 characters');
+      } else {
+        this.style.borderColor = password ? '#10b981' : '';
+        clearFieldError(this);
+      }
+    });
+    
+    signinPasswordInput.addEventListener('input', function() {
+      if (this.style.borderColor === 'rgb(220, 38, 38)') { // red
+        this.style.borderColor = '';
+        clearFieldError(this);
+      }
+    });
+  }
+  
+  // Phone validation feedback
+  if (phoneInput) {
+    phoneInput.addEventListener('blur', function() {
+      const phone = this.value.trim();
+      if (phone && !validatePhone(phone)) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Please enter a valid phone number with country code (e.g., +92xxxxxxxxx)');
+      } else {
+        this.style.borderColor = phone ? '#10b981' : '';
+        clearFieldError(this);
+      }
+    });
+    
+    phoneInput.addEventListener('input', function() {
+      if (this.style.borderColor === 'rgb(220, 38, 38)') { // red
+        this.style.borderColor = '';
+        clearFieldError(this);
+      }
+    });
+  }
+  
+  // Password validation feedback
+  if (passwordInput) {
+    passwordInput.addEventListener('input', function() {
+      const password = this.value;
+      const strengthDiv = document.getElementById('passwordStrength');
+      
+      if (password.length === 0) {
+        strengthDiv.innerHTML = '';
+        this.style.borderColor = '';
+        return;
+      }
+      
+      let strength = 0;
+      let feedback = [];
+      
+      if (password.length >= 6) strength++; else feedback.push('At least 6 characters');
+      if (/[A-Za-z]/.test(password)) strength++; else feedback.push('Include letters');
+      if (/[0-9]/.test(password)) strength++; else feedback.push('Include numbers');
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[a-z]/.test(password)) strength++;
+      if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
+      
+      let strengthText = '';
+      let strengthColor = '';
+      
+      if (strength < 3) {
+        strengthText = 'Weak';
+        strengthColor = '#dc2626';
+        this.style.borderColor = '#dc2626';
+      } else if (strength < 5) {
+        strengthText = 'Medium';
+        strengthColor = '#f59e0b';
+        this.style.borderColor = '#f59e0b';
+      } else {
+        strengthText = 'Strong';
+        strengthColor = '#10b981';
+        this.style.borderColor = '#10b981';
+      }
+      
+      strengthDiv.innerHTML = `
+        <span style="color: ${strengthColor}; font-weight: 600;">${strengthText}</span>
+        ${feedback.length > 0 ? '<br><small style="color: #6b7280;">' + feedback.join(', ') + '</small>' : ''}
+      `;
+    });
+  }
+  
+  // Name validation feedback
+  if (nameInput) {
+    nameInput.addEventListener('blur', function() {
+      const name = this.value.trim();
+      if (name && name.length < 2) {
+        this.style.borderColor = '#dc2626';
+        showFieldError(this, 'Name must be at least 2 characters');
+      } else {
+        this.style.borderColor = name ? '#10b981' : '';
+        clearFieldError(this);
+      }
+    });
+    
+    nameInput.addEventListener('input', function() {
+      if (this.style.borderColor === 'rgb(220, 38, 38)') { // red
+        this.style.borderColor = '';
+        clearFieldError(this);
+      }
+    });
+  }
+}
+
+function showFieldError(field, message) {
+  clearFieldError(field);
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'field-error';
+  errorDiv.textContent = message;
+  errorDiv.style.cssText = 'color: #dc2626; font-size: 0.875rem; margin-top: 4px;';
+  field.parentNode.appendChild(errorDiv);
+}
+
+function clearFieldError(field) {
+  const existingError = field.parentNode.querySelector('.field-error');
+  if (existingError) {
+    existingError.remove();
+  }
+}
+
+// Initialize real-time validation
+setupRealTimeValidation();
+
 /* Enhanced Join flow with better UX */
 document.getElementById('joinForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -180,9 +369,19 @@ document.getElementById('joinForm').addEventListener('submit', async (e)=>{
   const role  = [...document.querySelectorAll('input[name="role"]')].find(r=>r.checked).value;
   const terms = document.getElementById('termsAgreement').checked;
 
-  // Validation
-  if (!terms) {
-    showError('Please accept the Terms of Service and Privacy Policy');
+  // Enhanced validation with better error messages
+  if (!name || name.length < 2) {
+    showError('Please enter your full name (at least 2 characters)');
+    return;
+  }
+
+  if (!validateEmail(email)) {
+    showError('Please enter a valid email from a trusted provider (Gmail, Outlook, Yahoo, etc.)');
+    return;
+  }
+
+  if (!validatePhone(phone)) {
+    showError('Please enter a valid phone number with correct country code (e.g., +92xxxxxxxxx)');
     return;
   }
 
@@ -191,8 +390,8 @@ document.getElementById('joinForm').addEventListener('submit', async (e)=>{
     return;
   }
 
-  if (!validatePhone(phone)) {
-    showError('Please enter a valid phone number in international format (e.g., +92xxxxxxxxx)');
+  if (!terms) {
+    showError('Please accept the Terms of Service and Privacy Policy');
     return;
   }
 
@@ -254,6 +453,17 @@ document.getElementById('signinForm').addEventListener('submit', async (e)=>{
   const email = document.getElementById('s_email').value.trim();
   const pass = document.getElementById('s_pass').value;
 
+  // Basic validation - only check if fields are not empty
+  if (!email) {
+    showError('Please enter your email address');
+    return;
+  }
+
+  if (!pass) {
+    showError('Please enter your password');
+    return;
+  }
+
   setLoading(true, 'signinForm');
 
   try{
@@ -264,12 +474,36 @@ document.getElementById('signinForm').addEventListener('submit', async (e)=>{
       lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
+    // Update global AuthManager
+    if (window.AuthManager) {
+      const userData = {
+        id: cred.user.uid,
+        uid: cred.user.uid,
+        email: cred.user.email,
+        name: cred.user.displayName || 'User',
+        provider: 'firebase'
+      };
+      await window.AuthManager.setAuthData(userData, null);
+    }
+
     showSuccess('Welcome back!');
+    
+    // Check for redirect parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect');
+    
     setTimeout(() => {
-      location.href = 'dashboard.html';
+      if (redirectUrl && redirectUrl !== 'dashboard.html') {
+        // Redirect to the specific page if it's not dashboard
+        location.href = redirectUrl;
+      } else {
+        // Default redirect to index.html as per project specification
+        location.href = 'index.html';
+      }
     }, 1000);
 
   }catch(err){
+    console.log('Sign-in error:', err); // Debug log
     handleAuthError(err);
   } finally {
     setLoading(false, 'signinForm');
@@ -294,9 +528,12 @@ async function handleGoogleAuth(mode) {
     // Check if user exists in Firestore
     const userDoc = await db.collection('users').doc(user.uid).get();
     
+    let userData;
+    
     if (!userDoc.exists) {
       // New user - create document
-      const userData = {
+      userData = {
+        id: user.uid,
         displayName: user.displayName,
         email: user.email,
         phone: user.phoneNumber || '',
@@ -329,11 +566,37 @@ async function handleGoogleAuth(mode) {
       await db.collection('users').doc(user.uid).update({
         lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      
+      userData = userDoc.data();
+      userData.id = user.uid;
       showSuccess('Welcome back!');
     }
     
+    // Update global AuthManager
+    if (window.AuthManager) {
+      const authUserData = {
+        id: user.uid,
+        uid: user.uid,
+        email: user.email,
+        name: userData.displayName || user.displayName || 'User',
+        role: userData.role || 'Buyer',
+        provider: 'firebase'
+      };
+      await window.AuthManager.setAuthData(authUserData, null);
+    }
+    
     setTimeout(() => {
-      location.href = 'dashboard.html';
+      // Check for redirect parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect');
+      
+      if (redirectUrl && redirectUrl !== 'dashboard.html') {
+        // Redirect to the specific page if it's not dashboard
+        location.href = redirectUrl;
+      } else {
+        // Default redirect to index.html as per project specification
+        location.href = 'index.html';
+      }
     }, 1000);
     
   } catch (err) {
@@ -343,13 +606,342 @@ async function handleGoogleAuth(mode) {
   }
 }
 
-/* Helper Functions */
-function validatePassword(password) {
-  return password.length >= 6 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+/* Enhanced Helper Functions with Better Validation */
+function validateEmail(email) {
+  // Comprehensive email validation with trusted domain restriction
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
+  // Basic format check
+  if (!emailRegex.test(email)) {
+    return false;
+  }
+  
+  // Additional checks
+  if (email.length > 254) return false; // RFC limit
+  if (email.split('@').length !== 2) return false;
+  
+  const [localPart, domain] = email.split('@');
+  
+  // Local part validation
+  if (localPart.length === 0 || localPart.length > 64) return false;
+  if (localPart.startsWith('.') || localPart.endsWith('.')) return false;
+  if (localPart.includes('..')) return false;
+  
+  // Domain validation
+  if (domain.length === 0 || domain.length > 253) return false;
+  if (domain.startsWith('.') || domain.endsWith('.')) return false;
+  if (domain.includes('..')) return false;
+  
+  // TRUSTED DOMAIN VALIDATION - Only allow verified email providers
+  const trustedDomains = [
+    // Google
+    'gmail.com', 'googlemail.com',
+    // Microsoft
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+    // Yahoo
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.ca', 'yahoo.com.au', 'yahoo.de', 'yahoo.fr', 'yahoo.es', 'yahoo.it', 'yahoo.co.jp', 'yahoo.co.in',
+    // Apple
+    'icloud.com', 'me.com', 'mac.com',
+    // AOL
+    'aol.com', 'aim.com',
+    // Other major providers
+    'protonmail.com', 'proton.me',
+    'zoho.com', 'zohomail.com',
+    'tutanota.com', 'tutanota.de',
+    'mail.com', 'email.com',
+    'gmx.com', 'gmx.net', 'gmx.de',
+    'yandex.com', 'yandex.ru',
+    'mail.ru', 'bk.ru', 'list.ru',
+    'qq.com', '163.com', '126.com',
+    'naver.com', 'daum.net',
+    'rediffmail.com',
+    'fastmail.com',
+    'hushmail.com',
+    'rocketmail.com'
+  ];
+  
+  const domainLower = domain.toLowerCase();
+  
+  // Check if domain is in trusted list
+  if (!trustedDomains.includes(domainLower)) {
+    return false;
+  }
+  
+  return true;
 }
 
 function validatePhone(phone) {
-  return /^\+[1-9]\d{1,14}$/.test(phone);
+  // Enhanced phone validation for international format - STRICT validation
+  if (!phone || typeof phone !== 'string') return false;
+  
+  // Remove all spaces, dashes, and parentheses for validation
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // Must start with + and have country code
+  if (!cleanPhone.startsWith('+')) return false;
+  
+  // Must be between 8 and 15 digits (including country code)
+  // E.164 format: +[country code][subscriber number]
+  const phoneRegex = /^\+[1-9]\d{7,14}$/;
+  
+  if (!phoneRegex.test(cleanPhone)) return false;
+  
+  // STRICT validation for common country codes only
+  const validCountryCodes = [
+    '1',     // US/Canada
+    '7',     // Russia/Kazakhstan
+    '20',    // Egypt
+    '27',    // South Africa
+    '30',    // Greece
+    '31',    // Netherlands
+    '32',    // Belgium
+    '33',    // France
+    '34',    // Spain
+    '36',    // Hungary
+    '39',    // Italy
+    '40',    // Romania
+    '41',    // Switzerland
+    '43',    // Austria
+    '44',    // UK
+    '45',    // Denmark
+    '46',    // Sweden
+    '47',    // Norway
+    '48',    // Poland
+    '49',    // Germany
+    '51',    // Peru
+    '52',    // Mexico
+    '53',    // Cuba
+    '54',    // Argentina
+    '55',    // Brazil
+    '56',    // Chile
+    '57',    // Colombia
+    '58',    // Venezuela
+    '60',    // Malaysia
+    '61',    // Australia
+    '62',    // Indonesia
+    '63',    // Philippines
+    '64',    // New Zealand
+    '65',    // Singapore
+    '66',    // Thailand
+    '81',    // Japan
+    '82',    // South Korea
+    '84',    // Vietnam
+    '86',    // China
+    '90',    // Turkey
+    '91',    // India
+    '92',    // Pakistan
+    '93',    // Afghanistan
+    '94',    // Sri Lanka
+    '95',    // Myanmar
+    '98',    // Iran
+    '212',   // Morocco
+    '213',   // Algeria
+    '216',   // Tunisia
+    '218',   // Libya
+    '220',   // Gambia
+    '221',   // Senegal
+    '222',   // Mauritania
+    '223',   // Mali
+    '224',   // Guinea
+    '225',   // Ivory Coast
+    '226',   // Burkina Faso
+    '227',   // Niger
+    '228',   // Togo
+    '229',   // Benin
+    '230',   // Mauritius
+    '231',   // Liberia
+    '232',   // Sierra Leone
+    '233',   // Ghana
+    '234',   // Nigeria
+    '235',   // Chad
+    '236',   // Central African Republic
+    '237',   // Cameroon
+    '238',   // Cape Verde
+    '239',   // São Tomé and Príncipe
+    '240',   // Equatorial Guinea
+    '241',   // Gabon
+    '242',   // Republic of the Congo
+    '243',   // Democratic Republic of the Congo
+    '244',   // Angola
+    '245',   // Guinea-Bissau
+    '246',   // British Indian Ocean Territory
+    '248',   // Seychelles
+    '249',   // Sudan
+    '250',   // Rwanda
+    '251',   // Ethiopia
+    '252',   // Somalia
+    '253',   // Djibouti
+    '254',   // Kenya
+    '255',   // Tanzania
+    '256',   // Uganda
+    '257',   // Burundi
+    '258',   // Mozambique
+    '260',   // Zambia
+    '261',   // Madagascar
+    '262',   // Réunion/Mayotte
+    '263',   // Zimbabwe
+    '264',   // Namibia
+    '265',   // Malawi
+    '266',   // Lesotho
+    '267',   // Botswana
+    '268',   // Swaziland
+    '269',   // Comoros
+    '290',   // Saint Helena
+    '291',   // Eritrea
+    '297',   // Aruba
+    '298',   // Faroe Islands
+    '299',   // Greenland
+    '350',   // Gibraltar
+    '351',   // Portugal
+    '352',   // Luxembourg
+    '353',   // Ireland
+    '354',   // Iceland
+    '355',   // Albania
+    '356',   // Malta
+    '357',   // Cyprus
+    '358',   // Finland
+    '359',   // Bulgaria
+    '370',   // Lithuania
+    '371',   // Latvia
+    '372',   // Estonia
+    '373',   // Moldova
+    '374',   // Armenia
+    '375',   // Belarus
+    '376',   // Andorra
+    '377',   // Monaco
+    '378',   // San Marino
+    '380',   // Ukraine
+    '381',   // Serbia
+    '382',   // Montenegro
+    '383',   // Kosovo
+    '385',   // Croatia
+    '386',   // Slovenia
+    '387',   // Bosnia and Herzegovina
+    '389',   // North Macedonia
+    '420',   // Czech Republic
+    '421',   // Slovakia
+    '423',   // Liechtenstein
+    '500',   // Falkland Islands
+    '501',   // Belize
+    '502',   // Guatemala
+    '503',   // El Salvador
+    '504',   // Honduras
+    '505',   // Nicaragua
+    '506',   // Costa Rica
+    '507',   // Panama
+    '508',   // Saint Pierre and Miquelon
+    '509',   // Haiti
+    '590',   // Guadeloupe
+    '591',   // Bolivia
+    '592',   // Guyana
+    '593',   // Ecuador
+    '594',   // French Guiana
+    '595',   // Paraguay
+    '596',   // Martinique
+    '597',   // Suriname
+    '598',   // Uruguay
+    '599',   // Netherlands Antilles
+    '670',   // East Timor
+    '672',   // Australian Antarctic Territory
+    '673',   // Brunei
+    '674',   // Nauru
+    '675',   // Papua New Guinea
+    '676',   // Tonga
+    '677',   // Solomon Islands
+    '678',   // Vanuatu
+    '679',   // Fiji
+    '680',   // Palau
+    '681',   // Wallis and Futuna
+    '682',   // Cook Islands
+    '683',   // Niue
+    '684',   // American Samoa
+    '685',   // Samoa
+    '686',   // Kiribati
+    '687',   // New Caledonia
+    '688',   // Tuvalu
+    '689',   // French Polynesia
+    '690',   // Tokelau
+    '691',   // Micronesia
+    '692',   // Marshall Islands
+    '850',   // North Korea
+    '852',   // Hong Kong
+    '853',   // Macau
+    '855',   // Cambodia
+    '856',   // Laos
+    '880',   // Bangladesh
+    '886',   // Taiwan
+    '960',   // Maldives
+    '961',   // Lebanon
+    '962',   // Jordan
+    '963',   // Syria
+    '964',   // Iraq
+    '965',   // Kuwait
+    '966',   // Saudi Arabia
+    '967',   // Yemen
+    '968',   // Oman
+    '970',   // Palestine
+    '971',   // United Arab Emirates
+    '972',   // Israel
+    '973',   // Bahrain
+    '974',   // Qatar
+    '975',   // Bhutan
+    '976',   // Mongolia
+    '977',   // Nepal
+    '992',   // Tajikistan
+    '993',   // Turkmenistan
+    '994',   // Azerbaijan
+    '995',   // Georgia
+    '996',   // Kyrgyzstan
+    '998'    // Uzbekistan
+  ];
+  
+  // Check if the country code is valid - more strict matching
+  const isValidCountryCode = validCountryCodes.some(code => {
+    return cleanPhone === '+' + code + cleanPhone.substring(1 + code.length) && cleanPhone.startsWith('+' + code);
+  });
+  
+  // Additional length validation per country code
+  for (const code of validCountryCodes) {
+    if (cleanPhone.startsWith('+' + code)) {
+      const remainingDigits = cleanPhone.length - 1 - code.length;
+      
+      // Country-specific length validation
+      if (code === '1' && (remainingDigits !== 10)) return false; // US/Canada must be exactly 10 digits
+      if (code === '44' && (remainingDigits < 10 || remainingDigits > 10)) return false; // UK
+      if (code === '91' && (remainingDigits !== 10)) return false; // India must be exactly 10 digits
+      if (code === '92' && (remainingDigits !== 10)) return false; // Pakistan must be exactly 10 digits after +92
+      if (code === '86' && (remainingDigits !== 11)) return false; // China must be exactly 11 digits
+      
+      // General length check for other countries
+      if (remainingDigits < 7 || remainingDigits > 12) return false;
+      
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function validatePassword(password) {
+  // Enhanced password validation
+  if (!password || typeof password !== 'string') return false;
+  
+  // Must be at least 6 characters
+  if (password.length < 6) return false;
+  
+  // Must contain at least one letter
+  if (!/[A-Za-z]/.test(password)) return false;
+  
+  // Must contain at least one number
+  if (!/[0-9]/.test(password)) return false;
+  
+  // Additional strength checks (optional but recommended)
+  // Uncomment these for stronger password requirements
+  // if (!/[A-Z]/.test(password)) return false; // uppercase letter
+  // if (!/[a-z]/.test(password)) return false; // lowercase letter
+  // if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return false; // special character
+  
+  return true;
 }
 
 function setLoading(loading, formId) {
@@ -377,15 +969,53 @@ function showError(message) {
   const errorDiv = document.createElement('div');
   errorDiv.className = 'error-message';
   errorDiv.textContent = message;
-  errorDiv.style.cssText = 'color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 14px;';
+  errorDiv.style.cssText = `
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 6px rgba(220, 38, 38, 0.1);
+  `;
   
-  const form = document.querySelector('.form-card');
-  form.insertBefore(errorDiv, form.firstChild);
+  // Add error icon
+  const iconSpan = document.createElement('span');
+  iconSpan.innerHTML = '❌';
+  iconSpan.style.fontSize = '16px';
+  errorDiv.insertBefore(iconSpan, errorDiv.firstChild);
   
-  // Auto-remove after 5 seconds
+  // Find the currently visible form
+  const joinForm = document.getElementById('joinForm');
+  const signinForm = document.getElementById('signinForm');
+  
+  let targetForm;
+  if (joinForm && joinForm.style.display !== 'none') {
+    targetForm = joinForm;
+  } else if (signinForm && signinForm.style.display !== 'none') {
+    targetForm = signinForm;
+  } else {
+    // Fallback to any visible form
+    targetForm = document.querySelector('.form-card');
+  }
+  
+  if (targetForm) {
+    targetForm.insertBefore(errorDiv, targetForm.firstChild);
+  }
+  
+  // Auto-remove after 6 seconds
   setTimeout(() => {
-    if (errorDiv.parentNode) errorDiv.remove();
-  }, 5000);
+    if (errorDiv.parentNode) {
+      errorDiv.style.opacity = '0';
+      errorDiv.style.transform = 'translateY(-10px)';
+      setTimeout(() => errorDiv.remove(), 300);
+    }
+  }, 6000);
 }
 
 function showSuccess(message) {
@@ -398,8 +1028,23 @@ function showSuccess(message) {
   successDiv.textContent = message;
   successDiv.style.cssText = 'color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 14px;';
   
-  const form = document.querySelector('.form-card');
-  form.insertBefore(successDiv, form.firstChild);
+  // Find the currently visible form
+  const joinForm = document.getElementById('joinForm');
+  const signinForm = document.getElementById('signinForm');
+  
+  let targetForm;
+  if (joinForm && joinForm.style.display !== 'none') {
+    targetForm = joinForm;
+  } else if (signinForm && signinForm.style.display !== 'none') {
+    targetForm = signinForm;
+  } else {
+    // Fallback to any visible form
+    targetForm = document.querySelector('.form-card');
+  }
+  
+  if (targetForm) {
+    targetForm.insertBefore(successDiv, targetForm.firstChild);
+  }
   
   // Auto-remove after 5 seconds
   setTimeout(() => {
@@ -410,45 +1055,75 @@ function showSuccess(message) {
 function handleAuthError(error) {
   let message = 'An error occurred. Please try again.';
   
-  switch (error.code) {
-    case 'auth/email-already-in-use':
-      message = 'This email is already registered. Please sign in instead.';
-      break;
-    case 'auth/invalid-email':
-      message = 'Please enter a valid email address.';
-      break;
-    case 'auth/weak-password':
-      message = 'Password should be at least 6 characters.';
-      break;
-    case 'auth/user-not-found':
-      message = 'No account found with this email. Please create an account.';
-      break;
-    case 'auth/wrong-password':
-      message = 'Incorrect password. Please try again.';
-      break;
-    case 'auth/user-disabled':
-      message = 'This account has been disabled. Please contact support.';
-      break;
-    case 'auth/too-many-requests':
-      message = 'Too many failed attempts. Please try again later.';
-      break;
-    case 'auth/popup-closed-by-user':
-      message = 'Google sign-in was cancelled. Please try again.';
-      break;
-    default:
-      message = error.message || message;
+  // Handle different error types
+  if (error && error.code) {
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        message = 'This email is already registered. Please sign in instead.';
+        break;
+      case 'auth/invalid-email':
+        message = 'Please enter a valid email address.';
+        break;
+      case 'auth/weak-password':
+        message = 'Password should be at least 6 characters.';
+        break;
+      case 'auth/user-not-found':
+        message = 'Incorrect email or password. Please try again.';
+        break;
+      case 'auth/wrong-password':
+        message = 'Incorrect email or password. Please try again.';
+        break;
+      case 'auth/invalid-credential':
+        message = 'Incorrect email or password. Please try again.';
+        break;
+      case 'auth/user-disabled':
+        message = 'This account has been disabled. Please contact support.';
+        break;
+      case 'auth/too-many-requests':
+        message = 'Too many failed attempts. Please try again later.';
+        break;
+      case 'auth/popup-closed-by-user':
+        message = 'Google sign-in was cancelled. Please try again.';
+        break;
+      default:
+        // Handle custom error messages or unknown errors
+        if (error.message && !error.message.includes('{') && !error.message.includes('code')) {
+          message = error.message;
+        } else {
+          message = 'Incorrect email or password. Please try again.';
+        }
+    }
+  } else if (error && error.message) {
+    // Handle non-Firebase errors
+    if (!error.message.includes('{') && !error.message.includes('code')) {
+      message = error.message;
+    } else {
+      message = 'Incorrect email or password. Please try again.';
+    }
   }
   
   showError(message);
 }
 
-// Password reset function
+// Enhanced password reset function
 function showPasswordReset() {
-  const email = document.getElementById('s_email').value;
+  const email = document.getElementById('s_email').value.trim();
+  
   if (!email) {
     showError('Please enter your email address first.');
     return;
   }
+  
+  if (!validateEmail(email)) {
+    showError('Please enter a valid email address.');
+    return;
+  }
+  
+  // Show loading state
+  const resetLink = document.querySelector('.forgot-password a');
+  const originalText = resetLink.textContent;
+  resetLink.textContent = 'Sending...';
+  resetLink.style.pointerEvents = 'none';
   
   auth.sendPasswordResetEmail(email)
     .then(() => {
@@ -456,56 +1131,18 @@ function showPasswordReset() {
     })
     .catch((error) => {
       handleAuthError(error);
+    })
+    .finally(() => {
+      // Restore link
+      setTimeout(() => {
+        resetLink.textContent = originalText;
+        resetLink.style.pointerEvents = 'auto';
+      }, 2000);
     });
 }
 
-/* Password strength indicator */
-document.getElementById('j_pass').addEventListener('input', function() {
-  const password = this.value;
-  const strengthDiv = document.getElementById('passwordStrength');
-  
-  let strength = 0;
-  let strengthText = '';
-  let strengthColor = '';
-  
-  if (password.length >= 6) strength++;
-  if (password.length >= 8) strength++;
-  if (/[A-Z]/.test(password)) strength++;
-  if (/[a-z]/.test(password)) strength++;
-  if (/[0-9]/.test(password)) strength++;
-  if (/[^A-Za-z0-9]/.test(password)) strength++;
-  
-  switch (strength) {
-    case 0:
-    case 1:
-      strengthText = 'Very Weak';
-      strengthColor = '#dc2626';
-      break;
-    case 2:
-      strengthText = 'Weak';
-      strengthColor = '#ea580c';
-      break;
-    case 3:
-      strengthText = 'Fair';
-      strengthColor = '#d97706';
-      break;
-    case 4:
-      strengthText = 'Good';
-      strengthColor = '#059669';
-      break;
-    case 5:
-    case 6:
-      strengthText = 'Strong';
-      strengthColor = '#16a34a';
-      break;
-  }
-  
-  if (password.length > 0) {
-    strengthDiv.innerHTML = `<div style="color: ${strengthColor}; font-size: 12px; margin-top: 4px;">Password strength: ${strengthText}</div>`;
-  } else {
-    strengthDiv.innerHTML = '';
-  }
-});
+/* Enhanced Password strength indicator - remove duplicate */
+// This functionality is now handled in setupRealTimeValidation()
 </script>
 
 <style>
@@ -789,6 +1426,129 @@ document.getElementById('j_pass').addEventListener('input', function() {
 
 .forgot-password a:hover {
   text-decoration: underline;
+}
+
+/* Enhanced Validation Styles */
+.form-row input.valid {
+  border-color: #10b981 !important;
+  background-color: #f0fdf4;
+}
+
+.form-row input.invalid {
+  border-color: #dc2626 !important;
+  background-color: #fef2f2;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-error::before {
+  content: "⚠️";
+  font-size: 0.75rem;
+}
+
+.password-strength {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.password-strength .strength-bar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.password-strength .strength-fill {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+/* Improved error and success messages */
+.error-message, .success-message {
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin: 16px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-message {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.error-message::before {
+  content: "❌";
+  font-size: 16px;
+}
+
+.success-message {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.success-message::before {
+  content: "✅";
+  font-size: 16px;
+}
+
+/* Loading state improvements */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-loading::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .form-card {
+    margin: 16px;
+    padding: 24px;
+    border-radius: 16px;
+  }
+  
+  .form-row.two {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .role-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Password Strength */

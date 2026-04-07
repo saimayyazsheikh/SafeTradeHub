@@ -5,34 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard – Safe Trade Hub</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- Firebase v8 -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
 </head>
 <body>
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="logo">SafeTradeHub</a>
       <nav class="header-actions">
-        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
-          <span class="cart-count" id="cartCount">0</span>
-        </a>
-        <div class="user-menu">
-          <button class="user-avatar" id="userAvatar">
-            <span id="userInitials">U</span>
-          </button>
-          <div class="user-dropdown" id="userDropdown">
-            <a href="profile.html">Profile</a>
-            <a href="verify.html">Verification</a>
-            <a href="orders.html">My Orders</a>
-            <a href="escrow-management.html">Escrow Management</a>
-            <a href="settings.html">Settings</a>
-            <hr>
-            <button id="signOutBtn">Sign Out</button>
-          </div>
-        </div>
+        <!-- Navigation will be updated by HeaderManager -->
       </nav>
     </div>
   </header>
@@ -241,41 +244,83 @@
   <footer class="site-footer"><div class="container"><p>All Rights Reserved By Safe Trade Hub</p></div></footer>
 
   <script>
-  // Firebase Configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
-    authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
-    projectId: "safe-trade-hub-a57cb",
-    storageBucket: "safe-trade-hub-a57cb.appspot.com",
-    messagingSenderId: "509522351934",
-    appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
-    measurementId: "G-060FYYP5DD"
-  };
-
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  // Dashboard functionality - Firebase already initialized in head
   const auth = firebase.auth();
   const db = firebase.firestore();
 
   let currentUser = null;
   let userData = null;
 
-  // Auth state listener
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) {
-      location.href = 'auth.html?mode=signin';
-      return;
+  // Auth state listener - Use global AuthManager instead of forcing redirects
+  document.addEventListener('DOMContentLoaded', async function() {
+    // Wait for AuthManager to initialize
+    if (window.AuthManager) {
+      await window.AuthManager.waitForInit();
+      
+      // Check if user is authenticated
+      if (!window.AuthManager.isAuthenticated()) {
+        // Redirect to login with dashboard as return URL
+        location.href = 'auth.html?mode=signin&redirect=dashboard.html';
+        return;
+      }
+      
+      // User is authenticated, get user data
+      currentUser = window.AuthManager.getCurrentUser();
+      
+      // Load dashboard data
+      await loadUserData();
+      await loadDashboardData();
+    } else {
+      // Fallback to localStorage check
+      const userData = localStorage.getItem('userData');
+      const authToken = localStorage.getItem('authToken');
+      
+      if (!userData || !authToken) {
+        location.href = 'auth.html?mode=signin&redirect=dashboard.html';
+        return;
+      }
+      
+      // Parse user data and continue
+      currentUser = JSON.parse(userData);
+      await loadDashboardData();
     }
-    
-    currentUser = user;
-    await loadUserData();
-    await loadDashboardData();
   });
 
-  // Load user data from Firestore
+  // Load user data - compatible with both AuthManager and Firebase
   async function loadUserData() {
     try {
-      const userDoc = await db.collection('users').doc(currentUser.uid).get();
-      userData = userDoc.exists ? userDoc.data() : null;
+      // If using AuthManager, get user data from there
+      if (window.AuthManager && window.AuthManager.isAuthenticated()) {
+        const user = window.AuthManager.getCurrentUser();
+        userData = {
+          displayName: user.name || user.displayName || 'User',
+          email: user.email,
+          role: user.role || 'Buyer',
+          verification: {
+            email: true, // Assume verified if logged in
+            phone: false,
+            cnic: { verified: false },
+            shop: { verified: false }
+          }
+        };
+      } else if (currentUser && currentUser.uid) {
+        // Fallback to Firebase if available
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        userData = userDoc.exists ? userDoc.data() : null;
+      } else {
+        // Last fallback - mock data
+        userData = {
+          displayName: currentUser?.name || 'User',
+          email: currentUser?.email || 'user@example.com',
+          role: 'Buyer',
+          verification: {
+            email: true,
+            phone: false,
+            cnic: { verified: false },
+            shop: { verified: false }
+          }
+        };
+      }
       
       if (userData) {
         updateUserInfo();
@@ -283,6 +328,15 @@
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+      // Use fallback data on error
+      userData = {
+        displayName: 'User',
+        email: 'user@example.com',
+        role: 'Buyer',
+        verification: { email: true, phone: false, cnic: { verified: false }, shop: { verified: false } }
+      };
+      updateUserInfo();
+      updateVerificationStatus();
     }
   }
 
@@ -292,12 +346,12 @@
     const userInitials = document.getElementById('userInitials');
     
     if (userData) {
-      const displayName = userData.displayName || currentUser.displayName || 'User';
-      userName.textContent = displayName;
+      const displayName = userData.displayName || userData.name || currentUser?.name || 'User';
+      if (userName) userName.textContent = displayName;
       
       // Generate initials
-      const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
-      userInitials.textContent = initials;
+      const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      if (userInitials) userInitials.textContent = initials;
     }
   }
 

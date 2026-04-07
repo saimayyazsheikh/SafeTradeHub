@@ -8,32 +8,59 @@
 </head>
 <body>
     <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <a href="index.html">SafeTradeHub</a>
-                </div>
-                
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="index.html" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+            <nav class="header-actions" aria-label="Top actions">
                 <!-- Search Bar -->
-                <div class="search-bar">
-                    <form id="searchForm" class="search-form">
-                        <input type="text" id="searchInput" placeholder="Search for products..." class="search-input">
-                        <button type="submit" class="search-btn">
-                            <i class="fas fa-search"></i>
+                <div class="search-bar" style="flex: 1; max-width: 400px; margin: 0 20px;">
+                    <form id="searchForm" class="search-form" style="display: flex; gap: 8px;">
+                        <input type="text" id="searchInput" placeholder="Search for products..." class="search-input" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;">
+                        <button type="submit" class="btn primary search-btn">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; stroke: currentColor; fill: none;">
+                                <circle cx="11" cy="11" r="7"/>
+                                <path d="M21 21l-4.35-4.35"/>
+                            </svg>
                         </button>
                     </form>
                 </div>
                 
-                <div class="header-actions">
-                    <a href="cart.html" class="cart-link">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span id="cartCount" class="cart-count">0</span>
-                    </a>
-                </div>
-            </div>
+                <!-- Chat -->
+                <button class="icon-btn" aria-label="Chat" title="Chat" onclick="toggleChat()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+                    </svg>
+                </button>
+
+                <!-- Bell -->
+                <button class="icon-btn" aria-label="Notifications" title="Notifications" onclick="requestNotificationPermission()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/>
+                        <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                    </svg>
+                </button>
+
+                <!-- Cart -->
+                <a class="icon-btn cart-link" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6h15l-1.5 9h-12z" />
+                        <path d="M6 6L5 3H2" />
+                        <circle cx="9" cy="20" r="1.75" />
+                        <circle cx="18" cy="20" r="1.75" />
+                    </svg>
+                    <span class="cart-count" id="cartCount">0</span>
+                </a>
+
+                <a class="link" href="auth.html?mode=signin">Sign In</a>
+                <a class="btn primary" href="auth.html?mode=join">Join</a>
+            </nav>
         </div>
     </header>
+
+    <!-- Chatbot Container -->
+    <div id="chatbot-container" class="chatbot-container">
+        <iframe src="https://safetradehub-d797d24354d2.herokuapp.com/chatbot" frameborder="0" width="100%" height="100%" style="border-radius: 16px;"></iframe>
+    </div>
 
     <!-- Main Content -->
     <main class="main">
@@ -60,7 +87,7 @@
     </main>
 
     <script>
-    // Sample products data
+    // Enhanced product database with more products for better search results
     const sampleProducts = [
       {
         id: 'sample-1',

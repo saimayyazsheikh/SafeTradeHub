@@ -1,10 +1,35 @@
-﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Safe Trade Hub – Cart</title>
   <link rel="stylesheet" href="style.css" />
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
 </head>
 <body>
   <!-- Header -->
@@ -13,32 +38,7 @@
       <a href="index.html" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
 
       <nav class="header-actions" aria-label="Top actions">
-        <!-- Chat -->
-        <button class="icon-btn" aria-label="Chat" title="Chat" onclick="toggleChat()">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
-          </svg>
-        </button>
-
-        <!-- Notifications -->
-        <button class="icon-btn" aria-label="Notifications" title="Notifications">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/>
-            <path d="M13.73 21a2 2 0 01-3.46 0"/>
-          </svg>
-        </button>
-
-        <!-- Cart (current page) -->
-        <a class="icon-btn" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
-            <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
-          </svg>
-          <span class="cart-count" id="cartCount">0</span>
-        </a>
-
-        <a class="link" href="auth.html?mode=signin">Sign In</a>
-        <a class="btn primary" href="auth.html?mode=join">Join</a>
+        <!-- Navigation will be updated by HeaderManager -->
       </nav>
     </div>
   </header>
@@ -98,6 +98,11 @@ const ORDERS_KEY = 'sthub_orders';
 })();
 
 const money = (n) => new Intl.NumberFormat(undefined, { style:'currency', currency:'USD' }).format(n);
+
+/* Authentication helper functions - Updated to use global AuthManager */
+function isUserLoggedIn() {
+  return window.AuthManager ? window.AuthManager.isAuthenticated() : false;
+}
 
 function readCart(){
   let arr = [];
@@ -180,7 +185,17 @@ document.getElementById('clearCartBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('processOrderBtn').addEventListener('click', ()=>{
-   // Go to escrow checkout
+  // Use global AuthManager for authentication check
+  if (!window.AuthManager || !window.AuthManager.isAuthenticated()) {
+    const shouldRedirect = confirm('Please sign in to proceed with checkout. Would you like to go to the login page?');
+    if (shouldRedirect) {
+      // Store current cart and redirect to login with return URL
+      window.location.href = 'auth.html?mode=signin&redirect=' + encodeURIComponent('checkout.html');
+    }
+    return;
+  }
+  
+  // Go to escrow checkout
   location.href = 'checkout.html';
 });
 

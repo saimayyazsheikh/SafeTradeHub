@@ -6,7 +6,29 @@
   <title>Safe Trade Hub – Home</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBK-1VZZImDnjmRCXBEzyLAq6AthTZ8yIs",
+      authDomain: "safe-trade-hub-a57cb.firebaseapp.com",
+      projectId: "safe-trade-hub-a57cb",
+      storageBucket: "safe-trade-hub-a57cb.appspot.com",
+      messagingSenderId: "509522351934",
+      appId: "1:509522351934:web:a9f5624cded8f7a6d93e6f",
+      measurementId: "G-060FYYP5DD"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  
+  <!-- Load authentication system -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/header-manager.js"></script>
 
 </head>
 <body>
@@ -28,8 +50,6 @@
   <iframe src="https://safetradehub-d797d24354d2.herokuapp.com/chatbot" frameborder="0" width="100%" height="100%" style="border-radius: 26px;"></iframe>
 </div>
 
-
-
 <!-- Bell -->
 <button class="icon-btn" aria-label="Notifications" title="Notifications" onclick="requestNotificationPermission()">
 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -38,21 +58,7 @@
 </svg>
 </button>
 
-<!-- Cart -->
-<a class="icon-btn cart-link" href="cart.html" aria-label="Cart" title="Cart" style="position:relative">
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 6h15l-1.5 9h-12z" />
-        <path d="M6 6L5 3H2" />
-        <circle cx="9" cy="20" r="1.75" />
-        <circle cx="18" cy="20" r="1.75" />
-    </svg>
-    <span class="cart-count" id="cartCount">0</span>
-
-</a>
-
-
-<a class="link" href="auth.html?mode=signin">Sign In</a>
-<a class="btn primary" href="auth.html?mode=join">Join</a>
+        <!-- Navigation will be updated by HeaderManager -->
       </nav>
     </div>
   </header>
@@ -279,10 +285,169 @@
 
 
   <!-- External JavaScript Files -->
-  <script src="js/index.js"></script>
+  <script src="js/app-state.js"></script>
   <script src="js/cart.js"></script>
   <script src="js/navigation.js"></script>
 
+  <!-- Essential JavaScript Functions -->
+  <script>
+    // Toggle chatbot visibility
+    function toggleChat() {
+      const chatContainer = document.getElementById('chatbot-container');
+      chatContainer.classList.toggle('show');
+    }
+
+    // Request notification permission and show notification
+    function requestNotificationPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(function (permission) {
+          if (permission === 'granted') {
+            new Notification('SafeTradeHub Notifications', {
+              body: 'You will now receive notifications about your transactions!',
+              icon: '/favicon.ico'
+            });
+          } else {
+            alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+          }
+        });
+      } else {
+        alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+      }
+    }
+
+    // Enhanced search functionality
+    function performSearch(query) {
+      if (!query || query.trim() === '') return;
+      
+      // Store search query
+      localStorage.setItem('searchQuery', query.trim());
+      
+      // Redirect to search results
+      window.location.href = `search-results.html?q=${encodeURIComponent(query.trim())}`;
+    }
+
+    // Initialize application on page load
+    document.addEventListener('DOMContentLoaded', async function() {
+      console.log('🚀 SafeTradeHub: Starting initialization...');
+      
+      try {
+        // WAIT for AuthManager to be completely ready
+        let authReady = false;
+        let attempts = 0;
+        while (!authReady && attempts < 50) {
+          if (window.AuthManager) {
+            try {
+              await window.AuthManager.waitForInit();
+              authReady = true;
+              console.log('✅ AuthManager ready after', attempts, 'attempts');
+            } catch (error) {
+              console.warn('⚠️ AuthManager not ready, attempt', attempts, error);
+            }
+          }
+          if (!authReady) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+        }
+        
+        // Force authentication check and header update
+        if (window.AuthManager) {
+          const isAuth = window.AuthManager.isAuthenticated();
+          const user = window.AuthManager.getCurrentUser();
+          console.log('🔐 Final auth state - authenticated:', isAuth, 'user:', user);
+          
+          // Force header update
+          if (window.HeaderManager) {
+            window.HeaderManager.updateHeaderState();
+          }
+        }
+        
+        // Update cart count if function exists
+        if (typeof setBadge === 'function') {
+          setBadge();
+        }
+        
+        // Update cart count from cart.js
+        if (typeof updateCartCount === 'function') {
+          updateCartCount();
+        }
+        
+        console.log('✅ SafeTradeHub: Initialization complete');
+      } catch (error) {
+        console.error('❌ SafeTradeHub: Initialization error:', error);
+      }
+      
+      // Handle search form submission
+      const searchForm = document.querySelector('.search');
+      if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const searchInput = this.querySelector('input[type="search"]');
+          if (searchInput) {
+            performSearch(searchInput.value);
+          }
+        });
+      }
+      
+      // Close chatbot when clicking outside
+      document.addEventListener('click', function(e) {
+        const chatContainer = document.getElementById('chatbot-container');
+        const chatButton = e.target.closest('button[onclick="toggleChat()"]');
+        
+        if (!chatButton && !chatContainer.contains(e.target) && chatContainer.classList.contains('show')) {
+          chatContainer.classList.remove('show');
+        }
+      });
+
+      // Show welcome notification for new users
+      if (!localStorage.getItem('welcomeShown')) {
+        setTimeout(() => {
+          if (typeof showNotification === 'function') {
+            showNotification('Welcome to SafeTradeHub! 🎉 Your secure marketplace with escrow protection.', 'success');
+          }
+          localStorage.setItem('welcomeShown', 'true');
+        }, 2000);
+      }
+    });
+
+    // Global notification system
+    function showNotification(message, type = 'info') {
+      // Remove existing notifications
+      const existingNotifications = document.querySelectorAll('.notification');
+      existingNotifications.forEach(notification => notification.remove());
+
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span class="notification-message">${message}</span>
+          <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+
+      // Add to page
+      document.body.appendChild(notification);
+
+      // Show notification
+      setTimeout(() => notification.classList.add('show'), 100);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // Make functions globally available
+    window.showNotification = showNotification;
+    window.performSearch = performSearch;
+  </script>
+  
+  <!-- Include JavaScript modules -->
+  <script src="js/app-state.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/navigation.js"></script>
 
 </body>
 </html>
