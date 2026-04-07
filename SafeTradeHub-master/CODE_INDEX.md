@@ -26,7 +26,7 @@ SafeTradeHub is a secure marketplace platform with an integrated escrow system, 
 ## Project Structure
 
 ### Root Files
-- `app.py` (~1047 lines) - Core Flask API server
+- `backend/app.py` (~1424 lines) - Core Flask API server
 - `package.json` - Node dependencies for local dev/Express proxies
 - `requirements.txt` - Python dependencies
 - `CODE_INDEX.md` - This documentation
@@ -36,23 +36,23 @@ SafeTradeHub is a secure marketplace platform with an integrated escrow system, 
 - `database.rules.json`, `firestore.rules`, `storage.rules` - Security configurations
 
 ### Backend (`/backend/`)
-- `app.py` - Main application logic
+- `app.py` - Main application logic (~1424 lines)
   - **Auth**: `admin_required`, `staff_required` decorators
-  - **Endpoints**: 60+ routes covering Users, Products, Orders, Escrow, Logistics, AI, and Wallets
-- `services/ai_service.py` - Image moderation logic
-- `services/price_comparison/` - Scrapers and matching algorithms
-- `logistics_constants.py` - Hub locations and state-machine definitions
+  - **Endpoints**: 70+ routes covering Users, Products, Orders, Escrow, Logistics, AI, and Wallets
+- `services/ai_service.py` - Image moderation logic using Google Cloud Vision
+- `services/price_comparison/` - Scrapers (Daraz, OLX) and matching algorithms
+- `logistics_constants.py` - 7 states (Order Placed to Delivered) and 8 Pakistan-specific Hubs
 
 ### Frontend Static Files (`/static/`)
 #### CSS (`/static/css/`)
-- `style.css` (~2876 lines) - Primary design system and global styles
+- `style.css` (~3205 lines) - Primary design system and global styles
 - `dashboard.css`, `admin-dashboard.css`, `messages.css` - Feature-specific styling
 
 #### JavaScript (`/static/js/`)
 - **Core**: `firebase-config.js`, `auth-manager.js`, `app-state.js`, `header-manager.js`
-- **Dashboards**: `dashboard.js`, `admin-dashboard.js` (3700+ lines), `staff-dashboard.js` (3800+ lines)
+- **Dashboards**: `dashboard.js`, `admin-dashboard.js` (~4059 lines), `staff-dashboard.js` (~3550 lines)
 - **Engines**: `escrow-management.js`, `disputes-engine.js`, `logistics-hub-engine.js`, `payment-processing.js`
-- **Features**: `product-upload.js`, `wallet.js`, `notification-manager.js`, `chatbot.js`, `messages-manager.js`
+- **Features**: `product-upload.js`, `wallet.js`, `notification-manager.js`, `chatbot.js`, `messages-manager.js`, `staff-profile.js`
 
 ### Templates (`/templates/`)
 - **Main**: `index.html`, `auth.html`, `dashboard.html`
@@ -83,11 +83,12 @@ Powered by `logistics_constants.py` and `logistics-hub-engine.js`, implementing 
 
 ## API Map (Major Endpoints)
 - `POST /api/auth/nuke-account` - Atomic data wipe
-- `POST /api/verify-image` - AI Image Moderator
+- `POST /api/verify-image` - AI Image Moderator (Vision API)
 - `POST /api/compare-prices` - Daraz/OLX price scraper
 - `POST /api/v1/orders/update-tracking` - Logistics update (Staff only)
 - `POST /api/v1/wallet/withdraw` - Withdrawal request initiation
 - `POST /api/v1/disputes/update-status` - Dispute resolution engine
+- `POST /api/v1/staff/profile/update` - Profile update persistence proxy
 
 ## Maintenance Scripts
 - `patch_html.py`: Bulk updates to template structures.
