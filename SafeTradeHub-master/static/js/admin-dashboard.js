@@ -184,9 +184,7 @@ async function loadSectionData(sectionName) {
     case 'disputes':
       await loadDisputesData();
       break;
-    case 'transactions':
-      await loadTransactionsData();
-      break;
+
     case 'analytics':
       await loadAnalyticsData();
       break;
@@ -832,28 +830,7 @@ async function loadDisputesData() {
   }
 }
 
-// Load Transactions Data
-async function loadTransactionsData() {
-  try {
-    showLoading('transactions');
 
-    // Load real escrows as transactions from localStorage
-    const escrows = getLocalStorageData('escrows');
-    adminData.transactions = escrows.map(escrow => ({
-      id: escrow.id,
-      ...escrow
-    }));
-
-    
-    updateTransactionsTable();
-
-    hideLoading('transactions');
-  } catch (error) {
-    console.error('Error loading transactions data:', error);
-    showError('Failed to load transactions data');
-    hideLoading('transactions');
-  }
-}
 
 // Load Escrow Data
 // Load Escrow Data
@@ -1560,33 +1537,13 @@ async function loadLogisticsData() {
   try {
     showLoading('logistics');
 
-    // Load orders from localStorage for logistics activity
-    const orders = getLocalStorageData('orders');
-    const logisticsActivity = orders.filter(order =>
-      order.status === 'shipped' || order.status === 'delivered'
-    ).map(order => ({
-      id: order.id,
-      orderId: order.id,
-      status: order.status,
-      trackingNumber: order.trackingNumber,
-      timestamp: order.createdAt
-    }));
-
-    // Real logistics data based on actual orders
-    adminData.logistics = {
-      providers: [
-        { id: 'tcs', name: 'TCS Express', status: 'active', activeShipments: orders.filter(o => o.status === 'shipped').length, deliveryRate: 0 },
-        { id: 'leopards', name: 'Leopards Courier', status: 'inactive', activeShipments: 0, deliveryRate: 0 },
-        { id: 'postex', name: 'PostEx', status: 'inactive', activeShipments: 0, deliveryRate: 0 }
-      ],
-      activity: logisticsActivity
-    };
-
-    
-
-    // Update logistics UI
-    updateLogisticsProviders();
-    updateLogisticsActivity();
+    // The initLogisticsHub function from logistics-hub-engine.js 
+    // handles real-time data sync for the pipeline, stats, and activity.
+    if (window.initLogisticsHub) {
+        window.initLogisticsHub();
+    } else {
+        console.warn('Logistics Hub Engine not loaded yet');
+    }
 
     hideLoading('logistics');
   } catch (error) {
@@ -2624,32 +2581,7 @@ function updateDisputesTable() {
 }
 
 // Update Transactions Table
-function updateTransactionsTable() {
-  const tableBody = document.querySelector('#transactionsTable tbody');
-  if (!tableBody) return;
 
-  if (adminData.transactions.length === 0) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="5" class="text-center">No transactions found</td>
-      </tr>
-    `;
-    return;
-  }
-
-  tableBody.innerHTML = adminData.transactions.map(transaction => `
-    <tr>
-      <td>${transaction.id}</td>
-      <td>${transaction.orderId || 'N/A'}</td>
-      <td>$${transaction.amount || 0}</td>
-      <td><span class="status-badge ${transaction.status}">${transaction.status || 'N/A'}</span></td>
-      <td>
-        <button class="btn btn-sm btn-primary" onclick="viewTransaction('${transaction.id}')">View</button>
-        <button class="btn btn-sm btn-success" onclick="releaseEscrow('${transaction.id}')">Release</button>
-      </td>
-    </tr>
-  `).join('');
-}
 
 // Update Escrow Table (Removed duplicate)
 // See main definition above
@@ -2657,47 +2589,7 @@ function updateTransactionsTable() {
 
 
 // Update Logistics Providers
-function updateLogisticsProviders() {
-  const providers = adminData.logistics.providers;
-
-  providers.forEach(provider => {
-    updateElementText(`${provider.id}ActiveShipments`, provider.activeShipments);
-    updateElementText(`${provider.id}DeliveryRate`, `${provider.deliveryRate}%`);
-  });
-}
-
-// Update Logistics Activity
-function updateLogisticsActivity() {
-  const activityContainer = document.getElementById('logisticsActivity');
-  if (!activityContainer) return;
-
-  if (adminData.logistics.activity.length === 0) {
-    activityContainer.innerHTML = `
-      <div class="activity-item">
-        <div class="activity-icon order">
-          <i class="fas fa-info-circle"></i>
-        </div>
-        <div class="activity-content">
-          <p>No logistics activity</p>
-          <small>Activity will appear here as orders are shipped and delivered</small>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  activityContainer.innerHTML = adminData.logistics.activity.map(activity => `
-    <div class="activity-item">
-      <div class="activity-icon ${activity.status}">
-        <i class="fas fa-${getActivityIcon(activity.status)}"></i>
-      </div>
-      <div class="activity-content">
-        <p>Order ${activity.orderId} - ${activity.status}</p>
-        <small>${activity.trackingNumber ? `Tracking: ${activity.trackingNumber}` : 'No tracking number'}</small>
-      </div>
-    </div>
-  `).join('');
-}
+// Legacy Logistics Update functions removed per mirrored Hub implementation
 
 // Utility Functions
 function updateElementText(id, text) {

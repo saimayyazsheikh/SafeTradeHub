@@ -96,11 +96,7 @@
             <span>Logistics</span>
             <span class="nav-badge" id="logisticsCount">0</span>
           </a>
-          <a href="#transactions" class="nav-item" data-section="transactions">
-            <i class="fas fa-credit-card"></i>
-            <span>Transactions</span>
-            <span class="nav-badge" id="transactionsCount">0</span>
-          </a>
+
         </div>
         <div class="nav-section">
           <h3 class="nav-title">Finance</h3>
@@ -370,48 +366,7 @@
         </div>
       </section>
       <!-- Transactions Section -->
-      <section class="admin-section" id="transactions-section">
-        <div class="section-header">
-          <h2>Transaction Management</h2>
-          <div class="section-actions">
-            <div class="search-box">
-              <i class="fas fa-search"></i>
-              <input type="text" placeholder="Search transactions..." id="transactionSearch">
-            </div>
-            <select class="filter-select" id="transactionStatusFilter">
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-            </select>
-            <button class="btn btn-secondary" onclick="exportTransactions()">
-              <i class="fas fa-download"></i>
-              Export
-            </button>
-          </div>
-        </div>
-        <div class="content-card">
-          <div class="table-container">
-            <table class="admin-table" id="transactionsTable">
-              <thead>
-                <tr>
-                  <th>Transaction ID</th>
-                  <th>User</th>
-                  <th>Amount</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="transactionsTableBody">
-                <!-- Dynamic content -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+
       <!-- Wallet Section -->
       <section class="admin-section" id="wallet-section">
         <div class="section-header">
@@ -797,72 +752,118 @@
       <!-- Logistics Section -->
       <section class="admin-section" id="logistics-section">
         <div class="section-header">
-          <h2><i class="fas fa-truck-moving"></i> Global Logistics Controller</h2>
+          <h2><i class="fas fa-warehouse"></i> Safe Ship Hub Station</h2>
           <div class="section-actions">
-            <button class="btn btn-primary" onclick="simulateThirdPartyLogistics()">
-              <i class="fas fa-robot"></i> Simulate Partner Update
-            </button>
-            <button class="btn btn-secondary" onclick="exportLogisticsReport()">
-              <i class="fas fa-file-excel"></i> Export All
-            </button>
+            <div class="hub-location-selector">
+              <i class="fas fa-map-marker-alt"></i>
+              <select id="staffHubLocation" class="form-input" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              </select>
+            </div>
           </div>
         </div>
 
-        <div class="stats-grid" style="margin-bottom: 25px;">
-            <div class="stat-card">
-              <div class="stat-icon" style="background: #eff6ff; color: #3b82f6;">
-                <i class="fas fa-clock"></i>
-              </div>
-              <div class="stat-content">
-                <h3 id="avgDeliveryTime">3.2 Days</h3>
-                <p>Avg. Delivery Time</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: #fef2f2; color: #ef4444;">
-                <i class="fas fa-exclamation-triangle"></i>
-              </div>
-              <div class="stat-content">
-                <h3 id="bottleneckCount">0</h3>
-                <p>Bottlenecked Orders</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: #f0fdf4; color: #22c55e;">
-                <i class="fas fa-check-circle"></i>
-              </div>
-              <div class="stat-content">
-                <h3 id="deliveredTotal">0</h3>
-                <p>Delivered (This Month)</p>
-              </div>
-            </div>
-        </div>
-
-        <!-- Global Shipments Table -->
-        <div class="content-card">
-          <div class="card-header">
-            <h3>Active Shipments Pipeline</h3>
-            <div class="search-box">
-              <i class="fas fa-search"></i>
-              <input type="text" placeholder="Filter by Order ID or Hub..." id="logisticsFilter">
+        <!-- Scan Bar -->
+        <div class="content-card" style="background: linear-gradient(135deg, #2563eb 0%, #1e4ed8 100%); color: white; margin-bottom: 25px;">
+          <div style="padding: 30px; text-align: center;">
+            <h3 style="margin-bottom: 15px; font-weight: 600;">Process Shipment</h3>
+            <p style="opacity: 0.9; margin-bottom: 20px;">Enter or scan the Order ID to update its logistics status.</p>
+            <div style="display: flex; max-width: 500px; margin: 0 auto; gap: 10px;">
+              <input type="text" id="logisticsScanId" placeholder="Enter Order ID (e.g., ORD-7X8F9A)" 
+                     style="flex: 1; padding: 12px 20px; border-radius: 8px; border: none; font-size: 1rem; color: #1e293b;">
+              <button class="btn" style="background: white; color: #2563eb; font-weight: 600;" onclick="scanShipment()">
+                <i class="fas fa-search"></i> Find
+              </button>
             </div>
           </div>
-          <div class="table-container">
-            <table class="admin-table" id="globalLogisticsTable">
+        </div>
+
+        <!-- Active Scan Result -->
+        <div id="activeScanResult" style="display: none; margin-bottom: 30px;">
+          <!-- Content injected via logistics-hub-engine.js -->
+        </div>
+
+        <!-- Active Logistics Pipeline Monitor -->
+        <div class="content-card" id="logisticsPipelineCard" style="border-top: 4px solid #2563eb;">
+          <div class="card-header" style="padding: 20px 25px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b;">Active Logistics Pipeline</h3>
+              <p style="margin: 5px 0 0; font-size: 0.8rem; color: #64748b;">Managing all shipments currently in transit across Pakistan</p>
+            </div>
+            <div id="pipelineStats" style="font-size: 0.85rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 4px 12px; border-radius: 100px;">
+              0 Active Shipments
+            </div>
+          </div>
+          <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+            <table class="admin-table" id="logisticsPipelineTable">
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Status</th>
-                  <th>Current Location</th>
-                  <th>Last Updated</th>
-                  <th>Buyer City</th>
+                  <th>Product</th>
+                  <th>Participants</th>
+                  <th>Amount</th>
+                  <th>Current Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
+              <tbody id="logisticsPipelineTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">
+                    <i class="fas fa-satellite-dish fa-2x" style="margin-bottom: 10px; display: block;"></i>
+                    Initializing Real-time Pipeline...
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        <!-- Hub Activity & Metrics -->
+        <div class="stats-grid" style="margin-bottom: 25px;">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+              <i class="fas fa-check-double"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="hubProcessedToday">0</h3>
+              <p>Processed Today</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="hubPendingDeparture">0</h3>
+              <p>Pending Departure</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-header">
+            <h3>Recent Hub Activity</h3>
+            <button class="btn btn-sm btn-secondary" onclick="exportHubLogs()">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+          <div class="table-container">
+            <table class="admin-table" id="hubActivityTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Order ID</th>
+                  <th>Action</th>
+                  <th>Status</th>
+                  <th>Operator</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Live updates from JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
       </section>
 
       <!-- Analytics Section -->
@@ -1683,6 +1684,7 @@
 
   <script src="/static/js/admin-dashboard.js?v=24"></script>
   <script src="/static/js/disputes-engine.js?v=4"></script>
+  <script src="/static/js/logistics-hub-engine.js?v=2"></script>
   <script src="/static/js/staff-repair.js?v=2"></script>
   <script src="/static/js/notification-manager.js?v=2"></script>
   <script src="/static/js/admin-inbox.js"></script>
