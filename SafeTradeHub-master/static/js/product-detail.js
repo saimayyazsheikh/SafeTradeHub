@@ -80,6 +80,15 @@ async function loadProduct(id) {
             currentProduct = product;
             renderProduct(product);
 
+            // Increment View Count (Analytics) - Only Once per session/load
+            if (!window._viewTracked) {
+                const viewRef = db.ref(`products/${id}/views`);
+                viewRef.transaction((currentViews) => {
+                    return (currentViews || 0) + 1;
+                });
+                window._viewTracked = true;
+            }
+
             // Robust Seller ID Detection
             const sId = product.sellerId || product.seller_id;
             if (sId) {

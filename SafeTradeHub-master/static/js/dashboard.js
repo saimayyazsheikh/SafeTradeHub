@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (userData.role === 'Seller') {
                 document.getElementById('navProducts').style.display = 'flex';
                 renderSellerDashboard(user.uid, userData);
+                setupTabNavigation(); // Initialize Insights navigation
             } else {
                 renderBuyerDashboard(user.uid, userData);
             }
@@ -35,6 +36,135 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// Tab Navigation Logic
+function setupTabNavigation() {
+    const navInsights = document.getElementById('navInsights');
+    const navDashboard = document.querySelector('.nav-item[href="dashboard.html"]');
+
+    if (navInsights) {
+        navInsights.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView('insights');
+        });
+    }
+
+    if (navDashboard) {
+        navDashboard.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView('dashboard');
+        });
+    }
+
+    // Handle initial hash
+    if (window.location.hash === '#insights') {
+        switchView('insights');
+    }
+}
+
+function switchView(viewName) {
+    const mainView = document.getElementById('main-view');
+    const insightsView = document.getElementById('insights-view');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    // Remove active class from all
+    navItems.forEach(item => item.classList.remove('active'));
+
+    if (viewName === 'insights') {
+        if (mainView) mainView.style.display = 'none';
+        if (insightsView) insightsView.style.display = 'block';
+        const instghtLink = document.getElementById('navInsights');
+        if (instghtLink) instghtLink.classList.add('active');
+        loadSellerInsights();
+    } else {
+        if (mainView) mainView.style.display = 'block';
+        if (insightsView) insightsView.style.display = 'none';
+        const dashLink = document.querySelector('.nav-item[href="dashboard.html"]');
+        if (dashLink) dashLink.classList.add('active');
+    }
+}
+
+async function loadSellerInsights() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    try {
+        const response = await fetch(`/api/v1/analytics/seller/${user.uid}`);
+        const result = await response.json();
+
+        if (result.success) {
+            renderSellerCharts(result.data);
+            updateActionableTooltip(result.data.metrics);
+        }
+    } catch (error) {
+        console.error('Error loading seller insights:', error);
+    }
+}
+
+function renderSellerCharts(data) {
+    const blue = '#2563eb';
+    const blueLight = 'rgba(37, 99, 235, 0.1)';
+
+    const canvas = document.getElementById('sellerPerformanceChart');
+    if (!canvas) return;
+    
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+
+    if (data.performance && data.performance.data.some(d => d > 0)) {
+        document.getElementById('sellerNoData').style.display = 'none';
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.performance.labels,
+                datasets: [{
+                    label: 'Daily Sales (RS)',
+                    data: data.performance.data,
+                    backgroundColor: blue,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: value => 'RS ' + value.toLocaleString()
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    } else {
+        document.getElementById('sellerNoData').style.display = 'flex';
+    }
+
+    // Update Metrics
+    document.getElementById('conversionRateVal').textContent = `${data.metrics.conversionRate}%`;
+    document.getElementById('totalViewsVal').textContent = data.metrics.totalViews.toLocaleString();
+    document.getElementById('totalRevenueVal').textContent = `RS ${data.metrics.totalRevenue.toLocaleString()}`;
+}
+
+function updateActionableTooltip(metrics) {
+    const tooltip = document.getElementById('conversionTooltip');
+    const text = document.getElementById('tooltipText');
+    if (!tooltip || !text) return;
+
+    if (metrics.totalViews > 10 && metrics.conversionRate < 2) {
+        tooltip.style.display = 'block';
+        text.textContent = "High views but low sales? Consider lowering the price or improving product images to boost conversions.";
+    } else if (metrics.totalViews > 0 && metrics.totalViews < 5) {
+        tooltip.style.display = 'block';
+        text.textContent = "Your products are new! Share your listings on social media to drive more views.";
+    } else {
+        tooltip.style.display = 'none';
+    }
+}
 
 function updateUserProfile(user) {
     document.getElementById('userName').textContent = user.displayName || user.fullName || 'User';

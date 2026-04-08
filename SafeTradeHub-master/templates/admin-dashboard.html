@@ -7,6 +7,8 @@
   <title>Admin Dashboard - Safe Trade Hub</title>
   <link rel="stylesheet" href="/static/css/admin-dashboard.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body style="display: none;" class="admin-dashboard-body">
@@ -886,30 +888,30 @@
         <div class="analytics-grid">
           <div class="analytics-card">
             <h3>Revenue Analytics</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-line"></i>
-              <p>Revenue chart will be displayed here</p>
+            <div class="chart-container" style="position: relative; height:300px;">
+              <canvas id="revenueChart"></canvas>
+              <div id="revenueNoData" class="no-data-overlay" style="display:none;">Not enough data to display insights yet</div>
             </div>
           </div>
           <div class="analytics-card">
             <h3>User Growth</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-bar"></i>
-              <p>User growth chart will be displayed here</p>
+            <div class="chart-container" style="position: relative; height:300px;">
+              <canvas id="userGrowthChart"></canvas>
+              <div id="userGrowthNoData" class="no-data-overlay" style="display:none;">Not enough data to display insights yet</div>
             </div>
           </div>
           <div class="analytics-card">
             <h3>Top Categories</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-pie"></i>
-              <p>Category distribution chart will be displayed here</p>
+            <div class="chart-container" style="position: relative; height:300px;">
+              <canvas id="categoryPieChart"></canvas>
+              <div id="categoryNoData" class="no-data-overlay" style="display:none;">Not enough data to display insights yet</div>
             </div>
           </div>
           <div class="analytics-card">
             <h3>Dispute Resolution</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-area"></i>
-              <p>Dispute resolution chart will be displayed here</p>
+            <div class="chart-container" style="position: relative; height:300px;">
+              <canvas id="disputeChart"></canvas>
+              <div id="disputeNoData" class="no-data-overlay" style="display:none;">Not enough data to display insights yet</div>
             </div>
           </div>
         </div>

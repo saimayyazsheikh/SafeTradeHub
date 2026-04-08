@@ -1889,7 +1889,120 @@ window.filterWithdrawals = filterWithdrawals;
 
 // Load Analytics Data
 async function loadAnalyticsData() {
-  
+  try {
+    showLoading('analytics');
+    
+    let token = '';
+    if (firebase.auth().currentUser) {
+        token = await firebase.auth().currentUser.getIdToken();
+    }
+
+    const response = await fetch('/api/v1/analytics/admin/summary', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+
+    if (result.success) {
+        renderAdminCharts(result.data);
+    } else {
+        console.error('Failed to load analytics:', result.error);
+    }
+    hideLoading('analytics');
+  } catch (error) {
+    console.error('Error loading analytics data:', error);
+    hideLoading('analytics');
+  }
+}
+
+function renderAdminCharts(data) {
+    const indigo = '#4f46e5';
+    const indigoLight = 'rgba(79, 70, 229, 0.1)';
+
+    // Reset charts if they exist (to handle potential re-renders)
+    const chartIds = ['revenueChart', 'userGrowthChart', 'categoryPieChart', 'disputeChart'];
+    chartIds.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) existingChart.destroy();
+    });
+
+    // Revenue Trend Line Chart
+    if (data.revenueTrend && data.revenueTrend.data.some(d => d > 0)) {
+        document.getElementById('revenueNoData').style.display = 'none';
+        new Chart(document.getElementById('revenueChart'), {
+            type: 'line',
+            data: {
+                labels: data.revenueTrend.labels,
+                datasets: [{
+                    label: 'Revenue (RS)',
+                    data: data.revenueTrend.data,
+                    borderColor: indigo,
+                    backgroundColor: indigoLight,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    } else {
+        document.getElementById('revenueNoData').style.display = 'flex';
+    }
+
+    // User Growth Bar Chart
+    if (data.userGrowth && data.userGrowth.data.some(d => d > 0)) {
+        document.getElementById('userGrowthNoData').style.display = 'none';
+        new Chart(document.getElementById('userGrowthChart'), {
+            type: 'bar',
+            data: {
+                labels: data.userGrowth.labels,
+                datasets: [{
+                    label: 'New Users',
+                    data: data.userGrowth.data,
+                    backgroundColor: indigo
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    } else {
+        document.getElementById('userGrowthNoData').style.display = 'flex';
+    }
+
+    // Category Pie Chart
+    if (data.categories && data.categories.data.length > 0) {
+        document.getElementById('categoryNoData').style.display = 'none';
+        new Chart(document.getElementById('categoryPieChart'), {
+            type: 'pie',
+            data: {
+                labels: data.categories.labels,
+                datasets: [{
+                    data: data.categories.data,
+                    backgroundColor: ['#4f46e5', '#818cf8', '#c7d2fe', '#6366f1', '#4338ca', '#312e81', '#4f46e5', '#818cf8']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    } else {
+        document.getElementById('categoryNoData').style.display = 'flex';
+    }
+
+    // Dispute Resolution (using summary data)
+    if (data.summary && (data.summary.disputes > 0 || data.summary.users > 0)) {
+        document.getElementById('disputeNoData').style.display = 'none';
+        new Chart(document.getElementById('disputeChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Active Disputes', 'Total Users'],
+                datasets: [{
+                    data: [data.summary.disputes, data.summary.users],
+                    backgroundColor: ['#ef4444', '#10b981']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    } else {
+        document.getElementById('disputeNoData').style.display = 'flex';
+    }
 }
 
 // Load Settings Data

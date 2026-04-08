@@ -916,3 +916,32 @@ body {
             height: 500px;
         }
     }
+
+    /* Insights & Analytics Extensions */
+    @keyframes pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+        70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    }
+
+    .action-tooltip {
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+        border-left: 4px solid #f59e0b !important;
+    }
+
+    .no-data-overlay {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255,255,255,0.9);
+        color: #94a3b8;
+        font-weight: 500;
+        font-size: 0.95rem;
+        border-radius: 12px;
+    }
+
+    .nav-item.active {
+        background-color: #eff6ff;
+        color: var(--primary-color);
+        border-left: 3px solid var(--primary-color);
+    }

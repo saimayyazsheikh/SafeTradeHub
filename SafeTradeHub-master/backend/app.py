@@ -4,6 +4,8 @@ import time
 import imaplib
 import email
 from email.header import decode_header
+from datetime import datetime, timedelta
+import collections
 from dotenv import load_dotenv
 
 # --- Configuration ---
@@ -1419,8 +1421,120 @@ def finalize_auction():
 
         return jsonify({'success': True, 'message': 'Auction finalized successfully. Order created.'})
 
+@app.route('/api/v1/analytics/admin/summary')
+@admin_required
+def get_admin_analytics():
+    try:
+        # 1. Fetch data
+        orders_snapshot = db.reference('orders').get() or {}
+        users_snapshot = db.reference('users').get() or {}
+        products_snapshot = db.reference('products').get() or {}
+        disputes_snapshot = db.reference('disputes').get() or {}
+
+        # 2. Revenue Trend (Last 12 Months)
+        revenue_by_month = collections.defaultdict(float)
+        now = datetime.now()
+        months_labels = []
+        for i in range(11, -1, -1):
+            target_month = now.replace(day=1) - timedelta(days=32 * i) # Approximate to get last 12 months
+            label = target_month.strftime('%Y-%m')
+            months_labels.append(label)
+            revenue_by_month[label] = 0
+
+        total_revenue = 0
+        for order in orders_snapshot.values() if isinstance(orders_snapshot, dict) else []:
+            if order.get('status') == 'completed':
+                amt = float(order.get('total', 0))
+                total_revenue += amt
+                ts = order.get('timestamp') or order.get('createdAt')
+                if ts:
+                    try:
+                        dt = datetime.fromtimestamp(ts / 1000) if isinstance(ts, (int, float)) else datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                        label = dt.strftime('%Y-%m')
+                        if label in revenue_by_month:
+                            revenue_by_month[label] += amt
+                    except: pass
+
+        # 3. User Growth
+        user_growth_by_month = collections.defaultdict(int)
+        for user in users_snapshot.values() if isinstance(users_snapshot, dict) else []:
+            ts = user.get('createdAt')
+            if ts:
+                try:
+                    dt = datetime.fromtimestamp(ts / 1000) if isinstance(ts, (int, float)) else datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                    label = dt.strftime('%Y-%m')
+                    if label in revenue_by_month:
+                        user_growth_by_month[label] += 1
+                except: pass
+
+        # 4. Category Distribution
+        category_dist = collections.defaultdict(int)
+        for product in products_snapshot.values() if isinstance(products_snapshot, dict) else []:
+            cat = product.get('category', 'Other')
+            category_dist[cat] += 1
+
+        active_disputes = sum(1 for d in (disputes_snapshot.values() if isinstance(disputes_snapshot, dict) else []) if d.get('status') != 'resolved')
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'revenueTrend': {'labels': months_labels, 'data': [revenue_by_month[l] for l in months_labels]},
+                'userGrowth': {'labels': months_labels, 'data': [user_growth_by_month[l] for l in months_labels]},
+                'categories': {'labels': list(category_dist.keys()), 'data': list(category_dist.values())},
+                'summary': {'revenue': total_revenue, 'users': len(users_snapshot), 'disputes': active_disputes}
+            }
+        })
     except Exception as e:
-        print(f"Finalization Error: {e}")
+        print(f"Admin Analytics Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/v1/analytics/seller/<uid>')
+def get_seller_analytics(uid):
+    try:
+        orders_snapshot = db.reference('orders').get() or {}
+        products_snapshot = db.reference('products').get() or {}
+        
+        # Filter for this seller
+        seller_orders = [o for o in (orders_snapshot.values() if isinstance(orders_snapshot, dict) else []) if o.get('sellerId') == uid]
+        seller_products = [p for p in (products_snapshot.values() if isinstance(products_snapshot, dict) else []) if p.get('sellerId') == uid]
+
+        # Performance (Daily Sales - Current Month)
+        now = datetime.now()
+        days_labels = [f"{i+1:02d}" for i in range(31)]
+        daily_sales = [0] * 31
+        total_rev = 0
+        sales_count = 0
+
+        for order in seller_orders:
+            if order.get('status') == 'completed':
+                amt = float(order.get('total', 0))
+                total_rev += amt
+                sales_count += 1
+                ts = order.get('timestamp') or order.get('createdAt')
+                if ts:
+                    try:
+                        dt = datetime.fromtimestamp(ts / 1000) if isinstance(ts, (int, float)) else datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                        if dt.year == now.year and dt.month == now.month:
+                            daily_sales[dt.day - 1] += amt
+                    except: pass
+
+        total_views = sum(int(p.get('views', 0)) for p in seller_products)
+        conversion = (sales_count / total_views * 100) if total_views > 0 else 0
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'performance': {'labels': days_labels, 'data': daily_sales},
+                'metrics': {
+                    'totalViews': total_views,
+                    'totalSales': sales_count,
+                    'conversionRate': round(conversion, 2),
+                    'totalRevenue': total_rev
+                }
+            }
+        })
+    except Exception as e:
+        print(f"Seller Analytics Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 @app.route('/api/v1/admin/emails', methods=['GET'])
 @admin_required
