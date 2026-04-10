@@ -72,6 +72,14 @@ let adminData = {
   }
 };
 
+// ========================================
+// FRAUD MONITOR STATE - declared at top level to prevent TDZ errors
+// ========================================
+let fraudReports = [];
+let fraudListenerActive = false;
+let globalUsersMap = {};
+let currentWithdrawalId = null; // Moved to top level
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function () {
   if (document.body.classList.contains('admin-dashboard-body')) {
@@ -112,14 +120,25 @@ async function waitForAuthManager() {
   let attempts = 0;
   const maxAttempts = 50; // 5 seconds max wait
 
-  while (!window.authManager && attempts < maxAttempts) {
+  while (!window.AuthManager && attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 100));
     attempts++;
   }
+}
 
-  if (!window.authManager) {
-    console.warn('AuthManager not available after waiting');
-  }
+// Wait for Firebase Auth - uses onAuthStateChanged to avoid polling hang
+async function waitForFirebaseAuth() {
+  const currentAuth = window.auth || auth;
+  if (!currentAuth) return;
+  if (currentAuth.currentUser) return; // Already ready
+  return new Promise(resolve => {
+    const unsub = currentAuth.onAuthStateChanged(user => {
+      unsub();
+      resolve(user);
+    });
+    // Safety timeout - resolve after 3s regardless
+    setTimeout(resolve, 3000);
+  });
 }
 
 // Setup navigation
@@ -829,9 +848,6 @@ async function loadProductsData() {
     hideLoading('products');
   }
 }
-
-// Load Categories Data
-
 
 // Load Disputes Data
 async function loadDisputesData() {
@@ -1767,19 +1783,6 @@ function renderDeposits(deposits) {
   });
 }
 
-function filterDeposits() {
-  // Re-fetch or re-render based on current data
-  // Since we have a listener, we can just trigger a re-render if we stored the data globally
-  // For simplicity, we'll reload the data which triggers the listener
-  // Better approach: Store deposits in a global variable
-  db.ref('deposits').once('value').then(snapshot => {
-    const deposits = [];
-    snapshot.forEach(child => deposits.push({ id: child.key, ...child.val() }));
-    deposits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    renderDeposits(deposits);
-  });
-}
-
 async function approveDeposit(depositId) {
   if (!await showConfirmationModal('Approve Deposit', 'Are you sure you want to approve this deposit?', { confirmText: 'Approve', confirmColor: '#28a745' })) return;
 
@@ -1998,31 +2001,6 @@ window.filterDeposits = filterDeposits;
 window.filterWithdrawals = filterWithdrawals;
 
 // Load Analytics Data
-async function loadAnalyticsData() {
-  try {
-    showLoading('analytics');
-
-    let token = '';
-    if (firebase.auth().currentUser) {
-      token = await firebase.auth().currentUser.getIdToken();
-    }
-
-    const response = await fetch('/api/v1/analytics/admin/summary', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const result = await response.json();
-
-    if (result.success) {
-      renderAdminCharts(result.data);
-    } else {
-      console.error('Failed to load analytics:', result.error);
-    }
-    hideLoading('analytics');
-  } catch (error) {
-    console.error('Error loading analytics data:', error);
-    hideLoading('analytics');
-  }
-}
 
 function renderAdminCharts(data) {
   const indigo = '#4f46e5';
@@ -3626,7 +3604,12 @@ function editCategory(categoryId) { alert(`Edit category: ${categoryId}`); }
 
 window.viewCategory = viewCategory;
 window.editCategory = editCategory;
-window.viewDispute = viewDispute;
+function viewTransaction(id) { alert('Viewing transaction Details: ' + id); }
+if (typeof viewDispute === 'function') window.viewDispute = viewDispute;
+if (typeof resolveDispute === 'function') window.resolveDispute = resolveDispute;
+if (typeof viewTransaction === 'function') window.viewTransaction = viewTransaction;
+if (typeof viewEscrow === 'function') window.viewEscrow = viewEscrow;
+if (typeof releaseEscrow === 'function') window.releaseEscrow = releaseEscrow;
 
 async function resolveDispute(id) {
   const outcome = prompt('Select Arbitration Outcome:\n(e.g., refund_buyer, release_seller, replace_item)');
@@ -3674,10 +3657,7 @@ async function resolveDispute(id) {
     alert('Critical error while enforcing resolution. See console.');
   }
 }
-window.resolveDispute = resolveDispute;
-window.viewTransaction = viewTransaction;
-window.viewEscrow = viewEscrow;
-window.releaseEscrow = releaseEscrow;
+// assignments moved up and guarded
 
 // Logout Function
 window.logout = async function () {
@@ -3926,7 +3906,7 @@ async function rejectWithdrawal(id) {
 
 // ==================== WITHDRAWAL MODAL FUNCTIONS ====================
 
-let currentWithdrawalId = null;
+// currentWithdrawalId declared at top level
 let currentWithdrawalData = null;
 let currentWithdrawalCollection = 'withdrawal_requests'; // Tracks which collection the current withdrawal is from
 
@@ -3980,9 +3960,24 @@ async function openWithdrawalView(requestId) {
     document.getElementById('viewBankName').textContent = data.bankDetails?.bankName || '-';
     document.getElementById('viewAccountNumber').textContent = data.bankDetails?.accountNumber || '-';
     document.getElementById('viewCurrentBalance').textContent = balance;
-    document.getElementById('viewRequestId').textContent = requestId;
-    document.getElementById('viewStatus').textContent = data.status || 'pending';
-    document.getElementById('viewStatus').className = 'badge badge-' + (data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'danger' : 'warning');
+    document.getElementById('viewRequestId').textContent = '#' + requestId;
+    
+    const statusEl = document.getElementById('viewStatus');
+    const status = (data.status || 'pending').toLowerCase();
+    statusEl.textContent = status.toUpperCase();
+    
+    // Premium Status Styling
+    if (status === 'approved' || status === 'completed') {
+      statusEl.style.background = '#dcfce7';
+      statusEl.style.color = '#166534';
+    } else if (status === 'rejected' || status === 'failed') {
+      statusEl.style.background = '#fee2e2';
+      statusEl.style.color = '#991b1b';
+    } else {
+      statusEl.style.background = '#fef3c7';
+      statusEl.style.color = '#92400e';
+    }
+    
     document.getElementById('viewRequestDate').textContent = new Date(data.createdAt).toLocaleString();
 
     // Show modal
@@ -4357,102 +4352,133 @@ window.sendBroadcast = async function () {
 // ========================================
 // FRAUD MONITOR MODULE
 // ========================================
-let fraudReports = [];
-let fraudListenerActive = false;
-let globalUsersMap = {}; // Persistent users cache to prevent render blocks
+// (fraudReports, fraudListenerActive, globalUsersMap declared at top of file)
 
 async function fetchGlobalUsersOnce() {
   if (Object.keys(globalUsersMap).length > 0) return;
+  const currentDb = window.db || db;
+  if (!currentDb) return;
   try {
-    const snap = await db.ref('users').once('value');
+    const snap = await currentDb.ref('users').once('value');
     if (snap.exists()) {
       snap.forEach(u => { globalUsersMap[u.key] = u.val(); });
     }
   } catch (e) {
-    console.warn("Global users pre-fetch failed:", e);
+    console.warn("Global users pre-fetch failed (non-critical):", e);
   }
 }
 
-async function loadFraudMonitorData() {
+function loadFraudMonitorData() {
   const container = document.getElementById('fraudReportsContainer');
-  if (!container) return;
+  if (!container) { console.error('FRAUD: Container not found'); return; }
 
-  // Use the best available database connection
-  const dbRef = window.db || db;
-  if (!dbRef) {
-    container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Connection Error</h4><p>Could not connect to database. Please refresh.</p></div>`;
-    return;
-  }
+  console.log('FRAUD: loadFraudMonitorData called, fraudListenerActive =', fraudListenerActive);
 
-  // Prevent double-loading
+  // Always show spinner first
+  container.innerHTML = `<div style="text-align:center;padding:60px;color:#64748b;">
+    <i class="fas fa-spinner fa-spin fa-2x"></i>
+    <p style="margin-top:15px;">Loading Security Reports...</p>
+  </div>`;
+
+  // If listener is already live, just re-render the cached data
   if (fraudListenerActive) {
+    console.log('FRAUD: Listener active, re-rendering. fraudReports count =', fraudReports.length);
     renderFraudReports();
     return;
   }
 
-  const updateStatus = (msg) => {
-    container.innerHTML = `<div style="text-align:center; padding: 60px; color: #64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top:15px;">${msg}</p></div>`;
-  };
-
-  updateStatus("Connecting to Security Database...");
-  fraudListenerActive = true;
-  fetchGlobalUsersOnce();
-
-  // 10-second safety timeout
-  let loadTimeout = setTimeout(() => {
-    if (fraudReports.length === 0) {
-      container.innerHTML = `
-        <div style="padding:40px;text-align:center;color:#ef4444;">
-          <i class="fas fa-exclamation-triangle fa-3x"></i>
-          <h4>Connection Timed Out</h4>
-          <p>The database took too long to respond. This can happen if your internet is slow or if there are no reports yet.</p>
-          <button onclick="fraudListenerActive=false; loadFraudMonitorData();" style="margin-top:20px; padding:10px 20px; background:#6366f1; color:white; border:none; border-radius:8px; cursor:pointer;">
-            <i class="fas fa-redo"></i> Try Again
-          </button>
-        </div>`;
+  // Get database with every possible fallback
+  let dbRef = null;
+  try {
+    dbRef = window.db || db;
+    if (!dbRef && typeof firebase !== 'undefined') {
+      try { dbRef = firebase.app('AdminPanel').database(); }
+      catch(e1) {
+        try { dbRef = firebase.database(); }
+        catch(e2) { console.error('FRAUD: All Firebase fallbacks failed', e2); }
+      }
     }
-  }, 10000);
+  } catch(e) { console.error('FRAUD: DB resolution error', e); }
 
-  // Start the live listener
-  dbRef.ref('reports').on('value', (snapshot) => {
-    clearTimeout(loadTimeout);
-    try {
+  console.log('FRAUD: dbRef resolved =', !!dbRef);
+
+  if (!dbRef) {
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;background:white;border-radius:12px;">
+      <h4>No Database Connection</h4><p>Firebase is not initialized. Please hard-refresh (Ctrl+F5).</p>
+    </div>`;
+    return;
+  }
+
+  fraudListenerActive = true;
+  console.log('FRAUD: Attaching listener to reports node...');
+
+  // Hard 8-second timeout
+  const hardTimeout = setTimeout(() => {
+    console.warn('FRAUD: 8-second hard timeout fired');
+    fraudListenerActive = false;
+    try { dbRef.ref('reports').off(); } catch(e) {}
+    container.innerHTML = `<div style="padding:40px;text-align:center;background:white;border-radius:12px;">
+      <i class="fas fa-clock fa-2x" style="color:#f59e0b;margin-bottom:12px;display:block;"></i>
+      <h4 style="color:#1e293b;">Timed Out — Firebase Did Not Respond</h4>
+      <p style="color:#64748b;">This is almost always a <b>database permissions issue</b>. Your Admin role may not match the security rules.</p>
+      <button onclick="fraudListenerActive=false;loadFraudMonitorData();" style="margin-top:15px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+        Retry
+      </button>
+    </div>`;
+  }, 8000);
+
+  // Simple Firebase callback - no async/await
+  dbRef.ref('reports').on('value',
+    function(snapshot) {
+      clearTimeout(hardTimeout);
+      console.log('FRAUD: Firebase responded! snapshot exists =', snapshot.exists());
+
       fraudReports = [];
       let pendingCount = 0;
 
       if (snapshot.exists()) {
-        snapshot.forEach(child => {
+        snapshot.forEach(function(child) {
           const val = child.val();
           if (val) {
             fraudReports.push({ id: child.key, ...val });
             if ((val.status || '').toLowerCase() === 'pending') pendingCount++;
           }
         });
-        fraudReports.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        fraudReports.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
       }
 
-      // Update badges
+      // Update sidebar badge
       const badge = document.getElementById('fraudReportsCount');
-      if (badge) {
-        badge.textContent = pendingCount;
-        badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
-      }
+      if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'inline-block' : 'none'; }
 
+      // Update counter
       const counterBadge = document.getElementById('fraudActiveCounter');
       if (counterBadge) {
-        counterBadge.textContent = `${pendingCount} PENDING REPORTS`;
+        counterBadge.textContent = pendingCount + ' PENDING REPORTS';
         counterBadge.style.background = pendingCount === 0 ? '#10b981' : '#ef4444';
       }
 
       renderFraudReports();
-    } catch (err) {
-      console.error("Rendering Error:", err);
-      container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Preview Error</h4><p>${err.message}</p></div>`;
+    },
+    function(error) {
+      clearTimeout(hardTimeout);
+      fraudListenerActive = false;
+      console.error('FRAUD: Firebase permission error:', error);
+      container.innerHTML = `<div style="padding:40px;text-align:center;background:white;border-radius:12px;color:#ef4444;">
+        <i class="fas fa-lock fa-2x" style="margin-bottom:12px;display:block;"></i>
+        <h4>Access Denied</h4>
+        <p style="color:#64748b;">${error.message || error.code}</p>
+        <button onclick="fraudListenerActive=false;loadFraudMonitorData();" style="margin-top:15px;padding:10px 20px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Retry</button>
+      </div>`;
     }
-  }, (error) => {
-    clearTimeout(loadTimeout);
-    container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Access Denied</h4><p>You don't have permission to view these reports. Please check your admin status.</p></div>`;
-  });
+  );
+
+  // Fetch user names then re-render so "Anonymous User" gets resolved
+  setTimeout(function() {
+    fetchGlobalUsersOnce()
+      .then(function() { renderFraudReports(); })
+      .catch(function() {});
+  }, 100);
 }
 
 async function renderFraudReports() {
@@ -4484,7 +4510,7 @@ async function renderFraudReports() {
         <div class="fm-report-header">
           <div class="fm-report-title">
             <h3><i class="fas fa-flag" style="color: #ef4444; margin-right: 8px;"></i> ${report.reason || 'General Concern'}</h3>
-            <div class="fm-report-meta">Reported by <strong>${reporter.name}</strong> on ${dateStr}</div>
+            <div class="fm-report-meta">Reported by <strong>${reporterName}</strong> on ${dateStr}</div>
           </div>
           <span class="fm-status-badge ${isPending ? 'fm-status-pending' : 'fm-status-resolved'}">${report.status || 'Pending'}</span>
         </div>

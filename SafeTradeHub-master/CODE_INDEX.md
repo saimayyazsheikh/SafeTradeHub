@@ -26,7 +26,7 @@ SafeTradeHub is a secure marketplace platform with an integrated escrow system, 
 ## Project Structure
 
 ### Root Files
-- `backend/app.py` (~1424 lines) - Core Flask API server
+- `backend/app.py` (~1594 lines) - Core Flask API server
 - `package.json` - Node dependencies for local dev/Express proxies
 - `requirements.txt` - Python dependencies
 - `CODE_INDEX.md` - This documentation
@@ -36,7 +36,7 @@ SafeTradeHub is a secure marketplace platform with an integrated escrow system, 
 - `database.rules.json`, `firestore.rules`, `storage.rules` - Security configurations
 
 ### Backend (`/backend/`)
-- `app.py` - Main application logic (~1424 lines)
+- `app.py` - Main application logic (~1594 lines)
   - **Auth**: `admin_required`, `staff_required` decorators
   - **Endpoints**: 70+ routes covering Users, Products, Orders, Escrow, Logistics, AI, and Wallets
 - `services/ai_service.py` - Image moderation logic using Google Cloud Vision
@@ -50,8 +50,8 @@ SafeTradeHub is a secure marketplace platform with an integrated escrow system, 
 
 #### JavaScript (`/static/js/`)
 - **Core**: `firebase-config.js`, `auth-manager.js`, `app-state.js`, `header-manager.js`
-- **Dashboards**: `dashboard.js`, `admin-dashboard.js` (~4059 lines), `staff-dashboard.js` (~3550 lines)
-- **Engines**: `escrow-management.js`, `disputes-engine.js`, `logistics-hub-engine.js`, `payment-processing.js`
+- **Dashboards**: `dashboard.js` (~512 lines), `admin-dashboard.js` (~4111 lines), `staff-dashboard.js` (~3230 lines)
+- **Engines**: `escrow-management.js`, `disputes-engine.js`, `logistics-hub-engine.js`, `payment-processing.js`, `analytics-engine.js`, `dispute-resolution.js`
 - **Features**: `product-upload.js`, `wallet.js`, `notification-manager.js`, `chatbot.js`, `messages-manager.js`, `staff-profile.js`
 
 ### Templates (`/templates/`)

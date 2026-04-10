@@ -3,7 +3,7 @@
         ".read": false,
         ".write": false,
         "users": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".indexOn": [
                 "email",
                 "role",
@@ -23,10 +23,10 @@
             }
         },
         "wallets": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             "$uid": {
                 ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
-                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())"
             }
         },
         "withdrawals": {
@@ -105,7 +105,7 @@
             }
         },
         "escrows": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".indexOn": [
                 "buyerId",
                 "sellerId",
@@ -114,11 +114,11 @@
             ],
             "$escrowId": {
                 ".read": "auth != null && (data.child('buyerId').val() === auth.uid || data.child('sellerId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
-                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())"
             }
         },
         "transactions": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".indexOn": [
                 "userId",
                 "orderId",
@@ -130,7 +130,7 @@
             }
         },
         "walletTransactions": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".indexOn": [
                 "userId",
                 "type",
@@ -138,7 +138,7 @@
             ],
             "$txnId": {
                 ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
-                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())"
             }
         },
         "disputes": {
@@ -197,7 +197,7 @@
             }
         },
         "audit_logs": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".write": "auth != null",
             ".indexOn": [
                 "adminId",
@@ -208,7 +208,7 @@
             ".read": "auth != null",
             "$orderId": {
                 ".read": "auth != null && (root.child('orders').child($orderId).child('buyerId').val() === auth.uid || root.child('orders').child($orderId).child('sellerId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
-                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())"
             }
         },
         "reviews": {
@@ -221,7 +221,7 @@
             ".write": false
         },
         "reports": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             ".write": "auth != null",
             ".indexOn": [
                 "targetId",
@@ -247,9 +247,9 @@
             }
         },
         "global_notifications": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
             "admin_alerts": {
-                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+                ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
                 ".indexOn": ["timestamp", "type", "userId"]
             }
         }

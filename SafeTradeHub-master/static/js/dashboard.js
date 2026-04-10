@@ -477,9 +477,9 @@ async function loadSellerDisputes() {
         }
     });
 }
-});
 
 async function initV2Insights(uid) {
+
     console.log('🚀 Loading v2 Seller Insights for:', uid);
     
     if (typeof STHAnalytics === 'undefined') return;
