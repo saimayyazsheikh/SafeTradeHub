@@ -1,5 +1,5 @@
 // V2 Analytics State Management (Absolute Hoisting)
-window.v2Charts = window.v2Charts || {}; 
+window.v2Charts = window.v2Charts || {};
 window.v2AnalyticsActive = false;
 window.v2GlobalStats = null;
 
@@ -16,7 +16,7 @@ try {
   if (window.auth && window.db) {
     auth = window.auth;
     db = window.db;
-    
+
   } else {
     // Fallback if not defined (though they should be)
     // We must try to get the AdminPanel app to match the HTML
@@ -37,7 +37,7 @@ try {
       db = adminApp.database();
     }
   }
-  
+
 } catch (error) {
   console.error('Firebase instances initialization error:', error);
   auth = null;
@@ -56,19 +56,19 @@ let adminData = {
   transactions: [],
   logistics: {},
   recentActivity: [],
-  currentSearch: { 
-    users: '', 
-    products: '', 
-    disputes: '', 
-    orders: '', 
-    staff: '', 
-    escrow: '', 
-    verification: '', 
+  currentSearch: {
+    users: '',
+    products: '',
+    disputes: '',
+    orders: '',
+    staff: '',
+    escrow: '',
+    verification: '',
     transactions: '',
     category: '',
     orderStatus: '',
     escrowStatus: '',
-    disputeStatus: '' 
+    disputeStatus: ''
   }
 };
 
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Initialize dashboard
 async function initializeDashboard() {
-  
+
 
   // Wait for AuthManager to initialize
   await waitForAuthManager();
@@ -125,15 +125,15 @@ async function waitForAuthManager() {
 // Setup navigation
 function setupNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
-  
+
 
   navItems.forEach(item => {
     const section = item.getAttribute('data-section');
-    
+
 
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      
+
       if (section) {
         showSection(section);
       }
@@ -143,7 +143,7 @@ function setupNavigation() {
 
 // Show section
 async function showSection(sectionName) {
-  
+
 
   // Update navigation
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -175,7 +175,7 @@ async function showSection(sectionName) {
 
 // Load section data
 async function loadSectionData(sectionName) {
-  
+
 
   switch (sectionName) {
     case 'dashboard':
@@ -224,45 +224,45 @@ async function loadSectionData(sectionName) {
 
 // Load Settings Data
 async function loadSettingsData() {
-    // Already populated in HTML, but we can sync from server/storage if needed
-    console.log('Settings section loaded');
+  // Already populated in HTML, but we can sync from server/storage if needed
+  console.log('Settings section loaded');
 }
 
 // Load Profile Data
 async function loadProfileData() {
-    try {
-        showLoading('profile');
-        
-        let currentUser = null;
-        if (window.AuthManager) {
-            currentUser = window.AuthManager.getCurrentUser();
-        }
-        
-        // Fallback to localStorage if AuthManager is still initializing
-        if (!currentUser) {
-            const storedData = localStorage.getItem('userData');
-            currentUser = storedData ? JSON.parse(storedData) : null;
-        }
+  try {
+    showLoading('profile');
 
-        if (currentUser) {
-            updateElementText('adminProfileName', currentUser.name || 'Administrator');
-            updateElementText('adminProfileEmail', currentUser.email || 'admin@safetradehub.com');
-            updateElementText('adminProfileId', currentUser.uid || currentUser.id || 'ADM-001');
-            
-            if (currentUser.createdAt) {
-                updateElementText('adminProfileDate', new Date(currentUser.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }));
-            }
-        }
-
-        hideLoading('profile');
-    } catch (error) {
-        console.error('Error loading profile data:', error);
-        hideLoading('profile');
+    let currentUser = null;
+    if (window.AuthManager) {
+      currentUser = window.AuthManager.getCurrentUser();
     }
+
+    // Fallback to localStorage if AuthManager is still initializing
+    if (!currentUser) {
+      const storedData = localStorage.getItem('userData');
+      currentUser = storedData ? JSON.parse(storedData) : null;
+    }
+
+    if (currentUser) {
+      updateElementText('adminProfileName', currentUser.name || 'Administrator');
+      updateElementText('adminProfileEmail', currentUser.email || 'admin@safetradehub.com');
+      updateElementText('adminProfileId', currentUser.uid || currentUser.id || 'ADM-001');
+
+      if (currentUser.createdAt) {
+        updateElementText('adminProfileDate', new Date(currentUser.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }));
+      }
+    }
+
+    hideLoading('profile');
+  } catch (error) {
+    console.error('Error loading profile data:', error);
+    hideLoading('profile');
+  }
 }
 
 // Get data from localStorage using correct keys
@@ -325,145 +325,145 @@ window.refreshDashboard = async function () {
  * Sidebar Analytics Snapshot Implementation
  */
 function initDashboardSidebarAnalytics() {
-    if (typeof STHAnalytics === 'undefined') return;
+  if (typeof STHAnalytics === 'undefined') return;
 
-    STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
-        // 1. Update Sidebar Mini Stats
-        const fulfillmentEl = document.getElementById('sideFulfillmentRate');
-        const issuesEl = document.getElementById('sideActiveIssues');
-        
-        if (fulfillmentEl) fulfillmentEl.innerText = stats.counters.fulfillmentRate + '%';
-        if (issuesEl) issuesEl.innerText = stats.counters.activeDisputes;
+  STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
+    // 1. Update Sidebar Mini Stats
+    const fulfillmentEl = document.getElementById('sideFulfillmentRate');
+    const issuesEl = document.getElementById('sideActiveIssues');
 
-        // 2. Render Sidebar Revenue Chart (Minimalist)
-        const canvasId = 'dashboardSidebarChart';
-        const trendData = stats.charts.revenueTrend;
-        
-        const labels = Object.keys(trendData || {}).sort().slice(-7); // Last 7 data points
-        const data = labels.map(l => trendData[l]);
+    if (fulfillmentEl) fulfillmentEl.innerText = stats.counters.fulfillmentRate + '%';
+    if (issuesEl) issuesEl.innerText = stats.counters.activeDisputes;
 
-        const ctx = document.getElementById(canvasId)?.getContext('2d');
-        if (!ctx) return;
+    // 2. Render Sidebar Revenue Chart (Minimalist)
+    const canvasId = 'dashboardSidebarChart';
+    const trendData = stats.charts.revenueTrend;
 
-        if (window.v2Charts.sidePulse) window.v2Charts.sidePulse.destroy();
+    const labels = Object.keys(trendData || {}).sort().slice(-7); // Last 7 data points
+    const data = labels.map(l => trendData[l]);
 
-        window.v2Charts.sidePulse = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels.map(l => l.split('-').slice(1).join('/')),
-                datasets: [{
-                    data: data,
-                    borderColor: '#4f46e5',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: true,
-                    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { enabled: true } },
-                scales: {
-                    x: { display: false },
-                    y: { display: false, beginAtZero: true }
-                }
-            }
-        });
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.v2Charts.sidePulse) window.v2Charts.sidePulse.destroy();
+
+    window.v2Charts.sidePulse = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels.map(l => l.split('-').slice(1).join('/')),
+        datasets: [{
+          data: data,
+          borderColor: '#4f46e5',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+          backgroundColor: 'rgba(79, 70, 229, 0.05)',
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        scales: {
+          x: { display: false },
+          y: { display: false, beginAtZero: true }
+        }
+      }
     });
+  });
 }
 
 // Logout Functionality
-window.logout = async function() {
-    try {
-        const confirmed = await window.showConfirmModal({
-            title: 'Logout Confirmation',
-            message: 'Are you sure you want to end your administrative session? You will need to log in again to access the dashboard.',
-            confirmText: 'Logout',
-            type: 'danger'
-        });
+window.logout = async function () {
+  try {
+    const confirmed = await window.showConfirmModal({
+      title: 'Logout Confirmation',
+      message: 'Are you sure you want to end your administrative session? You will need to log in again to access the dashboard.',
+      confirmText: 'Logout',
+      type: 'danger'
+    });
 
-        if (confirmed) {
-            // 1. Clear global AuthManager (Default Firebase Instance)
-            if (window.AuthManager) {
-                await window.AuthManager.signOut();
-            }
+    if (confirmed) {
+      // 1. Clear global AuthManager (Default Firebase Instance)
+      if (window.AuthManager) {
+        await window.AuthManager.signOut();
+      }
 
-            // 2. Clear AdminPanel Instance (Mandatory for dashboard persistence)
-            if (window.auth && typeof window.auth.signOut === 'function') {
-                await window.auth.signOut();
-            }
+      // 2. Clear AdminPanel Instance (Mandatory for dashboard persistence)
+      if (window.auth && typeof window.auth.signOut === 'function') {
+        await window.auth.signOut();
+      }
 
-            // 3. Clear storage fallback
-            localStorage.removeItem('userData');
-            localStorage.removeItem('authToken');
-            
-            // 4. Force Redirect
-            window.location.replace('admin-login.html');
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        window.location.replace('admin-login.html');
+      // 3. Clear storage fallback
+      localStorage.removeItem('userData');
+      localStorage.removeItem('authToken');
+
+      // 4. Force Redirect
+      window.location.replace('admin-login.html');
     }
+  } catch (error) {
+    console.error('Logout error:', error);
+    window.location.replace('admin-login.html');
+  }
 };
 
 // Custom Confirmation Modal Utility
-window.showConfirmModal = function(options = {}) {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('confirmationModal');
-        const titleEl = document.getElementById('confirmTitle');
-        const messageEl = document.getElementById('confirmMessage');
-        const okBtn = document.getElementById('confirmOkBtn');
-        const cancelBtn = document.getElementById('confirmCancelBtn');
-        const iconContainer = document.getElementById('confirmIconContainer');
+window.showConfirmModal = function (options = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirmationModal');
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    const iconContainer = document.getElementById('confirmIconContainer');
 
-        titleEl.textContent = options.title || 'Confirm Action';
-        messageEl.textContent = options.message || 'Are you sure?';
-        
-        if (options.confirmText) okBtn.textContent = options.confirmText;
-        if (options.cancelText) cancelBtn.textContent = options.cancelText;
-        
-        if (options.type === 'danger') {
-            okBtn.style.background = '#ef4444';
-            iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-exclamation-triangle"></i></div>';
-        } else {
-            okBtn.style.background = '#2563eb';
-            iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #dbeafe; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-question-circle"></i></div>';
-        }
+    titleEl.textContent = options.title || 'Confirm Action';
+    messageEl.textContent = options.message || 'Are you sure?';
 
-        modal.style.display = 'block';
+    if (options.confirmText) okBtn.textContent = options.confirmText;
+    if (options.cancelText) cancelBtn.textContent = options.cancelText;
 
-        const handleOk = () => {
-            modal.style.display = 'none';
-            cleanup();
-            resolve(true);
-        };
+    if (options.type === 'danger') {
+      okBtn.style.background = '#ef4444';
+      iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-exclamation-triangle"></i></div>';
+    } else {
+      okBtn.style.background = '#2563eb';
+      iconContainer.innerHTML = '<div style="width: 70px; height: 70px; background: #dbeafe; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 30px;"><i class="fas fa-question-circle"></i></div>';
+    }
 
-        const handleCancel = () => {
-            modal.style.display = 'none';
-            cleanup();
-            resolve(false);
-        };
+    modal.style.display = 'block';
 
-        const cleanup = () => {
-            okBtn.removeEventListener('click', handleOk);
-            cancelBtn.removeEventListener('click', handleCancel);
-        };
+    const handleOk = () => {
+      modal.style.display = 'none';
+      cleanup();
+      resolve(true);
+    };
 
-        okBtn.addEventListener('click', handleOk);
-        cancelBtn.addEventListener('click', handleCancel);
-        
-        // Close on escape key
-        const handleKeydown = (e) => {
-            if (e.key === 'Escape') {
-                document.removeEventListener('keydown', handleKeydown);
-                handleCancel();
-            }
-        };
-        document.addEventListener('keydown', handleKeydown);
-    });
+    const handleCancel = () => {
+      modal.style.display = 'none';
+      cleanup();
+      resolve(false);
+    };
+
+    const cleanup = () => {
+      okBtn.removeEventListener('click', handleOk);
+      cancelBtn.removeEventListener('click', handleCancel);
+    };
+
+    okBtn.addEventListener('click', handleOk);
+    cancelBtn.addEventListener('click', handleCancel);
+
+    // Close on escape key
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', handleKeydown);
+        handleCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
+  });
 };
 
 // Get real statistics
@@ -615,7 +615,7 @@ async function loadUsersData() {
 
     adminData.users = users;
 
-    
+
     updateUsersTable();
     updateElementText('usersCount', adminData.users.length);
 
@@ -644,7 +644,7 @@ async function loadOrdersData() {
 
     adminData.orders = orders;
 
-    
+
 
     // Calculate status counts from real data (Aggregated for dashboard summary)
     const statusCounts = {
@@ -674,7 +674,7 @@ async function loadOrdersData() {
 
     // Update orders table
     updateOrdersTable();
-    
+
     // Update Global Logistics Pipeline
     updateGlobalLogisticsPipeline();
 
@@ -692,14 +692,14 @@ function updateGlobalLogisticsPipeline() {
 
   const now = Date.now();
   const filteredOrders = adminData.orders.filter(o => o.status !== 'cancelled');
-  
+
   // Calculate Global Metrics
   const deliveredCount = adminData.orders.filter(o => {
     const s = (o.status || '').toLowerCase();
     return s === 'delivered' || s === 'completed';
   }).length;
   updateElementText('deliveredTotal', deliveredCount);
-  
+
   // Bottlenecks: Orders with status not updated in > 24 hours
   const bottlenecked = filteredOrders.filter(o => {
     const lastUpdate = o.updatedAt ? (typeof o.updatedAt === 'number' ? o.updatedAt : new Date(o.updatedAt).getTime()) : o.createdAt || 0;
@@ -715,30 +715,30 @@ function updateGlobalLogisticsPipeline() {
   tbody.innerHTML = filteredOrders.map(o => {
     const lastUpdateTs = o.updatedAt ? (typeof o.updatedAt === 'number' ? o.updatedAt : new Date(o.updatedAt).getTime()) : o.createdAt || 0;
     const hoursElapsed = (now - lastUpdateTs) / (1000 * 60 * 60);
-    
+
     // SLA Status Determination
     let slaClass = '';
     let slaLabel = '';
-    
+
     if (o.status !== 'delivered' && o.status !== 'completed') {
-        if (hoursElapsed > 48) {
-            slaClass = 'sla-alert-red'; 
-            slaLabel = 'LATE (>48h)';
-        } else if (hoursElapsed > 24) {
-            slaClass = 'sla-alert-yellow';
-            slaLabel = 'DELAYED (>24h)';
-        } else {
-            slaClass = 'sla-ok';
-            slaLabel = 'ON TIME';
-        }
+      if (hoursElapsed > 48) {
+        slaClass = 'sla-alert-red';
+        slaLabel = 'LATE (>48h)';
+      } else if (hoursElapsed > 24) {
+        slaClass = 'sla-alert-yellow';
+        slaLabel = 'DELAYED (>24h)';
+      } else {
+        slaClass = 'sla-ok';
+        slaLabel = 'ON TIME';
+      }
     } else {
-        slaClass = 'sla-done';
-        slaLabel = 'FINISHED';
+      slaClass = 'sla-done';
+      slaLabel = 'FINISHED';
     }
 
     const isDisputed = o.status === 'disputed';
     const statusClass = isDisputed ? 'danger' : (o.status === 'delivered' || o.status === 'completed' ? 'success' : 'warning');
-    
+
     return `
       <tr class="${isDisputed ? 'row-disputed' : ''}">
         <td>
@@ -795,13 +795,13 @@ function updateGlobalLogisticsPipeline() {
 }
 
 function simulateThirdPartyLogistics() {
-    showSuccess('Simulating external carrier update (FedEx/SafeShip)...');
-    setTimeout(() => showSuccess('Outbound status synced for 12 shipments.'), 2000);
+  showSuccess('Simulating external carrier update (FedEx/SafeShip)...');
+  setTimeout(() => showSuccess('Outbound status synced for 12 shipments.'), 2000);
 }
 
 function exportLogisticsReport() {
-    showSuccess('Generating Logistics Manifest v2.4...');
-    setTimeout(() => showSuccess('Manifest exported to CSV.'), 1500);
+  showSuccess('Generating Logistics Manifest v2.4...');
+  setTimeout(() => showSuccess('Manifest exported to CSV.'), 1500);
 }
 async function loadProductsData() {
   try {
@@ -818,7 +818,7 @@ async function loadProductsData() {
 
     adminData.products = products;
 
-    
+
     updateProductsTable();
     updateElementText('productsCount', adminData.products.length);
 
@@ -845,7 +845,7 @@ async function loadDisputesData() {
       ...dispute
     }));
 
-    
+
     updateDisputesTable();
 
     hideLoading('disputes');
@@ -876,7 +876,7 @@ async function loadEscrowData() {
 
     adminData.escrows = escrows;
 
-    
+
     updateEscrowTable();
 
     hideLoading('escrow');
@@ -943,7 +943,7 @@ function updateEscrowTable(searchTerm) {
     else if (status === 'holding' || status === 'held') statusClass = 'pending';
 
     const date = escrow.createdAt ? new Date(escrow.createdAt).toLocaleDateString() : 'N/A';
-    
+
     // Determine Display Status (Format order status if applicable, otherwise use escrow status)
     const displayStatus = escrow.orderStatus ? formatOrderStatus(escrow.orderStatus) : (status.charAt(0).toUpperCase() + status.slice(1));
 
@@ -1144,7 +1144,7 @@ async function loadVerificationData() {
       };
     });
 
-    
+
     updateVerificationTable();
     updateElementText('pendingVerifications', adminData.pendingVerifications.length);
 
@@ -1229,14 +1229,14 @@ function updateVerificationTable(searchTerm = '') {
 
 // View Verification Details
 window.viewVerificationDetails = async function (userId) {
-  
+
   try {
     const user = adminData.pendingVerifications.find(u => u.id === userId);
 
     // User lookup logic
     let targetUser = user;
     if (!targetUser) {
-      
+
       targetUser = adminData.users.find(u => u.userId === userId || u.id === userId);
     }
 
@@ -1460,27 +1460,27 @@ window.approveVerification = async function (userId, type) {
     const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
 
     if (userId !== auditorUid) {
-        // Send Personal Notification to Seller
-        await db.ref(`users/${userId}/notifications`).push({
-          title: `${typeName} Approved`,
-          message: `Congratulations! Your ${typeName.toLowerCase()} has been verified. ${type === 'shop' ? 'You can now start listing products as a Seller.' : ''}`,
-          type: type === 'shop' ? 'shop' : 'verification',
-          read: false,
-          timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
+      // Send Personal Notification to Seller
+      await db.ref(`users/${userId}/notifications`).push({
+        title: `${typeName} Approved`,
+        message: `Congratulations! Your ${typeName.toLowerCase()} has been verified. ${type === 'shop' ? 'You can now start listing products as a Seller.' : ''}`,
+        type: type === 'shop' ? 'shop' : 'verification',
+        read: false,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
     }
 
     // Always push to Global Admin Trail for professional logging
     try {
-        await db.ref('global_notifications/admin_alerts').push({
-            title: `${typeName} Verification Approved`,
-            message: `${typeName} for user ID ${userId.substring(0, 6)}... has been approved by ${auditorName}.`,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            userId: userId,
-            type: 'verification'
-        });
+      await db.ref('global_notifications/admin_alerts').push({
+        title: `${typeName} Verification Approved`,
+        message: `${typeName} for user ID ${userId.substring(0, 6)}... has been approved by ${auditorName}.`,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        userId: userId,
+        type: 'verification'
+      });
     } catch (logError) {
-        console.warn('⚠️ Non-critical: Failed to push to Admin Trail:', logError);
+      console.warn('⚠️ Non-critical: Failed to push to Admin Trail:', logError);
     }
 
     showSuccess(`${typeName} approved successfully`);
@@ -1499,7 +1499,7 @@ window.approveVerification = async function (userId, type) {
 
     // Refresh modal instantly
     viewVerificationDetails(userId);
-    
+
     // Refresh background data
     loadVerificationData();
   } catch (error) {
@@ -1545,23 +1545,23 @@ window.rejectVerification = async function (userId, type) {
     const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
 
     if (userId !== auditorUid) {
-        // Send Notification to User
-        await db.ref(`users/${userId}/notifications`).push({
-          title: `${typeName} Rejected`,
-          message: `Your ${typeName.toLowerCase()} verification was rejected. Reason: ${reason}`,
-          type: 'alert',
-          read: false,
-          timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
+      // Send Notification to User
+      await db.ref(`users/${userId}/notifications`).push({
+        title: `${typeName} Rejected`,
+        message: `Your ${typeName.toLowerCase()} verification was rejected. Reason: ${reason}`,
+        type: 'alert',
+        read: false,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
     }
 
     // Always push to Global Admin Trail
     await db.ref('global_notifications/admin_alerts').push({
-        title: `${typeName} Verification Rejected`,
-        message: `${typeName} rejection for user ID ${userId.substring(0,6)}... by ${auditorName}. Reason: ${reason}`,
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        userId: userId,
-        type: 'alert'
+      title: `${typeName} Verification Rejected`,
+      message: `${typeName} rejection for user ID ${userId.substring(0, 6)}... by ${auditorName}. Reason: ${reason}`,
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      userId: userId,
+      type: 'alert'
     });
 
     showSuccess(`${typeName} rejected`);
@@ -1580,7 +1580,7 @@ window.rejectVerification = async function (userId, type) {
 
     // Refresh modal instantly
     viewVerificationDetails(userId);
-    
+
     // Refresh background data
     loadVerificationData();
   } catch (error) {
@@ -1597,9 +1597,9 @@ async function loadLogisticsData() {
     // The initLogisticsHub function from logistics-hub-engine.js 
     // handles real-time data sync for the pipeline, stats, and activity.
     if (window.initLogisticsHub) {
-        window.initLogisticsHub();
+      window.initLogisticsHub();
     } else {
-        console.warn('Logistics Hub Engine not loaded yet');
+      console.warn('Logistics Hub Engine not loaded yet');
     }
 
     hideLoading('logistics');
@@ -1615,7 +1615,7 @@ async function loadLogisticsData() {
 // ========================================
 
 async function loadWalletData() {
-  
+
   showLoading(true);
 
   try {
@@ -1646,32 +1646,32 @@ async function loadWalletData() {
     const syncWithdrawals = () => {
       const wNode1 = db.ref('withdrawals');
       const wNode2 = db.ref('withdrawal_requests');
-      
+
       const processSnap = (snap1, snap2) => {
         const merged = new Map();
-        
+
         if (snap1 && snap1.exists()) {
           snap1.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
         }
         if (snap2 && snap2.exists()) {
           snap2.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
         }
-        
+
         const withdrawals = Array.from(merged.values());
         withdrawals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
+
         adminData.withdrawals = withdrawals;
         renderWithdrawals(withdrawals);
-        
+
         // Update Header Count for debugging/visibility
         const countHeader = document.querySelector('#withdrawalsTableBody').closest('.content-card')?.querySelector('h3');
         if (countHeader && countHeader.textContent.includes('Withdrawal Requests')) {
-           countHeader.innerHTML = `Withdrawal Requests <span class="badge badge-info" style="font-size: 0.8rem; margin-left: 8px;">${withdrawals.length} Total</span>`;
+          countHeader.innerHTML = `Withdrawal Requests <span class="badge badge-info" style="font-size: 0.8rem; margin-left: 8px;">${withdrawals.length} Total</span>`;
         }
-        
+
         updateWalletStats();
       };
-      
+
       // Real-time synchronization from BOTH nodes
       wNode1.on('value', (s1) => {
         wNode2.once('value').then(s2 => processSnap(s1, s2));
@@ -1680,7 +1680,7 @@ async function loadWalletData() {
         wNode1.once('value').then(s1 => processSnap(s1, s2));
       });
     };
-    
+
     syncWithdrawals();
 
     // 3. Load Wallet Transactions
@@ -1873,13 +1873,13 @@ async function updateWalletStats() {
     // 1. Total System Balance (Sum of all user wallets)
     let totalBalance = 0;
     try {
-        const walletsSnap = await db.ref('wallets').once('value');
-        if (walletsSnap.exists()) {
-            walletsSnap.forEach(snap => {
-                totalBalance += (snap.val().available_balance || 0);
-            });
-        }
-    } catch(e) {}
+      const walletsSnap = await db.ref('wallets').once('value');
+      if (walletsSnap.exists()) {
+        walletsSnap.forEach(snap => {
+          totalBalance += (snap.val().available_balance || 0);
+        });
+      }
+    } catch (e) { }
     updateElementText('totalSystemBalance', `RS ${totalBalance.toLocaleString()}`);
 
     // 2. Pending Withdrawals
@@ -1916,11 +1916,11 @@ function updateElementText(id, text) {
 function getStatusBadgeColor(status) {
   const s = (status || '').toLowerCase();
   switch (s) {
-    case 'pending': 
+    case 'pending':
     case 'order placed':
     case 'placed':
       return 'warning';
-      
+
     case 'sent_to_hub':
     case 'received_at_origin':
     case 'received at origin hub':
@@ -1928,28 +1928,28 @@ function getStatusBadgeColor(status) {
     case 'at destination hub':
     case 'at_destination':
       return 'primary';
-      
+
     case 'verified':
     case 'verified & sealed':
     case 'sealed':
     case 'delivered':
     case 'approved':
       return 'success';
-      
+
     case 'in_transit':
     case 'in transit':
     case 'out_for_delivery':
     case 'out for delivery':
       return 'info';
-      
+
     case 'disputed':
     case 'rejected':
       return 'danger';
-      
+
     case 'cancelled':
     case 'dismissed':
       return 'secondary';
-      
+
     default:
       return 'secondary';
   }
@@ -2001,21 +2001,21 @@ window.filterWithdrawals = filterWithdrawals;
 async function loadAnalyticsData() {
   try {
     showLoading('analytics');
-    
+
     let token = '';
     if (firebase.auth().currentUser) {
-        token = await firebase.auth().currentUser.getIdToken();
+      token = await firebase.auth().currentUser.getIdToken();
     }
 
     const response = await fetch('/api/v1/analytics/admin/summary', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
     const result = await response.json();
 
     if (result.success) {
-        renderAdminCharts(result.data);
+      renderAdminCharts(result.data);
     } else {
-        console.error('Failed to load analytics:', result.error);
+      console.error('Failed to load analytics:', result.error);
     }
     hideLoading('analytics');
   } catch (error) {
@@ -2025,99 +2025,99 @@ async function loadAnalyticsData() {
 }
 
 function renderAdminCharts(data) {
-    const indigo = '#4f46e5';
-    const indigoLight = 'rgba(79, 70, 229, 0.1)';
+  const indigo = '#4f46e5';
+  const indigoLight = 'rgba(79, 70, 229, 0.1)';
 
-    // Reset charts if they exist (to handle potential re-renders)
-    const chartIds = ['revenueChart', 'userGrowthChart', 'categoryPieChart', 'disputeChart'];
-    chartIds.forEach(id => {
-        const canvas = document.getElementById(id);
-        if (!canvas) return;
-        const existingChart = Chart.getChart(canvas);
-        if (existingChart) existingChart.destroy();
+  // Reset charts if they exist (to handle potential re-renders)
+  const chartIds = ['revenueChart', 'userGrowthChart', 'categoryPieChart', 'disputeChart'];
+  chartIds.forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) existingChart.destroy();
+  });
+
+  // Revenue Trend Line Chart
+  if (data.revenueTrend && data.revenueTrend.data.some(d => d > 0)) {
+    document.getElementById('revenueNoData').style.display = 'none';
+    new Chart(document.getElementById('revenueChart'), {
+      type: 'line',
+      data: {
+        labels: data.revenueTrend.labels,
+        datasets: [{
+          label: 'Revenue (RS)',
+          data: data.revenueTrend.data,
+          borderColor: indigo,
+          backgroundColor: indigoLight,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
     });
+  } else {
+    document.getElementById('revenueNoData').style.display = 'flex';
+  }
 
-    // Revenue Trend Line Chart
-    if (data.revenueTrend && data.revenueTrend.data.some(d => d > 0)) {
-        document.getElementById('revenueNoData').style.display = 'none';
-        new Chart(document.getElementById('revenueChart'), {
-            type: 'line',
-            data: {
-                labels: data.revenueTrend.labels,
-                datasets: [{
-                    label: 'Revenue (RS)',
-                    data: data.revenueTrend.data,
-                    borderColor: indigo,
-                    backgroundColor: indigoLight,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    } else {
-        document.getElementById('revenueNoData').style.display = 'flex';
-    }
+  // User Growth Bar Chart
+  if (data.userGrowth && data.userGrowth.data.some(d => d > 0)) {
+    document.getElementById('userGrowthNoData').style.display = 'none';
+    new Chart(document.getElementById('userGrowthChart'), {
+      type: 'bar',
+      data: {
+        labels: data.userGrowth.labels,
+        datasets: [{
+          label: 'New Users',
+          data: data.userGrowth.data,
+          backgroundColor: indigo
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  } else {
+    document.getElementById('userGrowthNoData').style.display = 'flex';
+  }
 
-    // User Growth Bar Chart
-    if (data.userGrowth && data.userGrowth.data.some(d => d > 0)) {
-        document.getElementById('userGrowthNoData').style.display = 'none';
-        new Chart(document.getElementById('userGrowthChart'), {
-            type: 'bar',
-            data: {
-                labels: data.userGrowth.labels,
-                datasets: [{
-                    label: 'New Users',
-                    data: data.userGrowth.data,
-                    backgroundColor: indigo
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    } else {
-        document.getElementById('userGrowthNoData').style.display = 'flex';
-    }
+  // Category Pie Chart
+  if (data.categories && data.categories.data.length > 0) {
+    document.getElementById('categoryNoData').style.display = 'none';
+    new Chart(document.getElementById('categoryPieChart'), {
+      type: 'pie',
+      data: {
+        labels: data.categories.labels,
+        datasets: [{
+          data: data.categories.data,
+          backgroundColor: ['#4f46e5', '#818cf8', '#c7d2fe', '#6366f1', '#4338ca', '#312e81', '#4f46e5', '#818cf8']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  } else {
+    document.getElementById('categoryNoData').style.display = 'flex';
+  }
 
-    // Category Pie Chart
-    if (data.categories && data.categories.data.length > 0) {
-        document.getElementById('categoryNoData').style.display = 'none';
-        new Chart(document.getElementById('categoryPieChart'), {
-            type: 'pie',
-            data: {
-                labels: data.categories.labels,
-                datasets: [{
-                    data: data.categories.data,
-                    backgroundColor: ['#4f46e5', '#818cf8', '#c7d2fe', '#6366f1', '#4338ca', '#312e81', '#4f46e5', '#818cf8']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    } else {
-        document.getElementById('categoryNoData').style.display = 'flex';
-    }
-
-    // Dispute Resolution (using summary data)
-    if (data.summary && (data.summary.disputes > 0 || data.summary.users > 0)) {
-        document.getElementById('disputeNoData').style.display = 'none';
-        new Chart(document.getElementById('disputeChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Active Disputes', 'Total Users'],
-                datasets: [{
-                    data: [data.summary.disputes, data.summary.users],
-                    backgroundColor: ['#ef4444', '#10b981']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    } else {
-        document.getElementById('disputeNoData').style.display = 'flex';
-    }
+  // Dispute Resolution (using summary data)
+  if (data.summary && (data.summary.disputes > 0 || data.summary.users > 0)) {
+    document.getElementById('disputeNoData').style.display = 'none';
+    new Chart(document.getElementById('disputeChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Active Disputes', 'Total Users'],
+        datasets: [{
+          data: [data.summary.disputes, data.summary.users],
+          backgroundColor: ['#ef4444', '#10b981']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  } else {
+    document.getElementById('disputeNoData').style.display = 'flex';
+  }
 }
 
 // Load Settings Data
 async function loadSettingsData() {
-  
+
 }
 
 // Update Dashboard Statistics
@@ -2217,7 +2217,7 @@ function updateUsersTable(searchTerm = null) {
     const email = (user.email || "").toLowerCase();
     const role = (user.role || "").toLowerCase();
     const id = (user.id || "").toLowerCase();
-    
+
     return name.includes(query) || email.includes(query) || role.includes(query) || id.includes(query);
   });
 
@@ -2327,12 +2327,12 @@ async function updateOrdersTable(searchTerm) {
       const statusText = (order.status || "").toLowerCase();
       const tracking = (order.trackingNumber || "").toLowerCase();
 
-      return id.includes(query) || 
-             buyerName.includes(query) || 
-             buyerEmail.includes(query) || 
-             sellerName.includes(query) || 
-             statusText.includes(query) ||
-             tracking.includes(query);
+      return id.includes(query) ||
+        buyerName.includes(query) ||
+        buyerEmail.includes(query) ||
+        sellerName.includes(query) ||
+        statusText.includes(query) ||
+        tracking.includes(query);
     });
   }
 
@@ -2527,7 +2527,7 @@ window.viewOrder = async function (orderId) {
       const productSnapshot = await db.ref('products/' + order.items[0].id + '/sellerId').once('value');
       if (productSnapshot.exists()) {
         sellerId = productSnapshot.val();
-        
+
       }
     } catch (e) {
       console.error('Error looking up product seller:', e);
@@ -2858,7 +2858,7 @@ function updateDisputesTable(searchTerm) {
   tableBody.innerHTML = disputes.map(dispute => {
     const date = dispute.createdAt ? new Date(dispute.createdAt).toLocaleDateString() : 'N/A';
     const statusClass = (dispute.status || 'open').toLowerCase().replace(' ', '-');
-    
+
     return `
     <tr>
       <td>#${dispute.id.substring(0, 8)}</td>
@@ -2929,11 +2929,11 @@ function formatTimestamp(timestamp) {
 }
 
 function showLoading(section) {
-  
+
 }
 
 function hideLoading(section) {
-  
+
 }
 
 function showSuccess(message) {
@@ -3096,9 +3096,9 @@ function setupEventListeners() {
       const action = btn.getAttribute('data-action');
       const requestId = btn.getAttribute('data-id');
       const userId = btn.getAttribute('data-uid');
-      
+
       if (!requestId) return;
-      
+
       switch (action) {
         case 'view':
           await openWithdrawalView(requestId);
@@ -3111,7 +3111,7 @@ function setupEventListeners() {
           break;
       }
     }
-    
+
     // Handle view user links
     if (e.target.closest('.view-user-link')) {
       e.preventDefault();
@@ -3160,10 +3160,10 @@ function handleSearch(e) {
   } else {
     // Generic Row-Hiding Fallback for unhandled sections
     const tableId = id.replace('Search', 'Table');
-    const tableMapping = { 
-      'userTable': 'usersTable', 
-      'productTable': 'productsTable', 
-      'transactionTable': 'transactionsTable' 
+    const tableMapping = {
+      'userTable': 'usersTable',
+      'productTable': 'productsTable',
+      'transactionTable': 'transactionsTable'
     };
     const targetId = tableMapping[tableId] || tableId;
     const table = document.getElementById(targetId);
@@ -3207,12 +3207,12 @@ function handleFilter(e) {
 
   // Generic Row-Hiding Fallback for other sections (Users, Transactions etc if they have basic filters)
   const tableId = id.replace('Filter', 'Table');
-  const targetId = { 
-    'userTable': 'usersTable', 
-    'productTable': 'productsTable', 
+  const targetId = {
+    'userTable': 'usersTable',
+    'productTable': 'productsTable',
     'transactionTable': 'transactionsTable'
   }[tableId] || tableId;
-  
+
   const table = document.getElementById(targetId);
   if (!table) return;
 
@@ -3226,7 +3226,7 @@ function handleFilter(e) {
     const dataStatus = row.getAttribute('data-status');
     const statusCell = row.querySelector('.status-badge');
     const statusText = dataStatus || (statusCell ? statusCell.textContent.toLowerCase() : '');
-    
+
     row.style.display = statusText.includes(filterValue) ? '' : 'none';
   });
 }
@@ -3311,9 +3311,9 @@ async function rejectVerification(userId) {
 }
 
 // Placeholder functions for other actions
-window.viewUser = async function(userId) {
+window.viewUser = async function (userId) {
   let user = adminData.users.find(u => u.id === userId);
-  
+
   if (!user) {
     try {
       showLoading('users');
@@ -3334,23 +3334,23 @@ window.viewUser = async function(userId) {
 
   const modal = document.getElementById('userDetailModal');
   if (!modal) return;
-  
+
   // Populate Fields
   document.getElementById('uDetName').innerText = user.fullName || user.displayName || user.name || 'Unknown User';
   document.getElementById('uDetEmail').innerText = user.email || 'No email provided';
   document.getElementById('uDetId').innerText = user.id;
   document.getElementById('uDetPhone').innerText = user.phone || 'N/A';
-  
+
   const role = user.role || 'User';
   const roleEl = document.getElementById('uDetRole');
   if (roleEl) {
     roleEl.innerText = role;
     roleEl.className = `badge ${role === 'Admin' ? 'badge-danger' : (role === 'Staff' ? 'badge-info' : 'badge-success')}`;
   }
-  
+
   document.getElementById('uDetJoined').innerText = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A';
   document.getElementById('uDetAddress').innerText = user.address || (user.verification?.shop?.address) || 'No verified address on file.';
-  
+
   const avatarImg = document.getElementById('uDetAvatar');
   if (avatarImg) {
     const displayName = user.fullName || user.displayName || user.name || 'User';
@@ -3395,7 +3395,7 @@ window.viewUser = async function(userId) {
   if (pulse) {
     let statusColor = '#94a3b8';
     let statusText = 'UNVERIFIED';
-    
+
     if (v.cnic?.verified || v.shop?.verified) { statusColor = '#10b981'; statusText = 'OFFICIALLY VERIFIED'; }
     else if (v.cnic?.submitted || v.shop?.submitted) { statusColor = '#f59e0b'; statusText = 'PENDING REVIEW'; }
 
@@ -3416,12 +3416,12 @@ window.viewUser = async function(userId) {
   modal.style.display = 'block';
 };
 
-window.closeUserDetailModal = function() {
+window.closeUserDetailModal = function () {
   const modal = document.getElementById('userDetailModal');
   if (modal) modal.style.display = 'none';
 };
 function viewOrderDetails(orderId) {
-    window.open(`orderstatus.html?orderId=${orderId}`, '_blank');
+  window.open(`orderstatus.html?orderId=${orderId}`, '_blank');
 }
 // Edit User Function
 function editUser(userId) {
@@ -3629,50 +3629,50 @@ window.editCategory = editCategory;
 window.viewDispute = viewDispute;
 
 async function resolveDispute(id) {
-    const outcome = prompt('Select Arbitration Outcome:\n(e.g., refund_buyer, release_seller, replace_item)');
-    if (!outcome) return;
-    
-    const comments = prompt('Enter official Arbitration resolution summary (Mandatory):');
-    if (!comments) return;
+  const outcome = prompt('Select Arbitration Outcome:\n(e.g., refund_buyer, release_seller, replace_item)');
+  if (!outcome) return;
 
-    if (!confirm(`Are you sure you want to enforce this resolution?\nOutcome: ${outcome}`)) return;
+  const comments = prompt('Enter official Arbitration resolution summary (Mandatory):');
+  if (!comments) return;
 
-    try {
-        const db = firebase.database();
-        await db.ref(`disputes/${id}`).update({
-            status: 'resolved',
-            outcome: outcome.toLowerCase(),
-            resolution: comments,
-            resolvedBy: 'Admin',
-            resolvedAt: firebase.database.ServerValue.TIMESTAMP
-        });
+  if (!confirm(`Are you sure you want to enforce this resolution?\nOutcome: ${outcome}`)) return;
 
-        const dispSnap = await db.ref(`disputes/${id}`).once('value');
-        const disp = dispSnap.val();
-        
-        if (disp) {
-            const notifData = {
-                title: 'Dispute Arbitration Concluded',
-                message: `The arbitration for order #${(disp.orderId || '').slice(-6)} is complete. Outcome: ${outcome.toUpperCase()}.\nAdmin Notes: ${comments}`,
-                type: 'alert',
-                read: false,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-            
-            if (disp.buyerId && disp.buyerId !== 'unknown') await db.ref(`users/${disp.buyerId}/notifications`).push(notifData);
-            if (disp.sellerId && disp.sellerId !== 'unknown') await db.ref(`users/${disp.sellerId}/notifications`).push(notifData);
-            if (disp.orderId) await db.ref(`orders/${disp.orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
-        }
-        
-        if (window.NotificationManager) {
-             window.NotificationManager.showToast('Dispute Resolved', 'The arbitration ruling has been securely enforced.', 'success');
-        } else {
-             alert('Arbitration ruling successfully enforced.');
-        }
-    } catch (e) {
-        console.error('Arbitration Error:', e);
-        alert('Critical error while enforcing resolution. See console.');
+  try {
+    const db = firebase.database();
+    await db.ref(`disputes/${id}`).update({
+      status: 'resolved',
+      outcome: outcome.toLowerCase(),
+      resolution: comments,
+      resolvedBy: 'Admin',
+      resolvedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    const dispSnap = await db.ref(`disputes/${id}`).once('value');
+    const disp = dispSnap.val();
+
+    if (disp) {
+      const notifData = {
+        title: 'Dispute Arbitration Concluded',
+        message: `The arbitration for order #${(disp.orderId || '').slice(-6)} is complete. Outcome: ${outcome.toUpperCase()}.\nAdmin Notes: ${comments}`,
+        type: 'alert',
+        read: false,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+
+      if (disp.buyerId && disp.buyerId !== 'unknown') await db.ref(`users/${disp.buyerId}/notifications`).push(notifData);
+      if (disp.sellerId && disp.sellerId !== 'unknown') await db.ref(`users/${disp.sellerId}/notifications`).push(notifData);
+      if (disp.orderId) await db.ref(`orders/${disp.orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
     }
+
+    if (window.NotificationManager) {
+      window.NotificationManager.showToast('Dispute Resolved', 'The arbitration ruling has been securely enforced.', 'success');
+    } else {
+      alert('Arbitration ruling successfully enforced.');
+    }
+  } catch (e) {
+    console.error('Arbitration Error:', e);
+    alert('Critical error while enforcing resolution. See console.');
+  }
 }
 window.resolveDispute = resolveDispute;
 window.viewTransaction = viewTransaction;
@@ -3682,7 +3682,7 @@ window.releaseEscrow = releaseEscrow;
 // Logout Function
 window.logout = async function () {
   try {
-    
+
 
     // 1. Sign out the primary instance
     if (auth) {
@@ -3694,18 +3694,18 @@ window.logout = async function () {
       const adminApp = firebase.app("AdminPanel");
       if (adminApp) {
         await adminApp.auth().signOut();
-        
+
       }
     } catch (e) {
-      
+
     }
 
     // 3. Sign out default app just in case
     try {
       await firebase.auth().signOut();
-      
+
     } catch (e) {
-      
+
     }
 
     localStorage.removeItem('userData'); // Clear local storage
@@ -3853,9 +3853,9 @@ function renderWalletTransactions(searchTerm) {
 
   tbody.innerHTML = displayList.map(t => {
     const status = t.status || 'completed';
-    const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' : 
-                        status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
-    
+    const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' :
+      status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
+
     return `
       <tr>
         <td>#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
@@ -3902,10 +3902,10 @@ async function rejectWithdrawal(id) {
     // 2. Refund amount to user wallet
     const userWalletRef = db.ref('wallets/' + withdrawal.userId);
     await userWalletRef.transaction(wallet => {
-        if(!wallet) wallet = { available_balance: 0, in_escrow: 0, total_withdrawn: 0 };
-        wallet.available_balance = (wallet.available_balance || 0) + parseFloat(withdrawal.amount);
-        wallet.in_escrow = Math.max(0, (wallet.in_escrow || 0) - parseFloat(withdrawal.amount));
-        return wallet;
+      if (!wallet) wallet = { available_balance: 0, in_escrow: 0, total_withdrawn: 0 };
+      wallet.available_balance = (wallet.available_balance || 0) + parseFloat(withdrawal.amount);
+      wallet.in_escrow = Math.max(0, (wallet.in_escrow || 0) - parseFloat(withdrawal.amount));
+      return wallet;
     });
 
     // 3. Update withdrawal status
@@ -3937,7 +3937,7 @@ async function getWithdrawalData(requestId) {
   if (snapshot.exists()) {
     return { data: snapshot.val(), collection: 'withdrawal_requests' };
   }
-  
+
   // Fall back to withdrawals collection
   snapshot = await db.ref('withdrawals/' + requestId).once('value');
   if (snapshot.exists()) {
@@ -3948,7 +3948,7 @@ async function getWithdrawalData(requestId) {
     // await db.ref('withdrawals/' + requestId).remove();
     return { data: data, collection: 'withdrawal_requests' };
   }
-  
+
   return null;
 }
 
@@ -4248,106 +4248,106 @@ window.exportWalletData = async function () {
 // ========================================
 
 
-window.openBroadcastModal = function() {
-    document.getElementById('broadcastModal').style.display = 'block';
-    document.getElementById('broadcastProgress').style.display = 'none';
+window.openBroadcastModal = function () {
+  document.getElementById('broadcastModal').style.display = 'block';
+  document.getElementById('broadcastProgress').style.display = 'none';
 };
 
-window.closeBroadcastModal = function() {
-    document.getElementById('broadcastModal').style.display = 'none';
+window.closeBroadcastModal = function () {
+  document.getElementById('broadcastModal').style.display = 'none';
 };
 
 
 
-window.sendBroadcast = async function() {
-    const target = document.getElementById('broadcastTarget').value;
-    const type = document.getElementById('broadcastType').value;
-    const title = document.getElementById('broadcastTitle').value.trim();
-    const message = document.getElementById('broadcastMessage').value.trim();
+window.sendBroadcast = async function () {
+  const target = document.getElementById('broadcastTarget').value;
+  const type = document.getElementById('broadcastType').value;
+  const title = document.getElementById('broadcastTitle').value.trim();
+  const message = document.getElementById('broadcastMessage').value.trim();
 
-    if (!title || !message) {
-        showError('Please provide both a title and message');
-        return;
+  if (!title || !message) {
+    showError('Please provide both a title and message');
+    return;
+  }
+
+  const btn = document.getElementById('btnSendBroadcast');
+  const progressDiv = document.getElementById('broadcastProgress');
+  const progressBar = document.getElementById('broadcastProgressBar');
+  const statusText = document.getElementById('broadcastStatus');
+
+  btn.disabled = true;
+  progressDiv.style.display = 'block';
+
+  try {
+    const auditorUid = firebase.auth().currentUser.uid;
+    const auditorSnap = await db.ref('users/' + auditorUid).once('value');
+    const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
+
+    // Fetch users based on target
+    let usersToNotify = [];
+    const snapshot = await db.ref('users').once('value');
+    const allUsers = snapshot.val();
+
+    if (allUsers) {
+      Object.entries(allUsers).forEach(([uid, data]) => {
+        // Professional Routing Filter: Don't broadcast to yourself
+        if (uid === auditorUid) return;
+
+        let shouldNotify = false;
+        if (target === 'all') shouldNotify = true;
+        else if (target === 'seller' && (data.role === 'Seller' || data.role === 'seller')) shouldNotify = true;
+        else if (target === 'staff' && (data.role === 'Staff' || data.role === 'staff' || data.role === 'System Management')) shouldNotify = true;
+        else if (target === 'admin' && (data.role === 'Admin' || data.role === 'admin')) shouldNotify = true;
+
+        if (shouldNotify) {
+          usersToNotify.push(uid);
+        }
+      });
     }
 
-    const btn = document.getElementById('btnSendBroadcast');
-    const progressDiv = document.getElementById('broadcastProgress');
-    const progressBar = document.getElementById('broadcastProgressBar');
-    const statusText = document.getElementById('broadcastStatus');
-
-    btn.disabled = true;
-    progressDiv.style.display = 'block';
-    
-    try {
-        const auditorUid = firebase.auth().currentUser.uid;
-        const auditorSnap = await db.ref('users/' + auditorUid).once('value');
-        const auditorName = auditorSnap.val()?.name || auditorSnap.val()?.displayName || 'Administrator';
-
-        // Fetch users based on target
-        let usersToNotify = [];
-        const snapshot = await db.ref('users').once('value');
-        const allUsers = snapshot.val();
-
-        if (allUsers) {
-            Object.entries(allUsers).forEach(([uid, data]) => {
-                // Professional Routing Filter: Don't broadcast to yourself
-                if (uid === auditorUid) return;
-
-                let shouldNotify = false;
-                if (target === 'all') shouldNotify = true;
-                else if (target === 'seller' && (data.role === 'Seller' || data.role === 'seller')) shouldNotify = true;
-                else if (target === 'staff' && (data.role === 'Staff' || data.role === 'staff' || data.role === 'System Management')) shouldNotify = true;
-                else if (target === 'admin' && (data.role === 'Admin' || data.role === 'admin')) shouldNotify = true;
-
-                if (shouldNotify) {
-                    usersToNotify.push(uid);
-                }
-            });
-        }
-
-        if (usersToNotify.length === 0) {
-           showError('No users found for selected target');
-           btn.disabled = false;
-           progressDiv.style.display = 'none';
-           return;
-        }
-
-        // Log Broadcast Action to Global Trail
-        await db.ref('global_notifications/admin_alerts').push({
-            title: `System Broadcast: ${title}`,
-            message: `Admin ${auditorName} sent a broadcast to ${target} (${usersToNotify.length} users): ${message}`,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            userId: auditorUid,
-            type: 'broadcast'
-        });
-
-        const total = usersToNotify.length;
-        let count = 0;
-
-        for (const uid of usersToNotify) {
-            await db.ref(`users/${uid}/notifications`).push({
-                title: title,
-                message: message,
-                type: type,
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                read: false,
-                isBroadcast: true
-            });
-            count++;
-            const pct = Math.round((count / total) * 100);
-            progressBar.style.width = pct + '%';
-            statusText.textContent = `Sent to ${count} of ${total} users...`;
-        }
-
-        showSuccess(`Broadcast sent successfully to ${total} users`);
-        setTimeout(() => closeBroadcastModal(), 1500);
-
-    } catch (e) {
-        console.error('Broadcast failed:', e);
-        showError('Broadcast failed: ' + e.message);
-    } finally {
-        btn.disabled = false;
+    if (usersToNotify.length === 0) {
+      showError('No users found for selected target');
+      btn.disabled = false;
+      progressDiv.style.display = 'none';
+      return;
     }
+
+    // Log Broadcast Action to Global Trail
+    await db.ref('global_notifications/admin_alerts').push({
+      title: `System Broadcast: ${title}`,
+      message: `Admin ${auditorName} sent a broadcast to ${target} (${usersToNotify.length} users): ${message}`,
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      userId: auditorUid,
+      type: 'broadcast'
+    });
+
+    const total = usersToNotify.length;
+    let count = 0;
+
+    for (const uid of usersToNotify) {
+      await db.ref(`users/${uid}/notifications`).push({
+        title: title,
+        message: message,
+        type: type,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        read: false,
+        isBroadcast: true
+      });
+      count++;
+      const pct = Math.round((count / total) * 100);
+      progressBar.style.width = pct + '%';
+      statusText.textContent = `Sent to ${count} of ${total} users...`;
+    }
+
+    showSuccess(`Broadcast sent successfully to ${total} users`);
+    setTimeout(() => closeBroadcastModal(), 1500);
+
+  } catch (e) {
+    console.error('Broadcast failed:', e);
+    showError('Broadcast failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 
@@ -4374,80 +4374,91 @@ async function fetchGlobalUsersOnce() {
 }
 
 async function loadFraudMonitorData() {
-  if (fraudListenerActive) return;
-  
   const container = document.getElementById('fraudReportsContainer');
-  const updateStatus = (msg) => {
-    if (container) container.innerHTML = `<div style="text-align:center; padding: 60px; color: #64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top:15px;">${msg}</p></div>`;
-  };
+  if (!container) return;
 
-  updateStatus("Validating Security Connection...");
-
-  if (!db) {
-    console.error("Firebase Database not initialized correctly.");
-    if (container) container.innerHTML = `<div style="padding: 40px; text-align:center; color: #ef4444;"><i class="fas fa-times-circle fa-3x"></i><h4>Security Engine 404</h4><p>The admin database interface is not initialized. Please try logging in again.</p></div>`;
+  // Use the best available database connection
+  const dbRef = window.db || db;
+  if (!dbRef) {
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Connection Error</h4><p>Could not connect to database. Please refresh.</p></div>`;
     return;
   }
 
+  // Prevent double-loading
+  if (fraudListenerActive) {
+    renderFraudReports();
+    return;
+  }
+
+  const updateStatus = (msg) => {
+    container.innerHTML = `<div style="text-align:center; padding: 60px; color: #64748b;"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top:15px;">${msg}</p></div>`;
+  };
+
+  updateStatus("Connecting to Security Database...");
   fraudListenerActive = true;
-  showLoading('fraud-monitor');
-  
-  // Pre-fetch users in background
   fetchGlobalUsersOnce();
 
-  updateStatus("Syncing Security Reports...");
+  // 10-second safety timeout
+  let loadTimeout = setTimeout(() => {
+    if (fraudReports.length === 0) {
+      container.innerHTML = `
+        <div style="padding:40px;text-align:center;color:#ef4444;">
+          <i class="fas fa-exclamation-triangle fa-3x"></i>
+          <h4>Connection Timed Out</h4>
+          <p>The database took too long to respond. This can happen if your internet is slow or if there are no reports yet.</p>
+          <button onclick="fraudListenerActive=false; loadFraudMonitorData();" style="margin-top:20px; padding:10px 20px; background:#6366f1; color:white; border:none; border-radius:8px; cursor:pointer;">
+            <i class="fas fa-redo"></i> Try Again
+          </button>
+        </div>`;
+    }
+  }, 10000);
 
-  db.ref('reports').on('value', (snapshot) => {
+  // Start the live listener
+  dbRef.ref('reports').on('value', (snapshot) => {
+    clearTimeout(loadTimeout);
     try {
       fraudReports = [];
       let pendingCount = 0;
-      
+
       if (snapshot.exists()) {
         snapshot.forEach(child => {
           const val = child.val();
           if (val) {
-            const r = { id: child.key, ...val };
-            fraudReports.push(r);
-            if (r.status === 'Pending' || r.status === 'pending') pendingCount++;
+            fraudReports.push({ id: child.key, ...val });
+            if ((val.status || '').toLowerCase() === 'pending') pendingCount++;
           }
         });
-        fraudReports.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+        fraudReports.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
-      
-      // Update sidebar badge
+
+      // Update badges
       const badge = document.getElementById('fraudReportsCount');
       if (badge) {
         badge.textContent = pendingCount;
         badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
       }
-      
-      // Update top counter
+
       const counterBadge = document.getElementById('fraudActiveCounter');
       if (counterBadge) {
         counterBadge.textContent = `${pendingCount} PENDING REPORTS`;
         counterBadge.style.background = pendingCount === 0 ? '#10b981' : '#ef4444';
       }
-      
+
       renderFraudReports();
-      setTimeout(() => hideLoading('fraud-monitor'), 100);
-    } catch (criticalLog) {
-      console.error("CRITICAL ERROR IN SECURITY LISTEN CALLBACK:", criticalLog);
-      if (container) {
-          container.innerHTML = `<div style="padding: 40px; text-align:center; color: #ef4444;"><h4>UI Rendering Crash</h4><p>${criticalLog.message}</p></div>`;
-      }
+    } catch (err) {
+      console.error("Rendering Error:", err);
+      container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Preview Error</h4><p>${err.message}</p></div>`;
     }
   }, (error) => {
-    console.error('Permission/Access Error:', error);
-    if (container) {
-          container.innerHTML = `<div style="padding: 40px; text-align:center; color: #ef4444;"><i class="fas fa-lock fa-3x"></i><h4>Permission Error</h4><p>Accessing the reports node was denied by the security engine.</p></div>`;
-    }
+    clearTimeout(loadTimeout);
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h4>Access Denied</h4><p>You don't have permission to view these reports. Please check your admin status.</p></div>`;
   });
 }
 
 async function renderFraudReports() {
   const container = document.getElementById('fraudReportsContainer');
   if (!container) return;
-  
+
   if (fraudReports.length === 0) {
     container.innerHTML = `
       <div style="text-align: center; padding: 60px; color: #94a3b8; background: white; border-radius: 12px; border: 1px dashed #cbd5e1;">
@@ -4461,10 +4472,13 @@ async function renderFraudReports() {
 
   container.innerHTML = fraudReports.map(report => {
     const isPending = (report.status === 'Pending' || report.status === 'pending');
-    const reporter = globalUsersMap[report.reportedById || report.reporter_uid] || { name: 'Anonymous User' };
+    const reporterData = globalUsersMap[report.reportedById || report.reporter_uid];
+    const reporterName = reporterData
+      ? (reporterData.displayName || reporterData.fullName || reporterData.email || 'Anonymous User')
+      : 'Anonymous User';
     const dateStr = report.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A';
     const resolvedTarget = report.targetId || report.target_product_id || 'N/A';
-    
+
     return `
       <div class="fm-report-card" style="${!isPending ? 'border-left-color: #94a3b8; opacity: 0.8;' : ''}">
         <div class="fm-report-header">
@@ -4515,7 +4529,7 @@ async function renderFraudReports() {
 function openFraudModal(reportId) {
   const report = fraudReports.find(r => r.id === reportId);
   if (!report) return;
-  
+
   let evidenceHtml = '<p style="color: #64748b; font-size: 0.9rem;">No photographic evidence provided.</p>';
   if (report.evidenceUrls && report.evidenceUrls.length > 0) {
     evidenceHtml = `
@@ -4528,7 +4542,7 @@ function openFraudModal(reportId) {
       </div>
     `;
   }
-  
+
   const body = document.getElementById('fraudModalBody');
   body.innerHTML = `
     <div style="margin-bottom: 20px;">
@@ -4554,16 +4568,16 @@ function closeFraudModal() {
 
 async function moderateAction(actionType, targetId, reportId, btnElement) {
   if (!confirm('Are you certain you want to perform this moderation action? This may be irreversible.')) return;
-  
+
   const originalText = btnElement.innerHTML;
   btnElement.disabled = true;
   btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-  
+
   try {
     if (actionType === 'dismiss') {
       await db.ref(`reports/${reportId}`).update({ status: 'Dismissed' });
       showSuccess('Report dismissed.');
-    } 
+    }
     else if (actionType === 'delete_listing') {
       await db.ref(`products/${targetId}`).remove();
       await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Deleted)' });
@@ -4576,9 +4590,9 @@ async function moderateAction(actionType, targetId, reportId, btnElement) {
         const sellerId = prodSnap.val().sellerId || prodSnap.val().seller_id;
         if (sellerId) {
           // Force is_active and isActive to false for both legacy and new structures
-          await db.ref(`users/${sellerId}`).update({ 
-            isActive: false, 
-            is_active: false 
+          await db.ref(`users/${sellerId}`).update({
+            isActive: false,
+            is_active: false
           });
           await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Suspended User)' });
           showSuccess('Seller suspended permanently.');
@@ -4586,9 +4600,9 @@ async function moderateAction(actionType, targetId, reportId, btnElement) {
           showError('Could not locate seller ID for this product.');
         }
       } else {
-         // Product already gone?
-         showError('Target product no longer exists.');
-         await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Missing Target)' });
+        // Product already gone?
+        showError('Target product no longer exists.');
+        await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Missing Target)' });
       }
     }
   } catch (error) {
@@ -4605,98 +4619,98 @@ async function moderateAction(actionType, targetId, reportId, btnElement) {
  */
 
 // Global toggle for password visibility in dashboard forms
-window.toggleDashboardPassword = function(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    
-    const icon = input.parentElement.querySelector('.password-toggle i');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    }
+window.toggleDashboardPassword = function (inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const icon = input.parentElement.querySelector('.password-toggle i');
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
 };
 
 // Core logic for updating the administrator password
-window.updateAdminPassword = async function() {
-    const currentPassEl = document.getElementById('currentPassword');
-    const newPassEl = document.getElementById('newPassword');
-    const confirmPassEl = document.getElementById('confirmPassword');
-    
-    const currentPassword = currentPassEl.value;
-    const newPassword = newPassEl.value;
-    const confirmPassword = confirmPassEl.value;
-    
-    // 1. Basic Validation
-    if (!currentPassword || !newPassword || !confirmPassword) {
-        showError('Please fill in all password fields.');
-        return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-        showError('New passwords do not match. Please try again.');
-        return;
-    }
-    
-    if (newPassword.length < 6) {
-        showError('New password must be at least 6 characters long.');
-        return;
+window.updateAdminPassword = async function () {
+  const currentPassEl = document.getElementById('currentPassword');
+  const newPassEl = document.getElementById('newPassword');
+  const confirmPassEl = document.getElementById('confirmPassword');
+
+  const currentPassword = currentPassEl.value;
+  const newPassword = newPassEl.value;
+  const confirmPassword = confirmPassEl.value;
+
+  // 1. Basic Validation
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    showError('Please fill in all password fields.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showError('New passwords do not match. Please try again.');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showError('New password must be at least 6 characters long.');
+    return;
+  }
+
+  const btn = document.querySelector('#passwordChangeForm .btn-primary');
+  const originalContent = btn.innerHTML;
+
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+    // Ensure we are using the AdminPanel auth instance
+    const user = window.auth.currentUser;
+    if (!user) {
+      throw new Error('Session inactive. Please log in again.');
     }
 
-    const btn = document.querySelector('#passwordChangeForm .btn-primary');
-    const originalContent = btn.innerHTML;
-    
+    // 2. Re-authenticate user (Security Requirement for sensitive data changes)
+    // We use the EmailAuthProvider from the global firebase object
+    const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+
     try {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-        
-        // Ensure we are using the AdminPanel auth instance
-        const user = window.auth.currentUser;
-        if (!user) {
-            throw new Error('Session inactive. Please log in again.');
-        }
-
-        // 2. Re-authenticate user (Security Requirement for sensitive data changes)
-        // We use the EmailAuthProvider from the global firebase object
-        const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
-        
-        try {
-            await user.reauthenticateWithCredential(credential);
-        } catch (authError) {
-            if (authError.code === 'auth/wrong-password') {
-                throw new Error('The current password you entered is incorrect.');
-            }
-            throw authError;
-        }
-        
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
-
-        // 3. Perform Password Update
-        await user.updatePassword(newPassword);
-        
-        // 4. Success UI & Cleanup
-        showSuccess('Password updated successfully! Redirecting to login...');
-        
-        currentPassEl.value = '';
-        newPassEl.value = '';
-        confirmPassEl.value = '';
-        
-        // 5. Force logout for security after password change
-        setTimeout(() => {
-            window.logout();
-        }, 2500);
-        
-    } catch (error) {
-        console.error('❌ Password update failure:', error);
-        showError(error.message || 'Failed to update password. Please try again.');
-        btn.disabled = false;
-        btn.innerHTML = originalContent;
+      await user.reauthenticateWithCredential(credential);
+    } catch (authError) {
+      if (authError.code === 'auth/wrong-password') {
+        throw new Error('The current password you entered is incorrect.');
+      }
+      throw authError;
     }
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+    // 3. Perform Password Update
+    await user.updatePassword(newPassword);
+
+    // 4. Success UI & Cleanup
+    showSuccess('Password updated successfully! Redirecting to login...');
+
+    currentPassEl.value = '';
+    newPassEl.value = '';
+    confirmPassEl.value = '';
+
+    // 5. Force logout for security after password change
+    setTimeout(() => {
+      window.logout();
+    }, 2500);
+
+  } catch (error) {
+    console.error('❌ Password update failure:', error);
+    showError(error.message || 'Failed to update password. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = originalContent;
+  }
 };
 
 /**
@@ -4704,93 +4718,93 @@ window.updateAdminPassword = async function() {
  */
 
 async function loadAnalyticsData() {
-    console.log('🚀 Syncing Platform Intelligence...');
-    
-    // 1. Ensure section is visible for layout calculations
-    const section = document.getElementById('analytics-section');
-    if (!section || !section.classList.contains('active')) return;
+  console.log('🚀 Syncing Platform Intelligence...');
 
-    if (typeof STHAnalytics === 'undefined') {
-        console.error('Analytics Engine core missing!');
-        return;
-    }
+  // 1. Ensure section is visible for layout calculations
+  const section = document.getElementById('analytics-section');
+  if (!section || !section.classList.contains('active')) return;
 
-    // 2. Prevent Duplicate Listeners
-    if (v2AnalyticsActive) {
-        console.log('📡 Analytics stream already active. Refreshing current view...');
-        if (v2GlobalStats) refreshAllCharts();
-        return;
-    }
+  if (typeof STHAnalytics === 'undefined') {
+    console.error('Analytics Engine core missing!');
+    return;
+  }
 
-    // Initialize Category Toggle State
-    let categoryMode = 'volume'; 
+  // 2. Prevent Duplicate Listeners
+  if (v2AnalyticsActive) {
+    console.log('📡 Analytics stream already active. Refreshing current view...');
+    if (v2GlobalStats) refreshAllCharts();
+    return;
+  }
 
-    const setupToggles = () => {
-        const btnVol = document.getElementById('catToggleVolume');
-        const btnVal = document.getElementById('catToggleValue');
-        if (!btnVol || !btnVal) return;
+  // Initialize Category Toggle State
+  let categoryMode = 'volume';
 
-        btnVol.onclick = () => {
-            categoryMode = 'volume';
-            btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
-            btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
-            if (v2GlobalStats) refreshCategoryChart();
-        };
+  const setupToggles = () => {
+    const btnVol = document.getElementById('catToggleVolume');
+    const btnVal = document.getElementById('catToggleValue');
+    if (!btnVol || !btnVal) return;
 
-        btnVal.onclick = () => {
-            categoryMode = 'value';
-            btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
-            btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
-            if (v2GlobalStats) refreshCategoryChart();
-        };
+    btnVol.onclick = () => {
+      categoryMode = 'volume';
+      btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+      btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
+      if (v2GlobalStats) refreshCategoryChart();
     };
 
-    const refreshCategoryChart = () => {
-        if (!v2GlobalStats) return;
-        if (v2Charts.category) { v2Charts.category.destroy(); v2Charts.category = null; }
-        v2Charts.category = STHAnalytics.Admin.renderCategoryChart('v2-categoryChart', v2GlobalStats.charts.categories, categoryMode);
+    btnVal.onclick = () => {
+      categoryMode = 'value';
+      btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+      btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
+      if (v2GlobalStats) refreshCategoryChart();
+    };
+  };
+
+  const refreshCategoryChart = () => {
+    if (!v2GlobalStats) return;
+    if (v2Charts.category) { v2Charts.category.destroy(); v2Charts.category = null; }
+    v2Charts.category = STHAnalytics.Admin.renderCategoryChart('v2-categoryChart', v2GlobalStats.charts.categories, categoryMode);
+  };
+
+  const refreshAllCharts = () => {
+    if (!v2GlobalStats) return;
+
+    // Use timeout to ensure DOM layout is complete
+    setTimeout(() => {
+      if (v2Charts.revenue) v2Charts.revenue.destroy();
+      v2Charts.revenue = STHAnalytics.Admin.renderRevenueChart('v2-revenueChart', v2GlobalStats.charts.revenueTrend);
+
+      if (v2Charts.growth) v2Charts.growth.destroy();
+      v2Charts.growth = STHAnalytics.Admin.renderGrowthChart('v2-growthChart', v2GlobalStats.charts.userGrowth);
+
+      refreshCategoryChart();
+    }, 50);
+  };
+
+  setupToggles();
+
+  // 3. Start Global Stream
+  STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
+    v2GlobalStats = stats;
+    v2AnalyticsActive = true;
+
+    // Update Top Counters
+    const elements = {
+      'v2-totalRevenue': 'RS ' + stats.counters.revenue.toLocaleString(),
+      'v2-orderCount': stats.counters.orders.toLocaleString(),
+      'v2-escrowValue': 'RS ' + stats.counters.escrowValue.toLocaleString(),
+      'v2-activeDisputes': stats.counters.activeDisputes.toLocaleString(),
+      'v2-usersNew24h': stats.counters.usersNew24h.toLocaleString(),
+      'v2-fulfillmentRate': stats.counters.fulfillmentRate + '%'
     };
 
-    const refreshAllCharts = () => {
-        if (!v2GlobalStats) return;
-        
-        // Use timeout to ensure DOM layout is complete
-        setTimeout(() => {
-            if (v2Charts.revenue) v2Charts.revenue.destroy();
-            v2Charts.revenue = STHAnalytics.Admin.renderRevenueChart('v2-revenueChart', v2GlobalStats.charts.revenueTrend);
-
-            if (v2Charts.growth) v2Charts.growth.destroy();
-            v2Charts.growth = STHAnalytics.Admin.renderGrowthChart('v2-growthChart', v2GlobalStats.charts.userGrowth);
-
-            refreshCategoryChart();
-        }, 50);
-    };
-
-    setupToggles();
-
-    // 3. Start Global Stream
-    STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
-        v2GlobalStats = stats;
-        v2AnalyticsActive = true;
-
-        // Update Top Counters
-        const elements = {
-            'v2-totalRevenue': 'RS ' + stats.counters.revenue.toLocaleString(),
-            'v2-orderCount': stats.counters.orders.toLocaleString(),
-            'v2-escrowValue': 'RS ' + stats.counters.escrowValue.toLocaleString(),
-            'v2-activeDisputes': stats.counters.activeDisputes.toLocaleString(),
-            'v2-usersNew24h': stats.counters.usersNew24h.toLocaleString(),
-            'v2-fulfillmentRate': stats.counters.fulfillmentRate + '%'
-        };
-
-        Object.keys(elements).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = elements[id];
-        });
-
-        const progress = document.getElementById('v2-fulfillmentProgress');
-        if (progress) progress.style.width = stats.counters.fulfillmentRate + '%';
-
-        refreshAllCharts();
+    Object.keys(elements).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = elements[id];
     });
+
+    const progress = document.getElementById('v2-fulfillmentProgress');
+    if (progress) progress.style.width = stats.counters.fulfillmentRate + '%';
+
+    refreshAllCharts();
+  });
 }
