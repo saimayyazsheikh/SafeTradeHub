@@ -4,7 +4,19 @@
 
 let staffData = {
   profile: null,
-  activeSection: null
+  activeSection: null,
+  users: [],
+  products: [],
+  orders: [],
+  currentSearch: {
+    users: '',
+    products: '',
+    orders: '',
+    disputes: '',
+    verification: '',
+    orderStatus: '',
+    category: ''
+  }
 };
 
 // --- POLYFILLS FOR ADMIN METHODS ---
@@ -191,8 +203,7 @@ function verifyRole(requiredRole) {
     ? staffData.profile.roles 
     : [staffData.profile.role || 'Staff'];
 
-  // System Management has access to all for analytics, but others are restricted
-  if (userRoles.includes('System Management')) return true;
+  // System Management has administrative access to all modules
   
   return userRoles.includes(requiredRole);
 }
@@ -236,7 +247,8 @@ function loadModuleData(moduleId) {
     case 'wallet': loadWallet(); break;
     case 'escrow': loadEscrow(); break;
     case 'disputes': loadDisputes(); break;
-    case 'analytics': loadAnalytics(); break;
+    case 'analytics': loadAnalyticsData(); break;
+
   }
 }
 
@@ -298,56 +310,68 @@ function setupEventListeners() {
 }
 
 function handleSearch(e) {
-  const searchTerm = e.target.value.toLowerCase();
-  const searchId = e.target.id;
-  
-  // Robust table lookup (handles userSearch -> userTable or usersTable)
-  let tableId = searchId.replace('Search', 'Table');
-  let table = document.getElementById(tableId);
-  
-  if (!table) {
-    tableId = searchId.replace('Search', 'sTable');
-    table = document.getElementById(tableId);
-  }
+  const searchTerm = e.target.value;
+  const id = e.target.id;
+  const query = searchTerm.toLowerCase().trim();
 
-  if (!table) {
-    console.warn('Search: Table not found for ID:', searchId);
-    return;
-  }
+  // 1. Update Global State
+  if (id === 'userSearch') staffData.currentSearch.users = searchTerm;
+  else if (id === 'productSearch') staffData.currentSearch.products = searchTerm;
+  else if (id === 'orderSearch') staffData.currentSearch.orders = searchTerm;
+  else if (id === 'disputeSearch') staffData.currentSearch.disputes = searchTerm;
+  else if (id === 'verificationSearch') staffData.currentSearch.verification = searchTerm;
 
-  const rows = table.querySelectorAll('tbody tr');
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(searchTerm) ? '' : 'none';
-  });
+  // 2. Specialized Rendering Calls
+  if (id === 'userSearch') {
+    updateUsersTable(searchTerm);
+  } else if (id === 'productSearch') {
+    updateProductsTable(searchTerm);
+  } else if (id === 'orderSearch') {
+    updateOrdersTable(searchTerm);
+  } else {
+    // Generic Row-Hiding Fallback
+    const tableId = id.replace('Search', 'Table');
+    const tableMapping = { 
+      'userTable': 'usersTable', 
+      'productTable': 'productsTable'
+    };
+    const targetId = tableMapping[tableId] || tableId;
+    const table = document.getElementById(targetId);
+    if (table) {
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+  }
 }
 
 function handleFilter(e) {
-  const filterValue = e.target.value.toLowerCase();
-  const filterId = e.target.id;
-  
-  let tableId = filterId.replace('StatusFilter', 'Table').replace('Filter', 'Table').replace('CategoryTable', 'ProductsTable');
-  
-  // Specific mappings for filters
-  const filterMappings = {
-    'verificationStatusFilter': 'verificationTable',
-    'categoryFilter': 'productsTable',
-    'orderStatusFilter': 'ordersTable',
-    'depositStatusFilter': 'depositRequestsTable',
-    'withdrawalStatusFilter': 'withdrawalsTable',
-    'escrowStatusFilter': 'escrowTable',
-    'disputeStatusFilter': 'disputesTable'
-  };
+  const filterValue = e.target.value.toLowerCase().trim();
+  const id = e.target.id;
 
-  if (filterMappings[filterId]) {
-    tableId = filterMappings[filterId];
-  }
-
-  const table = document.getElementById(tableId);
-  if (!table) {
-    console.warn('Filter: Table not found for ID:', filterId, 'Mapped to:', tableId);
+  if (id === 'categoryFilter') {
+    staffData.currentSearch.category = filterValue;
+    updateProductsTable();
     return;
   }
+
+  if (id === 'orderStatusFilter') {
+    staffData.currentSearch.orderStatus = filterValue;
+    updateOrdersTable();
+    return;
+  }
+
+  // Generic Row-Hiding Fallback
+  const tableId = id.replace('Filter', 'Table');
+  const targetId = { 
+    'userTable': 'usersTable', 
+    'productTable': 'productsTable'
+  }[tableId] || tableId;
+  
+  const table = document.getElementById(targetId);
+  if (!table) return;
 
   const rows = table.querySelectorAll('tbody tr');
   rows.forEach(row => {
@@ -356,16 +380,11 @@ function handleFilter(e) {
       return;
     }
 
-    // Look for status badges or specific cells
-    const statusBadge = row.querySelector('.badge, .status-badge');
-    if (statusBadge) {
-      const statusText = statusBadge.textContent.toLowerCase();
-      row.style.display = statusText.includes(filterValue) ? '' : 'none';
-    } else {
-      // Fallback: search entire row text for filter value
-      const text = row.textContent.toLowerCase();
-      row.style.display = text.includes(filterValue) ? '' : 'none';
-    }
+    const dataStatus = row.getAttribute('data-status');
+    const statusCell = row.querySelector('.badge, .status-badge');
+    const statusText = dataStatus || (statusCell ? statusCell.textContent.toLowerCase() : '');
+    
+    row.style.display = statusText.includes(filterValue) ? '' : 'none';
   });
 }
 
@@ -537,60 +556,9 @@ function loadProductQueue() {
 
 
 // User Verification (KYC)
-// System Analytics
-function loadAnalytics() {
-    const section = document.getElementById('analytics-section');
-    section.innerHTML = `
-        <div class="section-header"><h2>System Management & Analytics</h2></div>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="stat-content"><h3 id="statTrades">0</h3><p>Total Trades</p></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: var(--emerald);"><i class="fas fa-shield-alt"></i></div>
-                <div class="stat-content"><h3 id="statEscrow">0</h3><p>Escrow Volume</p></div>
-            </div>
-        </div>
-        <div class="dashboard-grid">
-            <div class="content-card">
-                <div class="card-header"><h3>Volume of Trades</h3></div>
-                <div class="card-content"><canvas id="tradeChart"></canvas></div>
-            </div>
-            <div class="content-card">
-                <div class="card-header"><h3>Recent Audit Logs</h3></div>
-                <div class="card-content" id="recentAuditLogs" style="font-size: 0.8rem; height: 300px; overflow-y: auto;">
-                    Loading logs...
-                </div>
-            </div>
-        </div>
-    `;
 
-    renderTradeChart();
-    loadAuditLogs();
-}
 
-async function renderTradeChart() {
-    const ctx = document.getElementById('tradeChart')?.getContext('2d');
-    if (!ctx) return;
 
-    // Fetch trades volume over time (mock data simulation for high fidelity)
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
-            datasets: [{
-                label: 'Trade Volume (PKR)',
-                data: [12000, 19000, 3000, 5000, 2000, 30000, 25000],
-                borderColor: '#2563eb',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(37, 99, 235, 0.1)'
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-}
 
 function loadAuditLogs() {
     db.ref('audit_logs').limitToLast(10).on('value', (snapshot) => {
@@ -691,73 +659,76 @@ function updateUsersTable() {
   }
 }
 
-async function updateOrdersTable() {
+async function updateOrdersTable(searchTerm) {
   const tableBody = document.querySelector('#ordersTable tbody');
   if (!tableBody) return;
 
-  if (!staffData.orders || staffData.orders.length === 0) {
+  // Sync state if passed directly
+  if (searchTerm !== undefined) staffData.currentSearch.orders = searchTerm;
+  const query = (staffData.currentSearch.orders || "").toLowerCase().trim();
+  const statusFilter = (staffData.currentSearch.orderStatus || "").toLowerCase().trim();
+
+  let filteredOrders = staffData.orders || [];
+
+  // 1. Apply Search Filter
+  if (query) {
+    filteredOrders = filteredOrders.filter(order => {
+      const id = (order.id || "").toLowerCase();
+      const buyerName = (order.buyer ? order.buyer.name : (order.buyerName || "")).toLowerCase();
+      const buyerEmail = (order.buyer ? order.buyer.email : (order.buyerEmail || "")).toLowerCase();
+      const sellerName = (order.sellerName || "").toLowerCase();
+      const statusText = (order.status || "").toLowerCase();
+      const tracking = (order.trackingNumber || "").toLowerCase();
+
+      return id.includes(query) || 
+             buyerName.includes(query) || 
+             buyerEmail.includes(query) || 
+             sellerName.includes(query) || 
+             statusText.includes(query) ||
+             tracking.includes(query);
+    });
+  }
+
+  // 2. Apply Status Filter (Precise ID match)
+  if (statusFilter) {
+    filteredOrders = filteredOrders.filter(order => {
+      const status = (order.status || "").toLowerCase();
+      return status === statusFilter;
+    });
+  }
+
+  if (filteredOrders.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="9" class="text-center">No orders found</td>
+        <td colspan="9" class="text-center">No orders found matching your criteria</td>
       </tr>
     `;
     return;
   }
 
-  // Show loading state in table
-  tableBody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading order details...</td></tr>';
+  // Show loading state in table briefly for feel
+  tableBody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Processing...</td></tr>';
 
-  const rows = await Promise.all(staffData.orders.map(async (order) => {
-    // Format Date
+  const rows = await Promise.all(filteredOrders.map(async (order) => {
     const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A';
-
-    // Format Items
     const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
-    const itemsSummary = itemsCount > 0
-      ? `${itemsCount} item${itemsCount > 1 ? 's' : ''}`
-      : 'No items';
-
-    // Format Total
+    const itemsSummary = itemsCount > 0 ? `${itemsCount} item${itemsCount > 1 ? 's' : ''}` : 'No items';
     const total = order.total ? `RS ${parseFloat(order.total).toLocaleString()}` : 'RS 0';
 
-    // Buyer Info
     const buyerName = order.buyer ? order.buyer.name : (order.buyerName || 'Unknown');
     const buyerEmail = order.buyer ? order.buyer.email : (order.buyerEmail || 'N/A');
     const buyerId = order.buyerId || 'N/A';
 
-    // Seller Info Logic (Robust Fallback)
     let sellerId = order.sellerId;
     let sellerName = order.sellerName;
 
-    // 1. If ID invalid/admin, try first item
-    if ((!sellerId || sellerId === 'admin') && order.items && order.items.length > 0) {
-      if (order.items[0].sellerId && order.items[0].sellerId !== 'admin') {
-        sellerId = order.items[0].sellerId;
-      }
-    }
-
-    // 2. Deep Filter: If still invalid, look up product owner in DB
-    if ((!sellerId || sellerId === 'admin') && order.items && order.items.length > 0 && order.items[0].id) {
-      try {
-        const productSnapshot = await db.ref('products/' + order.items[0].id + '/sellerId').once('value');
-        if (productSnapshot.exists()) {
-          sellerId = productSnapshot.val();
-        }
-      } catch (e) {
-        console.error('Error looking up product seller:', e);
-      }
-    }
-
-    // 3. Resolve User Details
+    // Resolve User Details from cache or fetch if needed
     let sellerUser = staffData.users.find(u => u.id === sellerId);
-
-    // If user not found in cache, strict fetch
     if (!sellerUser && sellerId && sellerId !== 'admin' && sellerId !== 'N/A') {
       try {
         const userSnap = await db.ref('users/' + sellerId).once('value');
         if (userSnap.exists()) {
           sellerUser = { id: sellerId, ...userSnap.val() };
-          // Optionally add to cache
           staffData.users.push(sellerUser);
         }
       } catch (e) { /* ignore */ }
@@ -767,13 +738,11 @@ async function updateOrdersTable() {
     const sellerEmail = sellerUser ? sellerUser.email : 'N/A';
     const sellerDisplayId = sellerId || 'N/A';
 
-    // Tracking
     const tracking = order.trackingNumber ? order.trackingNumber : 'Pending';
-
     const firebaseLink = getFirebaseConsoleLink('orders', order.id);
 
     return `
-    <tr>
+    <tr data-status="${(order.status || 'pending').toLowerCase()}">
       <td>
         <a href="${firebaseLink}" target="_blank" title="View in Firebase Console" style="text-decoration: underline; color: #4f46e5; font-weight: bold;">
           #${order.id.slice(-6)}
@@ -795,7 +764,7 @@ async function updateOrdersTable() {
       </td>
       <td>${itemsSummary}</td>
       <td>${total}</td>
-      <td><span class="badge badge-${getStatusBadgeColor(order.status)}">${order.status || 'Pending'}</span></td>
+      <td><span class="badge badge-${getStatusBadgeColor(order.status)}">${formatOrderStatus(order.status)}</span></td>
       <td><span style="font-family: monospace;">${tracking}</span></td>
       <td>${date}</td>
       <td>
@@ -1348,21 +1317,21 @@ function loadOrdersData() {
 
       staffData.orders = orders;
 
-      // Calculate status counts from real data
+      // Calculate status counts using logistics-aligned buckets
       const statusCounts = {
         pending: staffData.orders.filter(o => o.status === 'pending').length,
-        shipped: staffData.orders.filter(o => o.status === 'shipped' || o.status === 'shipped_to_escrow').length,
-        delivered: staffData.orders.filter(o => o.status === 'delivered' || o.status === 'completed').length,
+        shipped: staffData.orders.filter(o => ['sent_to_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery'].includes(o.status)).length,
+        delivered: staffData.orders.filter(o => o.status === 'delivered').length,
         disputed: staffData.orders.filter(o => o.status === 'disputed').length
       };
 
-      // Update order status counts
+      // Update Dashboard Counters
       updateElementText('pendingOrdersCount', statusCounts.pending);
       updateElementText('shippedOrdersCount', statusCounts.shipped);
       updateElementText('deliveredOrdersCount', statusCounts.delivered);
       updateElementText('disputedOrdersCount', statusCounts.disputed);
 
-      // Update orders table
+      // Trigger re-render (Filtered)
       updateOrdersTable();
 
       hideLoading('orders');
@@ -1718,6 +1687,37 @@ window.deleteProduct = async function(productId) {
   }
 };
 
+// --- STATUS HELPERS (Synced with Admin) ---
+function formatOrderStatus(status) {
+  const mapping = {
+    'pending': 'Order Placed',
+    'sent_to_hub': 'Received at Origin Hub',
+    'verified': 'Verified & Sealed',
+    'in_transit': 'In Transit',
+    'arrived_at_dest_hub': 'At Destination Hub',
+    'out_for_delivery': 'Out for Delivery',
+    'delivered': 'Delivered',
+    'cancelled': 'Cancelled',
+    'disputed': 'Disputed'
+  };
+  return mapping[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending');
+}
+
+function getStatusBadgeColor(status) {
+  switch (status?.toLowerCase()) {
+    case 'pending': return 'warning';
+    case 'sent_to_hub': return 'info';
+    case 'verified': return 'primary';
+    case 'in_transit': return 'primary';
+    case 'arrived_at_dest_hub': return 'info';
+    case 'out_for_delivery': return 'success';
+    case 'delivered': return 'success';
+    case 'cancelled': return 'danger';
+    case 'disputed': return 'danger';
+    default: return 'secondary';
+  }
+}
+
 // --- ORDER MANAGEMENT ---
 
 window.viewOrder = async function(orderId) {
@@ -1763,7 +1763,7 @@ window.viewOrder = async function(orderId) {
       <div>
         <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 15px;">
           <h4 style="margin: 0 0 10px 0;">Order Status</h4>
-          <span class="badge badge-${getStatusBadgeColor(order.status)}">${order.status || 'Pending'}</span>
+          <span class="badge badge-${getStatusBadgeColor(order.status)}">${formatOrderStatus(order.status)}</span>
           <p style="margin: 10px 0 0 0; font-size: 0.9rem;"><strong>Placed:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
         </div>
         <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
@@ -2681,7 +2681,7 @@ function renderEscrows() {
             <td><code class="small">${e.buyerId.slice(0, 8)}...</code></td>
             <td><code class="small">${e.sellerId.slice(0, 8)}...</code></td>
             <td class="fw-bold">RS ${parseFloat(e.amount).toLocaleString()}</td>
-            <td><span class="status-badge ${e.status}">${e.status.toUpperCase()}</span></td>
+            <td><span class="status-badge ${e.status}">${(e.orderStatus ? formatOrderStatus(e.orderStatus) : e.status).toUpperCase()}</span></td>
             <td>
                 ${e.status === 'held' ? `
                     <button class="btn btn-sm btn-primary" onclick="releaseEscrow('${e.id}')">
@@ -2708,21 +2708,35 @@ function renderDisputes() {
     const tbody = document.getElementById('disputesTableBody');
     if (!tbody || !staffData.disputes) return;
     
-    tbody.innerHTML = staffData.disputes.map(d => `
-        <tr>
-            <td>#${d.id.slice(-6)}</td>
-            <td>#${(d.orderId || '').slice(-6)}</td>
-            <td>${d.userName || 'Unknown'}</td>
-            <td><span class="badge bg-warning text-dark">${d.type || 'General'}</span></td>
-            <td><span class="status-badge ${d.status}">${(d.status || 'open').toUpperCase()}</span></td>
-            <td>${new Date(d.createdAt).toLocaleDateString()}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="viewDispute('${d.id}')">
-                    <i class="fas fa-eye"></i> View
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = staffData.disputes.map(d => {
+        const priorityClass = d.priority === 'High' ? 'danger' : d.priority === 'Medium' ? 'warning' : 'info';
+        const displayStatus = (d.status || 'open').toUpperCase();
+        
+        return `
+            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s; cursor: pointer;" onclick="viewDispute('${d.id}')">
+                <td style="padding: 16px 24px; font-weight: 700; color: #4f46e5;">#${d.id.slice(-6).toUpperCase()}</td>
+                <td style="padding: 16px 24px; font-weight: 600; color: #1e293b;">#${(d.orderId || '').slice(-6).toUpperCase()}</td>
+                <td style="padding: 16px 24px; color: #475569;">
+                    <div style="font-weight: 600; color: #1e293b; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.issue || d.reason || 'General Dispute'}</div>
+                    <div style="font-size: 0.8rem; color: #94a3b8; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.description || d.comment || ''}</div>
+                </td>
+                <td style="padding: 16px 24px;">
+                    <span class="badge bg-${priorityClass}" style="padding: 4px 10px; border-radius: 6px; font-size: 0.7rem;">${d.priority || 'Normal'}</span>
+                </td>
+                <td style="padding: 16px 24px;">
+                    <span class="status-badge ${d.status === 'open' ? 'pending' : 'completed'}" style="text-transform: uppercase; font-size: 0.7rem;">${displayStatus}</span>
+                </td>
+                <td style="padding: 16px 24px; color: #64748b; font-size: 0.85rem;">
+                    ${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A'}
+                </td>
+                <td style="padding: 16px 24px;">
+                    <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); viewDispute('${d.id}')" style="background: #eff6ff; color: #3b82f6; border: none; padding: 6px 12px; border-radius: 8px;">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function loadAnalytics() {
@@ -3546,4 +3560,29 @@ document.addEventListener('input', (e) => {
     updateVerificationTable(e.target.value);
   }
 });
+
+/**
+ * v2 Isolated Analytics - Staff View
+ * Focused on Ecosystem health and pipeline monitoring
+ */
+async function loadAnalyticsData() {
+    console.log('🚀 Initializing v2 Isolated Analytics for Staff...');
+    
+    if (typeof STHAnalytics === 'undefined') {
+        console.error('Analytics Engine not loaded!');
+        return;
+    }
+
+    STHAnalytics.Admin.listenToSummary((stats) => {
+        // Update Staff-specific counters
+        updateElementText('v2-staffOrderCount', stats.orderCount);
+        updateElementText('v2-staffCompletedCount', stats.completedOrders);
+        
+        const rate = stats.orderCount > 0 ? ((stats.completedOrders / stats.orderCount) * 100).toFixed(1) : 0;
+        updateElementText('v2-staffServiceRate', rate + '%');
+
+        // Render Trend Chart
+        STHAnalytics.Admin.renderRevenueChart('v2-staffRevenueChart', stats.monthlyData);
+    });
+}
 

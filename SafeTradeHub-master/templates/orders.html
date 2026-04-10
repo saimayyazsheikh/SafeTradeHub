@@ -18,6 +18,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
     <script src="/static/js/firebase-config.js"></script>
 </head>
 
@@ -112,6 +113,7 @@
                 <button class="filter-tab" data-filter="shipped" onclick="filterOrders('shipped')">In Transit</button>
                 <button class="filter-tab" data-filter="completed" onclick="filterOrders('completed')">Completed</button>
                 <button class="filter-tab" data-filter="cancelled" onclick="filterOrders('cancelled')">Cancelled</button>
+                <button class="filter-tab" data-filter="disputed" onclick="filterOrders('disputed')">Disputed</button>
             </div>
 
             <div id="ordersContainer" class="order-cards-container">
@@ -163,6 +165,45 @@
                     <div style="margin-top: 25px;">
                         <button id="submitReviewBtn" class="btn btn-primary full-width" style="width: 100%; transition: transform 0.2s;" onclick="submitReview()">Submit Elite Review</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dispute Modal -->
+        <div id="disputeModal" class="modal">
+            <div class="modal-content" style="max-width: 500px; border-top: 4px solid #ef4444;">
+                <div class="modal-header">
+                    <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;"><i class="fas fa-gavel" style="color: #ef4444; margin-right: 8px;"></i> Raise a Dispute</h2>
+                    <span class="close-modal" onclick="closeDisputeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p style="color: #64748b; margin-bottom: 20px; font-size: 0.9rem;">Please provide details about the issue. Our team will investigate and reach a decision.</p>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Dispute Reason</label>
+                        <select id="disputeReason" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; box-sizing: border-box;">
+                            <option value="Item not as described">Item not as described</option>
+                            <option value="Damaged on arrival">Damaged on arrival</option>
+                            <option value="Incorrect item received">Incorrect item received</option>
+                            <option value="Missing components">Missing components</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Description</label>
+                        <textarea id="disputeDescription" rows="4" placeholder="Explain the problem in detail..." style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: none; box-sizing: border-box;"></textarea>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Evidence / Pictures (Max 3)</label>
+                        <div id="disputeImagePreview" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;"></div>
+                        <label for="disputeImages" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 2px dashed #e2e8f0; border-radius: 12px; cursor: pointer; color: #64748b; font-size: 0.9rem; transition: all 0.2s; box-sizing: border-box;">
+                            <i class="fas fa-camera" style="color: #ef4444;"></i> Select Evidence Images
+                        </label>
+                        <input type="file" id="disputeImages" multiple accept="image/*" style="display: none;" onchange="handleDisputeFileSelect(this)">
+                    </div>
+
+                    <button id="submitDisputeBtn" onclick="submitDispute()" class="btn btn-primary" style="width: 100%; background: #ef4444; border: none; padding: 14px; font-weight: 800; border-radius: 12px; color: white; cursor: pointer; box-sizing: border-box;">Submit Dispute</button>
                 </div>
             </div>
         </div>
@@ -415,6 +456,23 @@
             });
         });
 
+        // --- STATUS HELPERS (Synced across ecosystem) ---
+        function formatOrderStatus(status) {
+            const mapping = {
+                'pending': 'Order Placed',
+                'received_at_seller_hub': 'Received at Origin Hub',
+                'sent_to_hub': 'Received at Origin Hub',
+                'verified': 'Verified & Sealed',
+                'in_transit': 'In Transit',
+                'arrived_at_dest_hub': 'At Destination Hub',
+                'out_for_delivery': 'Out for Delivery',
+                'delivered': 'Delivered',
+                'cancelled': 'Cancelled',
+                'disputed': 'Disputed'
+            };
+            return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Order Placed');
+        }
+
         function updateUserProfile(user) {
             if (!user) return; // Silent skip if no DB profile yet
             
@@ -574,6 +632,7 @@
                     const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/placeholder.jpg') : '/static/images/placeholder.jpg';
                     const itemCount = o.items ? o.items.length : 0;
                     const showReview = (statusClass === 'delivered' || statusClass === 'completed');
+                    const showDispute = (statusClass === 'delivered' || statusClass === 'arrived_at_dest_hub' || statusClass === 'out_for_delivery') && o.status !== 'under_review' && o.status !== 'disputed' && !o.disputeId;
 
                     return `
                         <div class="premium-order-card" onclick="openOrderModal('${o.id}')">
@@ -591,14 +650,20 @@
                             </div>
                             <div class="order-pricing">
                                 <span class="total-amount">RS ${totalAmount}</span>
-                                <div class="item-count">Net Total Value</div>
+                                <div class="item-count">Net Settlement</div>
                             </div>
                             <div class="order-status-section" onclick="event.stopPropagation()">
-                                <span class="axiom-status-badge badge-${statusClass}">${displayStatus}</span>
+                                <span class="axiom-status-badge badge-${statusClass}">${formatOrderStatus(o.status)}</span>
                                 <div class="action-strip">
                                     ${showReview ? `
                                         <button onclick="openReviewModal('${o.id}')" class="axiom-mini-btn" title="Leave Review">
                                             <i class="fas fa-star" style="color: #fbbf24;"></i>
+                                        </button>
+                                    ` : ''}
+
+                                    ${showDispute ? `
+                                        <button onclick="openDisputeModal('${o.id}')" class="axiom-mini-btn" title="Raise Dispute">
+                                            <i class="fas fa-gavel" style="color: #ef4444;"></i>
                                         </button>
                                     ` : ''}
                                     <a href="orderstatus.html?orderId=${o.id}" class="axiom-mini-btn" title="Track Logistics">
@@ -632,7 +697,16 @@
             if (status === 'all') {
                 filtered = window.allOrdersRaw;
             } else if (status === 'pending') {
-                filtered = window.allOrdersRaw.filter(o => o.status === 'pending' || !o.status);
+                // Active/Pending includes everything up to "Arrived at Dest Hub"
+                const activeStates = ['pending', 'received_at_seller_hub', 'sent_to_hub', 'verified', 'in_transit'];
+                filtered = window.allOrdersRaw.filter(o => activeStates.includes((o.status || 'pending').toLowerCase()));
+            } else if (status === 'shipped') {
+                // In Transit specifically
+                const transitStates = ['in_transit', 'arrived_at_dest_hub', 'out_for_delivery'];
+                filtered = window.allOrdersRaw.filter(o => transitStates.includes((o.status || '').toLowerCase()));
+            } else if (status === 'disputed') {
+                // Disputed specifically
+                filtered = window.allOrdersRaw.filter(o => o.disputeId || (o.status || '').toLowerCase() === 'under_review' || (o.status || '').toLowerCase() === 'disputed');
             } else {
                 filtered = window.allOrdersRaw.filter(o => (o.status || '').toLowerCase() === status);
             }
@@ -660,25 +734,48 @@
             const city = shipping.city || '';
             const fullAddress = (address + (city ? ', ' + city : '')) || 'N/A';
 
+            const STATUS_JOURNEY = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
+            const currentRank = STATUS_JOURNEY.indexOf(status);
+            const isDisputed = order.disputeId || status === 'under_review' || status === 'disputed';
+
+            let trackingHeader = '';
+            if (isDisputed) {
+                trackingHeader = `
+                    <div style="background: #fef2f2; border: 1px solid #f87171; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 15px;">
+                        <div style="background: #ef4444; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                            <i class="fas fa-gavel"></i>
+                        </div>
+                        <div>
+                            <h3 style="color: #991b1b; margin: 0 0 4px 0; font-size: 1.1rem; font-weight: 800;">Order Under Dispute</h3>
+                            <p style="color: #b91c1c; margin: 0; font-size: 0.85rem;">This transaction is currently frozen. Our arbitration team is reviewing the submitted evidence.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                trackingHeader = `
+                    <div class="tracking-stepper">
+                        <div class="step ${currentRank >= 0 ? (currentRank > 0 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">1</div>
+                            <span class="step-label">Placed</span>
+                        </div>
+                        <div class="step ${currentRank >= 2 ? (currentRank > 2 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">2</div>
+                            <span class="step-label">Verified</span>
+                        </div>
+                        <div class="step ${currentRank >= 3 ? (currentRank > 3 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">3</div>
+                            <span class="step-label">Transit</span>
+                        </div>
+                        <div class="step ${currentRank >= 6 ? (currentRank > 6 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">4</div>
+                            <span class="step-label">Arrived</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             body.innerHTML = `
-                <div class="tracking-stepper">
-                    <div class="step ${status === 'pending' || !status ? 'active' : 'completed'}">
-                        <div class="step-icon">1</div>
-                        <span class="step-label">Ordered</span>
-                    </div>
-                    <div class="step ${status === 'verified' ? 'active' : (['shipped', 'delivered', 'completed'].includes(status) ? 'completed' : '')}">
-                        <div class="step-icon">2</div>
-                        <span class="step-label">Verified</span>
-                    </div>
-                    <div class="step ${status === 'shipped' ? 'active' : (['delivered', 'completed'].includes(status) ? 'completed' : '')}">
-                        <div class="step-icon">3</div>
-                        <span class="step-label">Shipped</span>
-                    </div>
-                    <div class="step ${['delivered', 'completed'].includes(status) ? 'active completed' : ''}">
-                        <div class="step-icon">4</div>
-                        <span class="step-label">Arrived</span>
-                    </div>
-                </div>
+                ${trackingHeader}
 
                 <div class="modal-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
                     <!-- Card 1: Logistics -->
@@ -870,6 +967,180 @@
                 btn.innerText = originalText;
             }
         }
+
+        /* --- Dispute System Logic --- */
+        let activeDisputeOrderId = null;
+
+        function openDisputeModal(orderId) {
+            activeDisputeOrderId = orderId;
+            document.getElementById('disputeReason').value = 'Item not as described';
+            document.getElementById('disputeDescription').value = '';
+            document.getElementById('disputeModal').style.display = 'flex';
+        }
+
+        function closeDisputeModal() {
+            document.getElementById('disputeModal').style.display = 'none';
+            selectedDisputeFiles = [];
+            document.getElementById('disputeImagePreview').innerHTML = '';
+        }
+
+        let selectedDisputeFiles = [];
+        function handleDisputeFileSelect(input) {
+            const container = document.getElementById('disputeImagePreview');
+            const files = Array.from(input.files);
+            
+            if (selectedDisputeFiles.length + files.length > 3) {
+                alert('Maximum 3 images allowed for evidence.');
+                return;
+            }
+
+            files.forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                selectedDisputeFiles.push(file);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'width: 80px; height: 80px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #e2e8f0;';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div onclick="removeDisputeFile(this)" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer;">&times;</div>
+                    `;
+                    div.dataset.fileName = file.name;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+            input.value = ''; // clear input to allow re-selection
+        }
+
+        function removeDisputeFile(el) {
+            const parent = el.parentElement;
+            const fileName = parent.dataset.fileName;
+            selectedDisputeFiles = selectedDisputeFiles.filter(f => f.name !== fileName);
+            parent.remove();
+        }
+
+        async function submitDispute() {
+            const comment = document.getElementById('disputeDescription').value.trim();
+            const reason = document.getElementById('disputeReason').value;
+
+            if (!comment) {
+                alert('Please provide a description of the issue.');
+                return;
+            }
+
+            const order = window.currentOrders[activeDisputeOrderId];
+            if (!order) return;
+
+            const btn = document.getElementById('submitDisputeBtn');
+            btn.disabled = true;
+            btn.innerText = 'Uploading Evidence...';
+
+            try {
+                const user = firebase.auth().currentUser;
+                const db = firebase.database();
+                const storage = firebase.storage();
+                const disputeId = 'DISP-' + Date.now();
+
+                // Upload Images
+                const evidenceLinks = [];
+                for (const file of selectedDisputeFiles) {
+                    const path = `disputes/${disputeId}/${Date.now()}_${file.name}`;
+                    const ref = storage.ref().child(path);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    evidenceLinks.push(url);
+                }
+
+                btn.innerText = 'Submitting Claim...';
+
+                const disputeData = {
+                    id: disputeId,
+                    orderId: activeDisputeOrderId,
+                    buyerId: user.uid,
+                    sellerId: order.sellerId || 'unknown',
+                    sellerName: order.sellerName || 'Seller',
+                    complainantName: user.displayName || user.email,
+                    issue: reason,
+                    reason: reason,
+                    description: comment,
+                    priority: 'High',
+                    status: 'open',
+                    evidenceImages: evidenceLinks,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                const updates = {};
+                updates[`/disputes/${disputeId}`] = disputeData;
+                updates[`/orders/${activeDisputeOrderId}/status`] = 'under_review';
+                updates[`/orders/${activeDisputeOrderId}/disputeId`] = disputeId;
+
+                // Push Notification to Buyer
+                const buyerNotifId = db.ref(`users/${user.uid}/notifications`).push().key;
+                updates[`/users/${user.uid}/notifications/${buyerNotifId}`] = {
+                    title: 'Dispute Filed',
+                    message: `Your dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} has been securely recorded.`,
+                    type: 'info',
+                    read: false,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                // Push Notification to Seller
+                const sellerId = order.sellerId;
+                if (sellerId && sellerId !== 'unknown') {
+                    const sellerNotifId = db.ref(`users/${sellerId}/notifications`).push().key;
+                    updates[`/users/${sellerId}/notifications/${sellerNotifId}`] = {
+                        title: 'Dispute Raised Against Order',
+                        message: `The buyer has initiated an arbitration dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()}.`,
+                        type: 'warning',
+                        read: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    };
+                }
+
+                // Push Global Alert for Admins / Staff
+                const adminAlertId = db.ref('global_notifications/admin_alerts').push().key;
+                updates[`/global_notifications/admin_alerts/${adminAlertId}`] = {
+                    title: 'New Active Dispute',
+                    message: `Dispute (${disputeId}) raised on order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} by ${user.displayName || 'a Buyer'}.`,
+                    type: 'alert',
+                    userId: user.uid,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                await db.ref().update(updates);
+
+                if (window.NotificationManager) {
+                    window.NotificationManager.showToast('Dispute Submitted', 'Your claim and evidence have been sent to our arbitration team.', 'success');
+                } else {
+                    alert('Dispute raised successfully with evidence. Our team will investigate.');
+                }
+                
+                closeDisputeModal();
+                setTimeout(() => location.reload(), 2500);
+
+            } catch (error) {
+                console.error('Error raising dispute:', error);
+                alert('Failed to raise dispute: ' + error.message);
+                btn.disabled = false;
+                btn.innerText = 'Submit Dispute';
+            }
+        }
+
+        // Export functions to global scope for HTML inline handlers
+        window.openOrderModal = openOrderModal;
+        window.closeOrderModal = closeOrderModal;
+        window.openReviewModal = openReviewModal;
+        window.closeReviewModal = closeReviewModal;
+        window.setRating = setRating;
+        window.submitReview = submitReview;
+        window.openDisputeModal = openDisputeModal;
+        window.closeDisputeModal = closeDisputeModal;
+        window.handleDisputeFileSelect = handleDisputeFileSelect;
+        window.removeDisputeFile = removeDisputeFile;
+        window.submitDispute = submitDispute;
+        
     </script>
     <script src="/static/js/notification-manager.js"></script>
 </body>

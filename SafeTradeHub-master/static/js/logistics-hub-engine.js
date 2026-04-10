@@ -23,6 +23,23 @@ const LOGISTICS_ACTIONS = [
 
 const STATUS_ORDER = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
 
+// --- STATUS HELPERS (Synced across ecosystem) ---
+function formatOrderStatus(status) {
+    const mapping = {
+        'pending': 'Order Placed',
+        'received_at_seller_hub': 'Received at Origin Hub',
+        'sent_to_hub': 'Received at Origin Hub',
+        'verified': 'Verified & Sealed',
+        'in_transit': 'In Transit',
+        'arrived_at_dest_hub': 'At Destination Hub',
+        'out_for_delivery': 'Out for Delivery',
+        'delivered': 'Delivered',
+        'cancelled': 'Cancelled',
+        'disputed': 'Disputed'
+    };
+    return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Pending');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initLogisticsHub();
 });
@@ -103,7 +120,7 @@ function initActivePipeline() {
                     <td><strong style="color: #059669;">RS ${amount.toFixed(0)}</strong></td>
                     <td>
                         <span class="status-badge" style="background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; font-size: 0.7rem;">
-                            ${o.status.replace(/_/g, ' ').toUpperCase()}
+                            ${formatOrderStatus(o.status)}
                         </span>
                     </td>
                     <td style="text-align: right;">
@@ -253,7 +270,7 @@ function renderScanResult(order) {
                         <div style="margin-top: 25px; padding: 15px; background: #fffbe6; border-radius: 8px; border: 1px solid #ffe58f; display: flex; gap: 12px; align-items: center;">
                             <i class="fas fa-info-circle" style="color: #faad14;"></i>
                             <div style="font-size: 0.8rem; color: #856404;">
-                                <strong>System Status:</strong> Currently at <span style="text-transform: uppercase; font-weight: 700;">${currentStatus.replace(/_/g, ' ')}</span>.
+                                <strong>System Status:</strong> Currently at <span style="font-weight: 700;">${formatOrderStatus(currentStatus)}</span>.
                                 <br>Follow the sequence to maintain logistics audit integrity.
                             </div>
                         </div>
@@ -288,7 +305,7 @@ async function processLogisticsUpdate(orderId, nextStatus, location, btn) {
 
         const result = await response.json();
         if (result.success) {
-            showSuccess(`Operation Successful: Shipment moved to ${nextStatus.replace(/_/g, ' ').toUpperCase()}`);
+            showSuccess(`Operation Successful: Shipment moved to ${formatOrderStatus(nextStatus)}`);
             // The active '.on' listener for this order will automatically catch the state change and re-render the UI
         } else {
             throw new Error(result.error || 'Protocol Rejection');
@@ -316,7 +333,7 @@ function renderHubActivity(logs) {
                 <td><span style="color: #64748b; font-size: 0.8rem;">${time}</span></td>
                 <td><strong style="color: #2563eb;">#${(log.entityId || '').substring(0, 8)}</strong></td>
                 <td><span style="font-weight: 500;">Network Update</span></td>
-                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${log.newValues.status}</span></td>
+                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${formatOrderStatus(log.newValues.status)}</span></td>
                 <td><small style="color: #64748b;">${log.newValues.location || 'Central Station'}</small></td>
             </tr>
         `;

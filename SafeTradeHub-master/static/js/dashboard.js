@@ -1,4 +1,22 @@
 // Dashboard Logic
+
+// --- STATUS HELPERS (Synced across ecosystem) ---
+function formatOrderStatus(status) {
+    const mapping = {
+        'pending': 'Order Placed',
+        'received_at_seller_hub': 'Received at Origin Hub',
+        'sent_to_hub': 'Received at Origin Hub',
+        'verified': 'Verified & Sealed',
+        'in_transit': 'In Transit',
+        'arrived_at_dest_hub': 'At Destination Hub',
+        'out_for_delivery': 'Out for Delivery',
+        'delivered': 'Delivered',
+        'cancelled': 'Cancelled',
+        'disputed': 'Disputed'
+    };
+    return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Pending');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Check Auth
     const auth = firebase.auth();
@@ -26,7 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (userData.role === 'Seller') {
                 document.getElementById('navProducts').style.display = 'flex';
                 renderSellerDashboard(user.uid, userData);
-                setupTabNavigation(); // Initialize Insights navigation
+
             } else {
                 renderBuyerDashboard(user.uid, userData);
             }
@@ -37,134 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Tab Navigation Logic
-function setupTabNavigation() {
-    const navInsights = document.getElementById('navInsights');
-    const navDashboard = document.querySelector('.nav-item[href="dashboard.html"]');
 
-    if (navInsights) {
-        navInsights.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchView('insights');
-        });
-    }
-
-    if (navDashboard) {
-        navDashboard.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchView('dashboard');
-        });
-    }
-
-    // Handle initial hash
-    if (window.location.hash === '#insights') {
-        switchView('insights');
-    }
-}
-
-function switchView(viewName) {
-    const mainView = document.getElementById('main-view');
-    const insightsView = document.getElementById('insights-view');
-    const navItems = document.querySelectorAll('.nav-item');
-
-    // Remove active class from all
-    navItems.forEach(item => item.classList.remove('active'));
-
-    if (viewName === 'insights') {
-        if (mainView) mainView.style.display = 'none';
-        if (insightsView) insightsView.style.display = 'block';
-        const instghtLink = document.getElementById('navInsights');
-        if (instghtLink) instghtLink.classList.add('active');
-        loadSellerInsights();
-    } else {
-        if (mainView) mainView.style.display = 'block';
-        if (insightsView) insightsView.style.display = 'none';
-        const dashLink = document.querySelector('.nav-item[href="dashboard.html"]');
-        if (dashLink) dashLink.classList.add('active');
-    }
-}
-
-async function loadSellerInsights() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-
-    try {
-        const response = await fetch(`/api/v1/analytics/seller/${user.uid}`);
-        const result = await response.json();
-
-        if (result.success) {
-            renderSellerCharts(result.data);
-            updateActionableTooltip(result.data.metrics);
-        }
-    } catch (error) {
-        console.error('Error loading seller insights:', error);
-    }
-}
-
-function renderSellerCharts(data) {
-    const blue = '#2563eb';
-    const blueLight = 'rgba(37, 99, 235, 0.1)';
-
-    const canvas = document.getElementById('sellerPerformanceChart');
-    if (!canvas) return;
-    
-    const existingChart = Chart.getChart(canvas);
-    if (existingChart) existingChart.destroy();
-
-    if (data.performance && data.performance.data.some(d => d > 0)) {
-        document.getElementById('sellerNoData').style.display = 'none';
-        new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels: data.performance.labels,
-                datasets: [{
-                    label: 'Daily Sales (RS)',
-                    data: data.performance.data,
-                    backgroundColor: blue,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        ticks: {
-                            callback: value => 'RS ' + value.toLocaleString()
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { display: false }
-                }
-            }
-        });
-    } else {
-        document.getElementById('sellerNoData').style.display = 'flex';
-    }
-
-    // Update Metrics
-    document.getElementById('conversionRateVal').textContent = `${data.metrics.conversionRate}%`;
-    document.getElementById('totalViewsVal').textContent = data.metrics.totalViews.toLocaleString();
-    document.getElementById('totalRevenueVal').textContent = `RS ${data.metrics.totalRevenue.toLocaleString()}`;
-}
-
-function updateActionableTooltip(metrics) {
-    const tooltip = document.getElementById('conversionTooltip');
-    const text = document.getElementById('tooltipText');
-    if (!tooltip || !text) return;
-
-    if (metrics.totalViews > 10 && metrics.conversionRate < 2) {
-        tooltip.style.display = 'block';
-        text.textContent = "High views but low sales? Consider lowering the price or improving product images to boost conversions.";
-    } else if (metrics.totalViews > 0 && metrics.totalViews < 5) {
-        tooltip.style.display = 'block';
-        text.textContent = "Your products are new! Share your listings on social media to drive more views.";
-    } else {
-        tooltip.style.display = 'none';
-    }
-}
 
 function updateUserProfile(user) {
     document.getElementById('userName').textContent = user.displayName || user.fullName || 'User';
@@ -336,7 +227,7 @@ async function renderSellerDashboard(uid, userData) {
                                         <td>#${o.id.substring(1, 6)}</td>
                                         <td>${o.shippingAddress?.fullName || 'Customer'}</td>
                                         <td>RS ${o.total}</td>
-                                        <td><span class="status-badge ${o.status === 'completed' ? 'completed' : 'pending'}">${o.status}</span></td>
+                                        <td><span class="status-badge ${o.status === 'completed' || o.status === 'delivered' ? 'completed' : 'pending'}">${formatOrderStatus(o.status)}</span></td>
                                     </tr>
                                 `).join('') || '<tr><td colspan="4">No orders found</td></tr>'}
                             </tbody>
@@ -375,7 +266,12 @@ async function renderBuyerDashboard(uid, userData) {
     // Calculate Stats
     const walletBalance = userData.wallet?.balance || 0;
     const totalOrders = orders.length;
-    const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing').length;
+    
+    // Pending includes all logistics states before delivery
+    const pendingOrders = orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return !['delivered', 'completed', 'cancelled', 'disputed'].includes(s);
+    }).length;
     // Wishlist not implemented yet, defaulting to 0
 
     contentArea.innerHTML = `
@@ -436,7 +332,7 @@ async function renderBuyerDashboard(uid, userData) {
                                         <td>#${o.id.substring(1, 6)}</td>
                                         <td>${new Date(o.createdAt).toLocaleDateString()}</td>
                                         <td>RS ${o.total}</td>
-                                        <td><span class="status-badge ${o.status === 'completed' ? 'completed' : 'pending'}">${o.status}</span></td>
+                                        <td><span class="status-badge ${o.status === 'completed' || o.status === 'delivered' ? 'completed' : 'pending'}">${formatOrderStatus(o.status)}</span></td>
                                     </tr>
                                 `).join('') || '<tr><td colspan="4" style="text-align:center;">No recent orders</td></tr>'}
                             </tbody>
@@ -479,5 +375,137 @@ async function renderBuyerDashboard(uid, userData) {
 function logout() {
     firebase.auth().signOut().then(() => {
         window.location.href = 'index.html';
+    });
+}
+
+/**
+ * v2 Isolated Seller Insights
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    const navInsights = document.getElementById('navInsights');
+    const mainView = document.getElementById('main-view');
+    const insightsView = document.getElementById('insights-view');
+
+    if (navInsights && mainView && insightsView) {
+        navInsights.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Toggle visibility
+            mainView.style.display = 'none';
+            if (document.getElementById('disputes-view')) {
+                document.getElementById('disputes-view').style.display = 'none';
+            }
+            insightsView.style.display = 'block';
+            
+            // Remove active from any other nav items
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navInsights.classList.add('active');
+
+            // Initialize Analytics
+            const user = firebase.auth().currentUser;
+            if (user) {
+                initV2Insights(user.uid);
+            }
+        });
+    }
+
+    // --- Dispute View Logic (Seller) ---
+    const navDisputes = document.getElementById('navDisputes');
+    const disputesView = document.getElementById('disputes-view');
+
+    if (navDisputes && mainView && disputesView) {
+        navDisputes.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            mainView.style.display = 'none';
+            if (insightsView) insightsView.style.display = 'none';
+            disputesView.style.display = 'block';
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navDisputes.classList.add('active');
+
+            // Load disputes data
+            loadSellerDisputes();
+        });
+    }
+});
+
+async function loadSellerDisputes() {
+    const tbody = document.getElementById('sellerDisputesTableBody');
+    if (!tbody) return;
+
+    const auth = firebase.auth();
+    const db = firebase.database();
+    
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+
+        try {
+            db.ref('disputes').orderByChild('sellerId').equalTo(user.uid).on('value', (snap) => {
+                const disputes = [];
+                snap.forEach(c => {
+                    disputes.push({ id: c.key, ...c.val() });
+                });
+
+                disputes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+                if (disputes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: #64748b;">No active disputes found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = disputes.map(d => `
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                        <td style="padding: 16px 24px; font-weight: 600; color: #4f46e5;">#${d.id.slice(-6).toUpperCase()}</td>
+                        <td style="padding: 16px 24px;">#${(d.orderId || '').slice(-6).toUpperCase()}</td>
+                        <td style="padding: 16px 24px; color: #1e293b;">
+                            <div style="font-weight: 600;">${d.issue || d.reason || 'Product Issue'}</div>
+                            <div style="font-size: 0.8rem; color: #64748b; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.description || d.comment || ''}</div>
+                        </td>
+                        <td style="padding: 16px 24px;">
+                            <span class="status-badge ${d.status === 'open' ? 'pending' : 'completed'}" style="text-transform: uppercase; font-size: 0.7rem;">${d.status || 'OPEN'}</span>
+                        </td>
+                        <td style="padding: 16px 24px; color: #64748b; font-size: 0.85rem;">
+                            ${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'N/A'}
+                        </td>
+                    </tr>
+                `).join('');
+            });
+        } catch (error) {
+            console.error('Error loading seller disputes:', error);
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: #ef4444;">Failed to load data.</td></tr>';
+        }
+    });
+}
+});
+
+async function initV2Insights(uid) {
+    console.log('🚀 Loading v2 Seller Insights for:', uid);
+    
+    if (typeof STHAnalytics === 'undefined') return;
+
+    STHAnalytics.Seller.listenToPerformance(uid, (stats) => {
+        // Update Metrics
+        document.getElementById('v2-conversionRate').innerText = stats.conversionRate + '%';
+        document.getElementById('v2-totalViews').innerText = stats.totalViews.toLocaleString();
+        document.getElementById('v2-totalRevenue').innerText = 'RS ' + stats.revenue.toLocaleString();
+
+        // Update Tooltip based on conversion
+        const tooltip = document.getElementById('v2-conversionTooltip');
+        const tooltipText = document.getElementById('v2-tooltipText');
+        
+        if (tooltip && tooltipText) {
+            tooltip.style.display = 'block';
+            if (stats.conversionRate < 2) {
+                tooltipText.innerText = 'Low conversion detected. Try optimizing your product images or pricing.';
+            } else if (stats.conversionRate > 10) {
+                tooltipText.innerText = 'Elite performance! Your listings are highly optimized.';
+            } else {
+                tooltipText.innerText = 'Stable conversion. Consider running a targeted promotion.';
+            }
+        }
+
+        // Render Chart
+        STHAnalytics.Seller.renderSellerChart('v2-sellerPerformanceChart', stats.dailySales);
     });
 }

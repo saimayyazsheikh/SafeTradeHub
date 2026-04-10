@@ -142,15 +142,17 @@
             }
         },
         "disputes": {
-            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists() || (query.orderByChild == 'sellerId' && query.equalTo == auth.uid) || (query.orderByChild == 'buyerId' && query.equalTo == auth.uid))",
             ".indexOn": [
                 "reportedBy",
+                "buyerId",
+                "sellerId",
                 "orderId",
                 "status"
             ],
             "$disputeId": {
-                ".read": "auth != null && (data.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
-                ".write": "auth != null && (newData.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
+                ".read": "auth != null && (data.child('buyerId').val() === auth.uid || data.child('sellerId').val() === auth.uid || data.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())",
+                ".write": "auth != null && (newData.child('buyerId').val() === auth.uid || newData.child('reportedBy').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('staff_registry').child(auth.uid).exists())"
             }
         },
         "notifications": {

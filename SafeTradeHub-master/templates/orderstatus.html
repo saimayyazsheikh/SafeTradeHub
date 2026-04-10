@@ -423,7 +423,7 @@
                         <i class="fas fa-shield-alt"></i>
                         <div class="escrow-text">
                             <h4>Escrow Protection Active</h4>
-                            <p>Funds are secured in SafeTradeHub Settlement account while in ${order.status.replace(/_/g, ' ')} phase.</p>
+                            <p>Funds are secured in SafeTradeHub Settlement account while in ${getTimelineLabel(order.status)} phase.</p>
                         </div>
                     </div>
 
@@ -499,6 +499,19 @@
       return (index / (statusOrder.length - 1)) * 100;
     }
 
+    function getTimelineLabel(status) {
+        const mapping = {
+            'pending': 'Order Placed',
+            'received_at_seller_hub': 'Received at Origin Hub',
+            'verified': 'Verified & Sealed',
+            'in_transit': 'In Transit',
+            'arrived_at_dest_hub': 'At Destination Hub',
+            'out_for_delivery': 'Out for Delivery',
+            'delivered': 'Delivered'
+        };
+        return mapping[status] || (status ? status.replace(/_/g, ' ') : 'Processing');
+    }
+
     // Tracking percentage logic stays same, styles moved to head
 
     function getStatusBadgeClass(status) {
@@ -515,10 +528,7 @@
     }
 
     function formatStatus(status) {
-      if (!status) return 'Pending';
-      return status.split('_').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
+      return getTimelineLabel(status);
     }
 
     function formatCurrency(amount) {

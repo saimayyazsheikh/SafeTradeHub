@@ -773,20 +773,18 @@ body {
 .table-container {
   overflow-x: auto;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 .admin-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
-  /* Ensures column widths are respected */
   table-layout: auto;
-  /* Ensures column widths adapt to content */
+  min-width: 1000px; /* Ensures scrollbar appears before table becomes unreadable */
 }
 .admin-table th {
   background: #f8fafc;
-  padding: 16px 24px;
-  /* Increased padding */
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
   color: #64748b;
@@ -794,10 +792,10 @@ body {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .admin-table td {
-  padding: 16px 24px;
-  /* Increased padding */
+  padding: 12px 16px;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
   font-size: 14px;
@@ -2542,3 +2540,77 @@ input:checked + .toggle-slider {
 }
 
 
+
+/* Dashboard Side Analytics Snapshot */
+.side-analytics-card {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  position: relative;
+  overflow: hidden;
+}
+.side-analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.side-analytics-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: indicator-pulse 1.5s infinite;
+}
+@keyframes indicator-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.side-chart-container {
+  height: 180px;
+  margin-bottom: 20px;
+}
+.side-mini-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
+}
+.mini-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mini-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+.mini-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e293b;
+}

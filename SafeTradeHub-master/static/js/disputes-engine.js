@@ -88,24 +88,28 @@ window.viewDispute = function(disputeId) {
     document.getElementById('vDispOrder').innerText = dispute.orderId || 'N/A';
     document.getElementById('vDispStatus').innerText = (dispute.status || 'open').toUpperCase();
     document.getElementById('vDispAssignee').innerText = dispute.assignedToStaffId || 'Unassigned';
-    document.getElementById('vDispRaiser').innerText = dispute.reportedBy || 'Unknown';
-    document.getElementById('vDispReason').innerText = dispute.reason || dispute.complainantName || 'No detailed reason.';
+    document.getElementById('vDispRaiser').innerText = dispute.complainantName || dispute.reportedBy || dispute.buyerId || 'Unknown';
+    document.getElementById('vDispReason').innerText = (dispute.reason || dispute.issue || 'No stated reason') + (dispute.description ? `\nDetails: ${dispute.description}` : '');
     document.getElementById('vDispDate').innerText = dispute.createdAt ? new Date(dispute.createdAt).toLocaleString() : 'N/A';
 
-    const notesArea = document.getElementById('vDispNotesArea');
-    if (dispute.investigationNotes) {
-        let notesHtml = '';
-        const notesObj = dispute.investigationNotes;
-        Object.keys(notesObj).forEach(k => {
-            const n = notesObj[k];
-            const t = n.timestamp ? new Date(n.timestamp).toLocaleString() : 'N/A';
-            const sName = n.staffId === 'Admin' ? 'Admin' : n.staffId.slice(-6);
-            notesHtml += `<div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #e5e7eb;"><strong style="color: #4b5563;">${sName} [${t}]:</strong> <span style="color: #1f2937;">${n.text}</span></div>`;
-        });
-        notesArea.innerHTML = notesHtml || '<p>No investigation notes yet.</p>';
-    } else {
-        notesArea.innerHTML = '<p>No investigation notes yet.</p>';
+    // Evidence Gallery
+    const gallery = document.getElementById('vDispEvidenceGallery');
+    if (gallery) {
+        if (dispute.evidenceImages && dispute.evidenceImages.length > 0) {
+            gallery.innerHTML = '<div style="width: 100%; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; color: #374151;">Evidence Images:</div>' + 
+                dispute.evidenceImages.map(url => `
+                    <div style="width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer;" onclick="window.open('${url}', '_blank')">
+                        <img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                `).join('');
+            gallery.style.display = 'flex';
+        } else {
+            gallery.innerHTML = '';
+            gallery.style.display = 'none';
+        }
     }
+
+
 
     document.getElementById('disputeViewModal').style.display = 'block';
 };
@@ -114,157 +118,198 @@ window.closeDisputeViewModal = function() {
     document.getElementById('disputeViewModal').style.display = 'none';
 };
 
-window.resolveDispute = function(disputeId) {
-    currentActiveDisputeId = disputeId;
-    document.getElementById('actionDisputeIdTitle').innerText = disputeId.slice(-6);
-    document.getElementById('resolutionJustification').value = '';
-    document.getElementById('newDisputeNote').value = '';
+// Arbitration Enforcer Modal Globals
+window.currentArbitrationDisputeId = null;
+
+window.resolveDispute = function(id) {
+    window.currentArbitrationDisputeId = id;
     
-    // Check if staff has correct permissions
-    const isStaff = typeof staffData !== 'undefined';
-    const isAdmin = typeof adminData !== 'undefined';
-    
-    // DOM elements
-    const assignSec = document.getElementById('adminAssignSection');
-    const resSec = document.getElementById('adminResolutionSection');
-    
-    if (isAdmin) {
-       if(assignSec) assignSec.style.display = 'block';
-       if(resSec) resSec.style.display = 'block';
-       
-       // Populate staff assignment
-       if(adminData && adminData.staff) {
-          const sDropdown = document.getElementById('assignStaffDropdown');
-          if(sDropdown) {
-              sDropdown.innerHTML = '<option value="">-- Select Staff --</option>';
-              adminData.staff.forEach(s => {
-                 sDropdown.innerHTML += `<option value="${s.id}">${s.fullName || s.name || s.id} (${s.role})</option>`;
-              });
-          }
-       }
-    } else {
-       if(assignSec) assignSec.style.display = 'none'; 
-       // For this prototype we allow staff to do resolution if they have the module. In production, check role.
-       if(resSec) resSec.style.display = 'block';
-    }
-    
-    document.getElementById('disputeActionModal').style.display = 'block';
+    // Inject Dispute ID into Title
+    const modalTitle = document.getElementById('arbitrationDisputeIdText');
+    if(modalTitle) modalTitle.innerText = id.slice(-6);
+
+    // Reset fields
+    const outcomeSelect = document.getElementById('arbitrationOutcome');
+    const notesText = document.getElementById('arbitrationNotes');
+    if(outcomeSelect) outcomeSelect.value = 'refund_buyer';
+    if(notesText) notesText.value = '';
+
+    // Show Modal
+    const modal = document.getElementById('arbitrationEnforcerModal');
+    if(modal) modal.style.display = 'block';
 };
 
-window.closeDisputeActionModal = function() {
-    document.getElementById('disputeActionModal').style.display = 'none';
-    currentActiveDisputeId = null;
+window.closeArbitrationModal = function() {
+    window.currentArbitrationDisputeId = null;
+    const modal = document.getElementById('arbitrationEnforcerModal');
+    if(modal) modal.style.display = 'none';
 };
 
-window.addDisputeNote = async function() {
-    if(!currentActiveDisputeId) return;
-    const noteText = document.getElementById('newDisputeNote').value;
-    if(!noteText) return showError("Note cannot be empty.");
-    
-    let staffId = "Admin";
-    if (typeof auth !== 'undefined' && auth.currentUser) staffId = auth.currentUser.uid;
+window.enforceArbitrationRuling = function() {
+    const id = window.currentArbitrationDisputeId;
+    if(!id) return;
 
-    try {
-        const btn = event.target;
-        btn.disabled = true;
-        btn.innerText = "Adding...";
-        const idToken = await auth.currentUser.getIdToken();
-        const res = await fetch('/api/v1/disputes/add-investigation-note', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body: JSON.stringify({ disputeId: currentActiveDisputeId, noteText: noteText, staffId: staffId })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showSuccess("Note added successfully.");
-            document.getElementById('newDisputeNote').value = '';
-            // Don't close modal, just added a note
+    const outcome = document.getElementById('arbitrationOutcome').value;
+    const comments = document.getElementById('arbitrationNotes').value.trim();
+
+    if (!comments) {
+        if(window.NotificationManager) {
+            window.NotificationManager.showToast('Validation Error', 'The Official Justification/Notes field cannot be empty.', 'error');
         } else {
-            showError("Failed: " + data.error);
+            alert("The Official Justification/Notes field cannot be empty. This is required for audit logs.");
         }
-    } catch(e) {
-        showError("Network Error.");
-    } finally {
-        if(event && event.target) {
-            event.target.disabled = false;
-            event.target.innerText = "Add Note";
-        }
+        return;
     }
+
+    // Build Proper UI Confirmation Notification
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0'; overlay.style.left = '0';
+    overlay.style.width = '100%'; overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+    
+    // Modal Box
+    const box = document.createElement('div');
+    box.style.background = '#fff';
+    box.style.padding = '24px';
+    box.style.borderRadius = '12px';
+    box.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+    box.style.width = '100%';
+    box.style.maxWidth = '400px';
+    box.style.textAlign = 'center';
+    
+    const icon = document.createElement('div');
+    icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 40px; color: #f59e0b; margin-bottom: 16px;"></i>';
+    
+    const title = document.createElement('h3');
+    title.innerText = 'Confirm Execution';
+    title.style.margin = '0 0 10px 0'; title.style.fontSize = '1.3rem'; title.style.color = '#1f2937';
+    
+    const desc = document.createElement('p');
+    desc.innerHTML = `Are you absolutely sure you want to enforce: <strong>${outcome.toUpperCase()}</strong>?<br><br><span style="color:#ef4444; font-size:0.9rem;">This will permanently execute the Escrow.</span>`;
+    desc.style.color = '#4b5563'; desc.style.marginBottom = '24px'; desc.style.fontSize = '1rem';
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.style.display = 'flex'; btnContainer.style.gap = '10px'; btnContainer.style.justifyContent = 'center';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.innerText = 'Go Back';
+    cancelBtn.style.padding = '10px 20px'; cancelBtn.style.border = '1px solid #d1d5db'; cancelBtn.style.background = '#fff';
+    cancelBtn.style.borderRadius = '6px'; cancelBtn.style.cursor = 'pointer'; cancelBtn.style.fontWeight = '500';
+    cancelBtn.onclick = () => document.body.removeChild(overlay);
+    
+    const proceedBtn = document.createElement('button');
+    proceedBtn.innerHTML = '<i class="fas fa-check"></i> Execute';
+    proceedBtn.style.padding = '10px 20px'; proceedBtn.style.border = 'none'; proceedBtn.style.background = '#ef4444';
+    proceedBtn.style.color = '#fff'; proceedBtn.style.borderRadius = '6px'; proceedBtn.style.cursor = 'pointer'; proceedBtn.style.fontWeight = 'bold';
+    proceedBtn.onclick = () => {
+        document.body.removeChild(overlay);
+        // Execute Core Logic
+        window._executeArbitrationRuling(id, outcome, comments);
+    };
+    
+    btnContainer.appendChild(cancelBtn);
+    btnContainer.appendChild(proceedBtn);
+    
+    box.appendChild(icon);
+    box.appendChild(title);
+    box.appendChild(desc);
+    box.appendChild(btnContainer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 };
 
-window.assignDispute = async function() {
-    if(!currentActiveDisputeId) return;
-    const assigneeId = document.getElementById('assignStaffDropdown').value;
-    if(!assigneeId) return showError("Please select a staff member.");
-    
-    let staffId = "Admin";
-    if (typeof auth !== 'undefined' && auth.currentUser) staffId = auth.currentUser.uid;
-
+window._executeArbitrationRuling = async function(id, outcome, comments) {
     try {
-        const btn = event.target;
-        btn.disabled = true;
-        btn.innerText = "Assigning...";
-        const idToken = await auth.currentUser.getIdToken();
-        const res = await fetch('/api/v1/disputes/assign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body: JSON.stringify({ disputeId: currentActiveDisputeId, assigneeId: assigneeId, staffId: staffId })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showSuccess("Assigned successfully.");
-            closeDisputeActionModal();
-        } else showError("Failed: " + data.error);
-    } catch(e) {
-        showError("Network Error.");
-    } finally {
-        if(event && event.target) {
-            event.target.disabled = false;
-            event.target.innerText = "Assign";
+        const db = firebase.database();
+        let staffId = "Admin";
+        if (typeof auth !== 'undefined' && auth.currentUser) {
+            staffId = auth.currentUser.uid;
         }
-    }
-};
 
-window.executeDisputeResolution = async function(resolutionType) {
-    if(!currentActiveDisputeId) return;
-    const justification = document.getElementById('resolutionJustification').value;
-    if(!justification) return showError("Justification is strictly required for audit logs!");
-    
-    // If Admin dashboard, use its custom modal if possible, otherwise use standard confirm
-    if(typeof showConfirmationModal === 'function') {
-        const conf = await showConfirmationModal('Execute Resolution', `Are you absolutely sure you want to ${resolutionType}? This is an atomic financial transaction.`, { confirmText: 'Execute', confirmColor: '#b91c1c' });
-        if(!conf) return;
-    } else {
-        if(!confirm(`Are you absolutely sure you want to ${resolutionType}? This is an atomic financial transaction.`)) return;
-    }
-
-    let staffId = "Admin";
-    if (typeof auth !== 'undefined' && auth.currentUser) staffId = auth.currentUser.uid;
-    
-    let finalStatus = resolutionType === 'Dismiss Dispute' ? 'closed' : 'resolved';
-    
-    try {
-        const buttons = [document.getElementById('btnRefundBuyer'), document.getElementById('btnReleaseSeller'), document.getElementById('btnDismiss')];
-        buttons.forEach(b => { if(b) b.disabled = true; });
-
-        const idToken = await auth.currentUser.getIdToken();
-        const res = await fetch('/api/v1/disputes/update-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body: JSON.stringify({ disputeId: currentActiveDisputeId, newStatus: finalStatus, resolutionType: resolutionType, staffId: staffId, justification: justification })
-        });
+        // Fetch Dispute to grab the Order ID
+        const dispSnap = await db.ref(`disputes/${id}`).once('value');
+        const disp = dispSnap.val();
         
-        const data = await res.json();
-        if(data.success) {
-            showSuccess(data.message);
-            closeDisputeActionModal();
-        } else {
-            showError("Transaction error: " + data.error);
+        if (!disp) throw new Error("Dispute record missing from database.");
+
+        const orderId = disp.orderId;
+        const buyerId = disp.buyerId;
+        const sellerId = disp.sellerId;
+
+        // Fetch Order to grab the total Amount locked in Escrow
+        const orderSnap = await db.ref(`orders/${orderId}`).once('value');
+        const order = orderSnap.val();
+        
+        let escrowAmount = 0;
+        if (order) {
+            escrowAmount = parseFloat(order.total || order.totalAmount || order.amount || 0);
         }
-    } catch(e) {
-        showError("API Execution Error.");
-    } finally {
-        const buttons = [document.getElementById('btnRefundBuyer'), document.getElementById('btnReleaseSeller'), document.getElementById('btnDismiss')];
-        buttons.forEach(b => { if(b) b.disabled = false; });
+        
+        // 1. EXECUTE THE FINANCIAL SETTLEMENT
+        // In a true financial system, we'd also deduct from 'in_escrow'. 
+        // We will increment the valid party's available_balance.
+        if (escrowAmount > 0) {
+            if (outcome === 'refund_buyer' && buyerId && buyerId !== 'unknown') {
+                const buyerWalletRef = db.ref(`wallets/${buyerId}/available_balance`);
+                await buyerWalletRef.transaction(currentBal => (currentBal || 0) + escrowAmount);
+            } 
+            else if (outcome === 'release_seller' && sellerId && sellerId !== 'unknown') {
+                const sellerWalletRef = db.ref(`wallets/${sellerId}/available_balance`);
+                await sellerWalletRef.transaction(currentBal => (currentBal || 0) + escrowAmount);
+            }
+            else if (outcome === 'partial_split') {
+                const splitAmt = escrowAmount / 2;
+                if (buyerId && buyerId !== 'unknown') {
+                   await db.ref(`wallets/${buyerId}/available_balance`).transaction(currentBal => (currentBal || 0) + splitAmt);
+                }
+                if (sellerId && sellerId !== 'unknown') {
+                   await db.ref(`wallets/${sellerId}/available_balance`).transaction(currentBal => (currentBal || 0) + splitAmt);
+                }
+            }
+        }
+
+        // 2. FINALIZE ARBITRATION DB RECORD
+        await db.ref(`disputes/${id}`).update({
+            status: 'resolved',
+            outcome: outcome.toLowerCase(),
+            resolution: comments,
+            resolvedBy: staffId,
+            resolvedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // 3. BROADCAST NOTIFICATIONS & UPDATE ORDER STATUS
+        const notifTitle = 'Arbitration Ruling: Escrow Executed';
+        const notifMsg = `The dispute for order #${(orderId || '').slice(-6)} has been ruled: ${outcome.toUpperCase()}.\nFunds structured: ${escrowAmount} RS.\nReason: ${comments}`;
+        const notifData = {
+            title: notifTitle,
+            message: notifMsg,
+            type: 'alert',
+            read: false,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+        
+        if (buyerId && buyerId !== 'unknown') await db.ref(`users/${buyerId}/notifications`).push(notifData);
+        if (sellerId && sellerId !== 'unknown') await db.ref(`users/${sellerId}/notifications`).push(notifData);
+        if (orderId) await db.ref(`orders/${orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
+
+        // Complete UI Flow
+        closeArbitrationModal();
+        if (window.NotificationManager) {
+             window.NotificationManager.showToast('Escrow Executed', 'The ruling has been enforced and the funds distributed.', 'success');
+        } else {
+             alert('Arbitration ruling successfully enforced.');
+        }
+
+    } catch (e) {
+        console.error('Arbitration Execute Error:', e);
+        if(window.NotificationManager) {
+             window.NotificationManager.showToast('Critical Error', 'Error while moving funds. Check console.', 'error');
+        } else {
+             alert('Critical error while moving funds. Check console.');
+        }
     }
 };

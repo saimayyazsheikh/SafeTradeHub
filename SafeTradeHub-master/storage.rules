@@ -38,9 +38,11 @@ service firebase.storage {
     }
     
     // Dispute Evidence
-    match /disputes/{userId}/{fileName} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow write: if isAuthenticated() && isOwner(userId);
+    match /disputes/{disputeId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() 
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     // Chat Images

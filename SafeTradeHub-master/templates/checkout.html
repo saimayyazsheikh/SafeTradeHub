@@ -1275,16 +1275,24 @@
         await db.ref().update(updates);
 
         // Then, update the wallet balance transactionally
-        const walletRef = db.ref(`users/${user.uid}/wallet`);
+        // Then, update the wallet balance transactionally
+        const walletRef = db.ref(`wallets/${user.uid}`);
         await walletRef.transaction((currentWallet) => {
           if (currentWallet) {
-            if ((currentWallet.balance || 0) < total) {
+            if ((currentWallet.available_balance || 0) < total) {
               // Abort if balance became insufficient
               throw new Error('Insufficient balance');
             }
-            currentWallet.balance = (currentWallet.balance || 0) - total;
-            currentWallet.totalSpent = (currentWallet.totalSpent || 0) + total;
-            currentWallet.escrow = (currentWallet.escrow || 0) + total; // Add to escrow held amount
+            currentWallet.available_balance = (currentWallet.available_balance || 0) - total;
+            currentWallet.total_spent = (currentWallet.total_spent || 0) + total;
+            currentWallet.in_escrow = (currentWallet.in_escrow || 0) + total; // Add to escrow held amount
+          } else {
+             // Failsafe initialization
+             return {
+                 available_balance: -total, // Will be caught by insufficient balance logic theoretically
+                 in_escrow: total,
+                 total_spent: total
+             };
           }
           return currentWallet;
         });

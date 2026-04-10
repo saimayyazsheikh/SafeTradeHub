@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Staff Dashboard - Safe Trade Hub</title>
   <link rel="stylesheet" href="/static/css/admin-dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/js/analytics-engine.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
@@ -123,10 +125,11 @@
 
         <div class="nav-section">
           <h3 class="nav-title">System</h3>
-          <a href="#analytics" class="nav-item" data-section="analytics" data-role="System Management">
-            <i class="fas fa-chart-bar"></i>
+          <a href="#analytics" class="nav-item" data-section="analytics">
+            <i class="fas fa-chart-line"></i>
             <span>Advanced Analytics</span>
           </a>
+
         </div>
       </nav>
     </aside>
@@ -313,21 +316,16 @@
             </div>
             <select class="filter-select" id="orderStatusFilter">
               <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
+              <option value="pending">Order Placed</option>
+              <option value="sent_to_hub">Received at Origin Hub</option>
+              <option value="verified">Verified & Sealed</option>
+              <option value="in_transit">In Transit</option>
+              <option value="arrived_at_dest_hub">At Destination Hub</option>
+              <option value="out_for_delivery">Out for Delivery</option>
               <option value="delivered">Delivered</option>
               <option value="disputed">Disputed</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            <button class="btn btn-primary" onclick="refreshOrders()">
-              <i class="fas fa-sync-alt"></i>
-              Refresh
-            </button>
-            <button class="btn btn-secondary" onclick="exportOrders()">
-              <i class="fas fa-download"></i>
-              Export
-            </button>
           </div>
         </div>
         <!-- Order Status Overview -->
@@ -737,53 +735,56 @@
           </div>
         </div>
       </section>
-       <section class="admin-section" id="analytics-section">
-        <div class="section-header">
-          <h2>Analytics & Reports</h2>
-          <div class="section-actions">
-            <select class="filter-select" id="analyticsPeriod">
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last year</option>
-            </select>
-            <button class="btn btn-primary" onclick="generateReport()">
-              <i class="fas fa-chart-line"></i>
-              Generate Report
-            </button>
+
+      <!-- Advanced Analytics v2 Section (Staff) -->
+      <section class="admin-section" id="analytics-section">
+        <div class="section-header" style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-left: 4px solid #4f46e5;">
+          <div>
+            <h2 style="color: #1e293b; margin:0; display: flex; align-items: center;"><i class="fas fa-shield-alt" style="color: #4f46e5; margin-right: 10px;"></i>Platform Intelligence (Staff)</h2>
+            <p style="color: #64748b; font-size: 0.9rem; margin: 4px 0 0;">Monitoring ecosystem health and delivery performance</p>
           </div>
         </div>
-        <div class="analytics-grid">
-          <div class="analytics-card">
-            <h3>Revenue Analytics</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-line"></i>
-              <p>Revenue chart will be displayed here</p>
-            </div>
-          </div>
-          <div class="analytics-card">
-            <h3>User Growth</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-bar"></i>
-              <p>User growth chart will be displayed here</p>
-            </div>
-          </div>
-          <div class="analytics-card">
-            <h3>Top Categories</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-pie"></i>
-              <p>Category distribution chart will be displayed here</p>
-            </div>
-          </div>
-          <div class="analytics-card">
-            <h3>Dispute Resolution</h3>
-            <div class="chart-placeholder">
-              <i class="fas fa-chart-area"></i>
-              <p>Dispute resolution chart will be displayed here</p>
-            </div>
-          </div>
+
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+           <div class="stat-card" style="border-radius: 16px;">
+              <div class="stat-icon" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5;">
+                <i class="fas fa-truck-loading"></i>
+              </div>
+              <div class="stat-content">
+                <h3 id="v2-staffOrderCount">0</h3>
+                <p>Orders in Pipeline</p>
+              </div>
+           </div>
+           <div class="stat-card" style="border-radius: 16px;">
+              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="stat-content">
+                <h3 id="v2-staffCompletedCount">0</h3>
+                <p>Completed (Global)</p>
+              </div>
+           </div>
+           <div class="stat-card" style="border-radius: 16px;">
+              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <i class="fas fa-history"></i>
+              </div>
+              <div class="stat-content">
+                <h3 id="v2-staffServiceRate">0%</h3>
+                <p>Service Efficiency</p>
+              </div>
+           </div>
+        </div>
+
+        <div class="content-card" style="border-radius: 20px; padding: 25px;">
+           <div class="card-header" style="border:none; padding: 0 0 20px 0;">
+              <h3 style="font-size: 1.25rem;">Ecosystem Order Trajectory</h3>
+           </div>
+           <div style="height: 350px;">
+              <canvas id="v2-staffRevenueChart"></canvas>
+           </div>
         </div>
       </section>
+
     </main>
   </div>
 
@@ -791,7 +792,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
   <script>
     const firebaseConfig = {
@@ -1027,12 +1028,10 @@
             <p><strong>Date Generated:</strong> <span id="vDispDate"></span></p>
          </div>
       </div>
-      <div class="investigation-notes-section" style="margin-bottom: 20px;">
-          <h3 style="font-size: 1.1rem; color: #374151; margin-bottom: 10px;">Investigation Notes</h3>
-          <div id="vDispNotesArea" style="max-height: 200px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px;">
-               <!-- dynamic notes -->
-          </div>
+      <div id="vDispEvidenceGallery" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+          <!-- Images injected here -->
       </div>
+
       <div style="text-align: right; border-top: 1px solid #eee; padding-top: 20px;">
         <button type="button" class="btn btn-secondary" onclick="closeDisputeViewModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Close</button>
       </div>
@@ -1247,6 +1246,47 @@
       <div style="text-align: right; margin-top: 25px;">
         <button class="btn btn-secondary" onclick="closeWithdrawalApproveModal()" style="margin-right: 10px;">Cancel</button>
         <button class="btn btn-success" onclick="processWithdrawalApproval()">Pay & Complete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arbitration Enforcer Modal -->
+  <div id="arbitrationEnforcerModal" class="modal"
+    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-content"
+      style="background-color: #fefefe; margin: 10% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 450px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-top: 5px solid #ef4444;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+        <h2 style="margin: 0; font-size: 1.4rem; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-gavel" style="color: #ef4444;"></i> Arbitration Ruling
+        </h2>
+        <span class="close" onclick="closeArbitrationModal()"
+          style="color: #9ca3af; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+      </div>
+      
+      <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">
+          Enforce a final resolution for Dispute <strong id="arbitrationDisputeIdText" style="color: #111827;"></strong>. 
+          This action will permanently lock the core system state and command the Escrow engine to release funds based on your selection.
+      </p>
+
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Financial Outcome</label>
+        <select id="arbitrationOutcome" class="form-input" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb;">
+          <option value="refund_buyer">Refund Buyer (Cancel Escrow)</option>
+          <option value="release_seller">Release to Seller (Authorize Escrow)</option>
+          <option value="partial_split">50/50 Split (Distribute Escrow)</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Official Justification / Notes</label>
+        <textarea id="arbitrationNotes" class="form-input" rows="3" placeholder="Explain the reasoning behind this financial decision. This will be sent to both parties..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; resize: none;"></textarea>
+      </div>
+
+      <div style="text-align: right; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeArbitrationModal()" style="padding: 10px 15px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="enforceArbitrationRuling()" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            <i class="fas fa-lock"></i> Enforce Ruling
+        </button>
       </div>
     </div>
   </div>

@@ -106,58 +106,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 adminData.staff = staffList.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
                 
                 // Update specific Stats counter
-                const countBadge = document.querySelector('a[onclick="showSection(\\\'staff\\\')"] .badge');
-                if(countBadge) countBadge.innerText = staffList.length;
+                const staffLink = document.querySelector('a[data-section="staff"]');
+                if(staffLink) {
+                    const badge = staffLink.querySelector('.nav-badge');
+                    if(badge) badge.innerText = staffList.length;
+                }
             }
             
-            const tbody = document.querySelector('#staffTable tbody');
-            if (tbody) {
-                if (staffList.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No staff found.</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = staffList.map(s => {
-                    let rolesHtml = '';
-                    if (Array.isArray(s.roles)) {
-                        rolesHtml = s.roles.map(r => `<span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">${r}</span>`).join('');
-                    } else if (s.role) {
-                        rolesHtml = `<span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">${s.role}</span>`;
-                    } else {
-                        rolesHtml = `<span style="background: #f3f4f6; color: #4b5563; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">Regular Staff</span>`;
-                    }
-                    
-                    const isActive = s.status === 'Active' !== false;
-                    return `
-                      <tr style="border-bottom: 1px solid #f3f4f6; transition: background-color 0.2s;">
-                        <td style="vertical-align: middle; padding: 16px 12px;"><code style="background: #f3f4f6; padding: 4px 6px; border-radius: 4px; color: #4b5563; font-size: 0.8rem;">${s.id ? s.id.substring(0,8) : 'N/A'}</code></td>
-                        <td style="vertical-align: middle; padding: 16px 12px; font-weight: 600; color: #111827;">${s.fullName || s.name || 'Unknown'}</td>
-                        <td style="vertical-align: middle; padding: 16px 12px; color: #6b7280; font-size: 0.9rem;">@${s.username || 'unknown'}</td>
-                        <td style="vertical-align: middle; padding: 16px 12px; color: #4b5563; font-size: 0.9rem;">${s.email || '-'}</td>
-                        <td style="vertical-align: middle; padding: 16px 12px;">
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap; max-width: 250px;">
-                                ${rolesHtml}
-                            </div>
-                        </td>
-                        <td style="vertical-align: middle; padding: 16px 12px;">
-                            <span class="status-badge ${isActive ? 'active' : 'inactive'}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 20px;">
-                                ${isActive ? 'Active' : 'Inactive'}
-                            </span>
-                        </td>
-                        <td style="vertical-align: middle; padding: 16px 12px;">
-                          <div style="display: flex; gap: 8px; justify-content: flex-start;">
-                              <button class="btn btn-sm btn-primary" onclick="editStaff('${s.id}')" style="padding: 6px 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-edit"></i> Edit</button>
-                              <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}')" style="padding: 6px 10px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
-                          </div>
-                        </td>
-                      </tr>
-                    `;
-                }).join('');
-            }
+            // Call the shared update function
+            window.updateStaffTable();
         });
     } catch (e) {
         console.error("Staff engine listener error:", e);
     }
 });
+
+// New searchable render function
+window.updateStaffTable = function(searchTerm) {
+    const tbody = document.querySelector('#staffTable tbody');
+    if (!tbody || typeof adminData === 'undefined') return;
+
+    // Sync state if passed directly
+    if (searchTerm !== undefined) adminData.currentSearch.staff = searchTerm;
+    const query = (adminData.currentSearch.staff || "").toLowerCase().trim();
+
+    let staffList = adminData.staff || [];
+
+    // Filter based on query
+    if (query) {
+        staffList = staffList.filter(s => {
+            const name = (s.fullName || s.name || "").toLowerCase();
+            const user = (s.username || "").toLowerCase();
+            const mail = (s.email || "").toLowerCase();
+            const roles = Array.isArray(s.roles) ? s.roles.join(' ').toLowerCase() : (s.role || "").toLowerCase();
+            const id = (s.id || "").toLowerCase();
+
+            return name.includes(query) || user.includes(query) || mail.includes(query) || roles.includes(query) || id.includes(query);
+        });
+    }
+
+    if (staffList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center">${query ? 'No matching staff found.' : 'No staff found.'}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = staffList.map(s => {
+        let rolesHtml = '';
+        if (Array.isArray(s.roles)) {
+            rolesHtml = s.roles.map(r => `<span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">${r}</span>`).join('');
+        } else if (s.role) {
+            rolesHtml = `<span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">${s.role}</span>`;
+        } else {
+            rolesHtml = `<span style="background: #f3f4f6; color: #4b5563; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">Regular Staff</span>`;
+        }
+        
+        const isActive = s.status === 'Active' || s.status === true;
+        return `
+            <tr style="border-bottom: 1px solid #f3f4f6; transition: background-color 0.2s;">
+            <td style="vertical-align: middle; padding: 16px 12px;"><code style="background: #f3f4f6; padding: 4px 6px; border-radius: 4px; color: #4b5563; font-size: 0.8rem;">${s.id ? s.id.substring(0,8) : 'N/A'}</code></td>
+            <td style="vertical-align: middle; padding: 16px 12px; font-weight: 600; color: #111827;">${s.fullName || s.name || 'Unknown'}</td>
+            <td style="vertical-align: middle; padding: 16px 12px; color: #6b7280; font-size: 0.9rem;">@${s.username || 'unknown'}</td>
+            <td style="vertical-align: middle; padding: 16px 12px; color: #4b5563; font-size: 0.9rem;">${s.email || '-'}</td>
+            <td style="vertical-align: middle; padding: 16px 12px;">
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; max-width: 250px;">
+                    ${rolesHtml}
+                </div>
+            </td>
+            <td style="vertical-align: middle; padding: 16px 12px;">
+                <span class="status-badge ${isActive ? 'active' : 'inactive'}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 20px;">
+                    ${isActive ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td style="vertical-align: middle; padding: 16px 12px;">
+                <div style="display: flex; gap: 8px; justify-content: flex-start;">
+                    <button class="btn btn-sm btn-primary" onclick="editStaff('${s.id}')" style="padding: 6px 12px; display: flex; align-items: center; gap: 5px;"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}')" style="padding: 6px 10px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+            </tr>
+        `;
+    }).join('');
+};
 
 window.editStaff = async function(staffId) {
     if(!staffId || typeof adminData === 'undefined') return;

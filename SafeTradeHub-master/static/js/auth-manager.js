@@ -116,6 +116,11 @@ class AuthManager {
               ...dbUserData
             };
 
+            // Update lastLogin tracking
+            firebase.database().ref('users/' + firebaseUser.uid).update({
+              lastLogin: new Date().toISOString()
+            }).catch(e => console.warn('Failed to update lastLogin:', e));
+
             await this.setAuthData(userData, null);
 
             // Set up real-time listener if not already done
@@ -424,6 +429,11 @@ class AuthManager {
           name: credential.user.displayName || 'User',
           provider: 'firebase'
         };
+
+        // Update lastLogin tracking
+        firebase.database().ref('users/' + user.uid).update({
+          lastLogin: new Date().toISOString()
+        }).catch(e => console.warn('Failed to update lastLogin on signin:', e));
 
         await this.setAuthData(user, null);
         return { success: true, user };

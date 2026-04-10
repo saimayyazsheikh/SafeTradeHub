@@ -1,3 +1,8 @@
+// V2 Analytics State Management (Absolute Hoisting)
+window.v2Charts = window.v2Charts || {}; 
+window.v2AnalyticsActive = false;
+window.v2GlobalStats = null;
+
 /* ========================================
    ADMIN-DASHBOARD.JS - Real-time Admin Dashboard
    ======================================== */
@@ -51,7 +56,20 @@ let adminData = {
   transactions: [],
   logistics: {},
   recentActivity: [],
-  currentSearch: { users: '', products: '', disputes: '', withdrawals: '', deposits: '', verification: '', category: '' }
+  currentSearch: { 
+    users: '', 
+    products: '', 
+    disputes: '', 
+    orders: '', 
+    staff: '', 
+    escrow: '', 
+    verification: '', 
+    transactions: '',
+    category: '',
+    orderStatus: '',
+    escrowStatus: '',
+    disputeStatus: '' 
+  }
 };
 
 // Initialize on page load
@@ -79,6 +97,9 @@ async function initializeDashboard() {
 
   // Load initial data
   await loadDashboardData();
+
+  // Initialize Sidebar Analytics Snapshot
+  initDashboardSidebarAnalytics();
 
   // Set user role for notification manager
   if (window.NotificationManager) {
@@ -169,9 +190,7 @@ async function loadSectionData(sectionName) {
     case 'products':
       await loadProductsData();
       break;
-    case 'categories':
-      await loadCategoriesData();
-      break;
+
     case 'orders':
       await loadOrdersData();
       break;
@@ -298,8 +317,63 @@ async function loadDashboardData() {
 // Refresh Dashboard
 window.refreshDashboard = async function () {
   await loadDashboardData();
+  if (typeof initDashboardSidebarAnalytics === 'function') initDashboardSidebarAnalytics();
   showSuccess('Dashboard refreshed successfully');
 };
+
+/**
+ * Sidebar Analytics Snapshot Implementation
+ */
+function initDashboardSidebarAnalytics() {
+    if (typeof STHAnalytics === 'undefined') return;
+
+    STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
+        // 1. Update Sidebar Mini Stats
+        const fulfillmentEl = document.getElementById('sideFulfillmentRate');
+        const issuesEl = document.getElementById('sideActiveIssues');
+        
+        if (fulfillmentEl) fulfillmentEl.innerText = stats.counters.fulfillmentRate + '%';
+        if (issuesEl) issuesEl.innerText = stats.counters.activeDisputes;
+
+        // 2. Render Sidebar Revenue Chart (Minimalist)
+        const canvasId = 'dashboardSidebarChart';
+        const trendData = stats.charts.revenueTrend;
+        
+        const labels = Object.keys(trendData || {}).sort().slice(-7); // Last 7 data points
+        const data = labels.map(l => trendData[l]);
+
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        if (window.v2Charts.sidePulse) window.v2Charts.sidePulse.destroy();
+
+        window.v2Charts.sidePulse = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels.map(l => l.split('-').slice(1).join('/')),
+                datasets: [{
+                    data: data,
+                    borderColor: '#4f46e5',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    fill: true,
+                    backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, beginAtZero: true }
+                }
+            }
+        });
+    });
+}
 
 // Logout Functionality
 window.logout = async function() {
@@ -572,12 +646,24 @@ async function loadOrdersData() {
 
     
 
-    // Calculate status counts from real data
+    // Calculate status counts from real data (Aggregated for dashboard summary)
     const statusCounts = {
-      pending: adminData.orders.filter(o => o.status === 'pending').length,
-      shipped: adminData.orders.filter(o => o.status === 'shipped' || o.status === 'shipped_to_escrow').length,
-      delivered: adminData.orders.filter(o => o.status === 'delivered' || o.status === 'completed').length,
-      disputed: adminData.orders.filter(o => o.status === 'disputed').length
+      pending: adminData.orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return s === 'pending' || s === 'placed';
+      }).length,
+      shipped: adminData.orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return ['sent_to_hub', 'received_at_origin', 'verified', 'sealed', 'in_transit', 'arrived_at_dest_hub', 'at_destination', 'out_for_delivery', 'shipped', 'shipped_to_escrow'].includes(s);
+      }).length,
+      delivered: adminData.orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return s === 'delivered' || s === 'completed';
+      }).length,
+      disputed: adminData.orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return s === 'disputed';
+      }).length
     };
 
     // Update order status counts
@@ -608,7 +694,10 @@ function updateGlobalLogisticsPipeline() {
   const filteredOrders = adminData.orders.filter(o => o.status !== 'cancelled');
   
   // Calculate Global Metrics
-  const deliveredCount = adminData.orders.filter(o => o.status === 'delivered' || o.status === 'completed').length;
+  const deliveredCount = adminData.orders.filter(o => {
+    const s = (o.status || '').toLowerCase();
+    return s === 'delivered' || s === 'completed';
+  }).length;
   updateElementText('deliveredTotal', deliveredCount);
   
   // Bottlenecks: Orders with status not updated in > 24 hours
@@ -659,8 +748,8 @@ function updateGlobalLogisticsPipeline() {
             </div>
         </td>
         <td>
-            <span class="status-badge ${statusClass}" style="text-transform: capitalize;">
-                ${o.status.replace(/_/g, ' ')}
+            <span class="status-badge ${statusClass}">
+                ${formatOrderStatus(o.status)}
             </span>
         </td>
         <td>
@@ -742,70 +831,7 @@ async function loadProductsData() {
 }
 
 // Load Categories Data
-async function loadCategoriesData() {
-  try {
-    showLoading('categories');
 
-    // Get categories from products (since we don't have a dedicated categories node yet)
-    const products = adminData.products;
-    const uniqueCategories = [...new Set(products.map(p => p.category))].filter(Boolean);
-
-    adminData.categories = uniqueCategories.map((category, index) => ({
-      id: category.toLowerCase().replace(/\s+/g, '-'),
-      name: category,
-      description: `All ${category} related products`,
-      productCount: products.filter(p => p.category === category).length,
-      status: 'Active',
-      createdAt: new Date().toISOString() // Placeholder date
-    }));
-
-    
-    updateCategoriesTable();
-    updateElementText('categoriesCount', adminData.categories.length);
-
-    hideLoading('categories');
-  } catch (error) {
-    console.error('Error loading categories data:', error);
-    showError('Failed to load categories data');
-    hideLoading('categories');
-  }
-}
-
-// Update Categories Table
-function updateCategoriesTable() {
-  const tableBody = document.querySelector('#categoriesTable tbody');
-  if (!tableBody) return;
-
-  if (adminData.categories.length === 0) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center">No categories found</td>
-      </tr>
-    `;
-    return;
-  }
-
-  tableBody.innerHTML = adminData.categories.map((category, index) => {
-    const seqId = (index + 1).toString().padStart(3, '0');
-    return `
-    <tr>
-      <td>${seqId}</td>
-      <td><span style="font-weight: 600; text-transform: capitalize;">${category.name}</span></td>
-      <td>${category.description}</td>
-      <td><span class="badge badge-primary">${category.productCount} Products</span></td>
-      <td><span class="status-badge active">${category.status}</span></td>
-      <td>${new Date(category.createdAt).toLocaleDateString()}</td>
-      <td>
-        <button class="btn btn-sm btn-primary" onclick="viewCategory('${category.id}')" title="View Details">
-            <i class="fas fa-eye"></i>
-        </button>
-        <button class="btn btn-sm btn-secondary" onclick="editCategory('${category.id}')" title="Edit Category">
-            <i class="fas fa-edit"></i>
-        </button>
-      </td>
-    </tr>
-  `}).join('');
-}
 
 // Load Disputes Data
 async function loadDisputesData() {
@@ -862,24 +888,52 @@ async function loadEscrowData() {
 }
 
 // Update Escrow Table
-function updateEscrowTable() {
-  const tableBody = document.querySelector('#escrowTableBody'); // Ensure your HTML has this ID or generic table selector
+function updateEscrowTable(searchTerm) {
+  const tableBody = document.querySelector('#escrowTableBody');
+  // Sync state if passed directly
+  if (searchTerm !== undefined) adminData.currentSearch.escrow = searchTerm;
+  const query = (adminData.currentSearch.escrow || "").toLowerCase().trim();
+
   // Fallback selector if specific ID missing
   const container = document.getElementById('escrow-section');
-  const tbody = container ? container.querySelector('tbody') : null;
+  const tbody = tableBody || (container ? container.querySelector('tbody') : null);
 
   if (!tbody) return;
 
-  if (!adminData.escrows || adminData.escrows.length === 0) {
+  let escrows = adminData.escrows || [];
+
+  // Apply status filter
+  const statusFilter = (adminData.currentSearch.escrowStatus || "").toLowerCase();
+  if (statusFilter) {
+    escrows = escrows.filter(e => {
+      const s = (e.status || "").toLowerCase();
+      // 'held' value from dropdown matches 'held' or 'holding'
+      if (statusFilter === 'held') return s === 'held' || s === 'holding';
+      return s === statusFilter;
+    });
+  }
+
+  // Apply search filter
+  if (query) {
+    escrows = escrows.filter(e => {
+      const id = (e.id || "").toLowerCase();
+      const orderId = (e.orderId || "").toLowerCase();
+      const status = (e.status || "").toLowerCase();
+      const displayStatus = (e.orderStatus ? formatOrderStatus(e.orderStatus) : status).toLowerCase();
+      return id.includes(query) || orderId.includes(query) || status.includes(query) || displayStatus.includes(query);
+    });
+  }
+
+  if (escrows.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center">No active escrows found</td>
+        <td colspan="7" class="text-center">${query ? 'No matching escrows found' : 'No active escrows found'}</td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = adminData.escrows.map((escrow, index) => {
+  tbody.innerHTML = escrows.map((escrow, index) => {
     const amount = parseFloat(escrow.amount || 0).toLocaleString();
     const status = (escrow.status || 'pending').toLowerCase();
     // Map status to CSS classes in dashboard.css
@@ -889,6 +943,9 @@ function updateEscrowTable() {
     else if (status === 'holding' || status === 'held') statusClass = 'pending';
 
     const date = escrow.createdAt ? new Date(escrow.createdAt).toLocaleDateString() : 'N/A';
+    
+    // Determine Display Status (Format order status if applicable, otherwise use escrow status)
+    const displayStatus = escrow.orderStatus ? formatOrderStatus(escrow.orderStatus) : (status.charAt(0).toUpperCase() + status.slice(1));
 
     // Check if actionable
     const canRelease = status === 'holding' || status === 'held';
@@ -920,7 +977,7 @@ function updateEscrowTable() {
       <td>#${escrow.id.substring(0, 8)}</td>
       <td>${orderLink}</td>
       <td>RS ${amount}</td>
-      <td><span class="status-badge ${statusClass}">${status.toUpperCase()}</span></td>
+      <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
       <td>${date}</td>
       <td>
         <div style="display: flex; gap: 8px;">
@@ -1632,8 +1689,8 @@ async function loadWalletData() {
       snapshot.forEach(child => {
         transactions.push({ id: child.key, ...child.val() });
       });
-      transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      renderWalletTransactions(transactions);
+      adminData.transactions = transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      renderWalletTransactions();
     });
 
   } catch (error) {
@@ -1856,14 +1913,67 @@ function updateElementText(id, text) {
   if (el) el.textContent = text;
 }
 
-// Helper for status colors
 function getStatusBadgeColor(status) {
-  switch (status) {
-    case 'approved': return 'success';
-    case 'pending': return 'warning';
-    case 'rejected': return 'danger';
-    default: return 'secondary';
+  const s = (status || '').toLowerCase();
+  switch (s) {
+    case 'pending': 
+    case 'order placed':
+    case 'placed':
+      return 'warning';
+      
+    case 'sent_to_hub':
+    case 'received_at_origin':
+    case 'received at origin hub':
+    case 'arrived_at_dest_hub':
+    case 'at destination hub':
+    case 'at_destination':
+      return 'primary';
+      
+    case 'verified':
+    case 'verified & sealed':
+    case 'sealed':
+    case 'delivered':
+    case 'approved':
+      return 'success';
+      
+    case 'in_transit':
+    case 'in transit':
+    case 'out_for_delivery':
+    case 'out for delivery':
+      return 'info';
+      
+    case 'disputed':
+    case 'rejected':
+      return 'danger';
+      
+    case 'cancelled':
+    case 'dismissed':
+      return 'secondary';
+      
+    default:
+      return 'secondary';
   }
+}
+
+// Map technical IDs to human tracking labels
+function formatOrderStatus(status) {
+  const s = (status || '').toLowerCase();
+  const mapping = {
+    'pending': 'Order Placed',
+    'placed': 'Order Placed',
+    'sent_to_hub': 'Received at Origin Hub',
+    'received_at_origin': 'Received at Origin Hub',
+    'verified': 'Verified & Sealed',
+    'sealed': 'Verified & Sealed',
+    'in_transit': 'In Transit',
+    'arrived_at_dest_hub': 'At Destination Hub',
+    'at_destination': 'At Destination Hub',
+    'out_for_delivery': 'Out for Delivery',
+    'delivered': 'Delivered',
+    'disputed': 'Disputed',
+    'cancelled': 'Cancelled'
+  };
+  return mapping[s] || status || 'Order Placed';
 }
 
 // Make functions global
@@ -2196,14 +2306,48 @@ function updateUsersTable(searchTerm = null) {
 }
 
 // Update Orders Table
-async function updateOrdersTable() {
+async function updateOrdersTable(searchTerm) {
   const tableBody = document.querySelector('#ordersTable tbody');
   if (!tableBody) return;
 
-  if (!adminData.orders || adminData.orders.length === 0) {
+  // Sync state if passed directly
+  if (searchTerm !== undefined) adminData.currentSearch.orders = searchTerm;
+  const query = (adminData.currentSearch.orders || "").toLowerCase().trim();
+  const statusFilter = (adminData.currentSearch.orderStatus || "").toLowerCase().trim();
+
+  let filteredOrders = adminData.orders || [];
+
+  // 1. Apply Search Filter
+  if (query) {
+    filteredOrders = filteredOrders.filter(order => {
+      const id = (order.id || "").toLowerCase();
+      const buyerName = (order.buyer ? order.buyer.name : (order.buyerName || "")).toLowerCase();
+      const buyerEmail = (order.buyer ? order.buyer.email : (order.buyerEmail || "")).toLowerCase();
+      const sellerName = (order.sellerName || "").toLowerCase();
+      const statusText = (order.status || "").toLowerCase();
+      const tracking = (order.trackingNumber || "").toLowerCase();
+
+      return id.includes(query) || 
+             buyerName.includes(query) || 
+             buyerEmail.includes(query) || 
+             sellerName.includes(query) || 
+             statusText.includes(query) ||
+             tracking.includes(query);
+    });
+  }
+
+  // 2. Apply Status Filter
+  if (statusFilter) {
+    filteredOrders = filteredOrders.filter(order => {
+      const status = (order.status || "").toLowerCase();
+      return status === statusFilter;
+    });
+  }
+
+  if (filteredOrders.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="9" class="text-center">No orders found</td>
+        <td colspan="9" class="text-center">${query ? 'No matching orders found' : 'No orders found'}</td>
       </tr>
     `;
     return;
@@ -2212,7 +2356,7 @@ async function updateOrdersTable() {
   // Show loading state in table
   tableBody.innerHTML = '<tr><td colspan="9" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading order details...</td></tr>';
 
-  const rows = await Promise.all(adminData.orders.map(async (order) => {
+  const rows = await Promise.all(filteredOrders.map(async (order) => {
     // Format Date
     const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A';
 
@@ -2282,7 +2426,7 @@ async function updateOrdersTable() {
     const firebaseLink = `https://console.firebase.google.com/project/${projectId}/database/${dbInstance}/data/orders/${order.id}`;
 
     return `
-    <tr>
+    <tr data-status="${(order.status || 'pending').toLowerCase()}">
       <td>
         <a href="${firebaseLink}" target="_blank" title="View in Firebase Console" style="text-decoration: underline; color: #4f46e5; font-weight: bold;">
           #${order.id.slice(-6)}
@@ -2304,7 +2448,7 @@ async function updateOrdersTable() {
       </td>
       <td>${itemsSummary}</td>
       <td>${total}</td>
-      <td><span class="badge badge-${getStatusBadgeColor(order.status)}">${order.status || 'Pending'}</span></td>
+      <td><span class="badge badge-${getStatusBadgeColor(order.status)}">${formatOrderStatus(order.status)}</span></td>
       <td><span style="font-family: monospace;">${tracking}</span></td>
       <td>${date}</td>
       <td>
@@ -2432,7 +2576,7 @@ window.viewOrder = async function (orderId) {
           <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 0.9rem;">
             <span style="color: #6b7280;">Order ID:</span> <span style="font-weight: 500;">#${order.id}</span>
             <span style="color: #6b7280;">Date:</span> <span style="font-weight: 500;">${new Date(order.createdAt).toLocaleString()}</span>
-            <span style="color: #6b7280;">Status:</span> <span><span class="badge badge-${getStatusBadgeColor(order.status)}">${order.status}</span></span>
+            <span style="color: #6b7280;">Status:</span> <span><span class="badge badge-${getStatusBadgeColor(order.status)}">${formatOrderStatus(order.status)}</span></span>
             <span style="color: #6b7280;">Total:</span> <span style="font-weight: 600; color: #059669;">${formatCurrency(order.total)}</span>
           </div>
         </div>
@@ -2666,31 +2810,81 @@ function updateProductsTable(searchTerm = null, categoryFilter = null) {
 
 
 // Update Disputes Table
-function updateDisputesTable() {
+function updateDisputesTable(searchTerm) {
   const tableBody = document.querySelector('#disputesTable tbody');
   if (!tableBody) return;
 
-  if (adminData.disputes.length === 0) {
+  // Sync state if passed directly
+  if (searchTerm !== undefined) adminData.currentSearch.disputes = searchTerm;
+  const query = (adminData.currentSearch.disputes || "").toLowerCase().trim();
+  const statusFilter = (adminData.currentSearch.disputeStatus || "").toLowerCase().trim();
+
+  let disputes = adminData.disputes || [];
+
+  // 1. Apply status filter
+  if (statusFilter) {
+    disputes = disputes.filter(d => (d.status || "").toLowerCase() === statusFilter);
+  }
+
+  // 2. Apply search filter
+  if (query) {
+    disputes = disputes.filter(d => {
+      const id = (d.id || "").toLowerCase();
+      const orderId = (d.orderId || "").toLowerCase();
+      const issue = (d.issue || d.reason || "").toLowerCase();
+      const complainant = (d.complainantName || "").toLowerCase();
+      return id.includes(query) || orderId.includes(query) || issue.includes(query) || complainant.includes(query);
+    });
+  }
+
+  if (disputes.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center">No disputes found</td>
+        <td colspan="7" class="text-center">${query || statusFilter ? 'No matching disputes found' : 'No active disputes found'}</td>
       </tr>
     `;
     return;
   }
 
-  tableBody.innerHTML = adminData.disputes.map(dispute => `
+  // Helper for priority color
+  const getPriorityClass = (priority) => {
+    if (!priority) return 'badge-secondary';
+    const p = priority.toLowerCase();
+    if (p === 'high' || p === 'critical') return 'badge-danger';
+    if (p === 'medium') return 'badge-warning';
+    return 'badge-info';
+  };
+
+  tableBody.innerHTML = disputes.map(dispute => {
+    const date = dispute.createdAt ? new Date(dispute.createdAt).toLocaleDateString() : 'N/A';
+    const statusClass = (dispute.status || 'open').toLowerCase().replace(' ', '-');
+    
+    return `
     <tr>
-      <td>${dispute.id}</td>
-      <td>${dispute.orderId || 'N/A'}</td>
-      <td>${dispute.complainantName || 'N/A'}</td>
-      <td><span class="status-badge ${dispute.status}">${dispute.status || 'N/A'}</span></td>
+      <td>#${dispute.id.substring(0, 8)}</td>
+      <td><a href="#" onclick="viewOrder('${dispute.orderId}'); return false;">#${dispute.orderId ? dispute.orderId.substring(0, 8) : 'N/A'}</a></td>
       <td>
-        <button class="btn btn-sm btn-primary" onclick="viewDispute('${dispute.id}')">View</button>
-        <button class="btn btn-sm btn-success" onclick="resolveDispute('${dispute.id}')">Resolve</button>
+        <div style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${dispute.issue || dispute.reason || 'N/A'}">
+          ${dispute.issue || dispute.reason || 'N/A'}
+        </div>
+      </td>
+      <td><span class="badge ${getPriorityClass(dispute.priority)}">${(dispute.priority || 'Medium').toUpperCase()}</span></td>
+      <td><span class="status-badge ${statusClass}">${(dispute.status || 'Open').toUpperCase()}</span></td>
+      <td>${date}</td>
+      <td>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-primary" onclick="viewDispute('${dispute.id}')" title="View Details">
+                <i class="fas fa-eye"></i>
+            </button>
+            ${(dispute.status || 'open').toLowerCase() !== 'resolved' ? `
+            <button class="btn btn-sm btn-success" onclick="resolveDispute('${dispute.id}')" title="Resolve Dispute">
+                <i class="fas fa-gavel"></i>
+            </button>
+            ` : ''}
+        </div>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 // Update Transactions Table
@@ -2930,69 +3124,96 @@ function setupEventListeners() {
 }
 
 // Search and Filter Functions
+// Unified Search Router (State-Aware)
 function handleSearch(e) {
   const searchTerm = e.target.value;
   const id = e.target.id;
+  const query = searchTerm.toLowerCase().trim();
 
-  // Unified Search Routing (State-Aware)
+  // 1. Update Global State
+  if (id === 'userSearch') adminData.currentSearch.users = searchTerm;
+  else if (id === 'productSearch') adminData.currentSearch.products = searchTerm;
+  else if (id === 'orderSearch') adminData.currentSearch.orders = searchTerm;
+  else if (id === 'staffSearch') adminData.currentSearch.staff = searchTerm;
+  else if (id === 'escrowSearch') adminData.currentSearch.escrow = searchTerm;
+  else if (id === 'disputeSearch') adminData.currentSearch.disputes = searchTerm;
+  else if (id === 'verificationSearch') adminData.currentSearch.verification = searchTerm;
+  else if (id === 'walletSearch') adminData.currentSearch.transactions = searchTerm;
+
+  // 2. Specialized Rendering Calls
   if (id === 'userSearch') {
     updateUsersTable(searchTerm);
-    return;
-  }
-
-  if (id === 'verificationSearch') {
-    if (window.updateVerificationTable) {
-      updateVerificationTable(searchTerm);
-      return;
+  } else if (id === 'productSearch') {
+    updateProductsTable(searchTerm);
+  } else if (id === 'orderSearch') {
+    updateOrdersTable(searchTerm);
+  } else if (id === 'staffSearch') {
+    updateStaffTable(searchTerm);
+  } else if (id === 'verificationSearch') {
+    if (window.updateVerificationTable) updateVerificationTable(searchTerm);
+  } else if (id === 'escrowSearch') {
+    updateEscrowTable(searchTerm);
+  } else if (id === 'disputeSearch') {
+    updateDisputesTable(searchTerm);
+  } else if (id === 'walletSearch') {
+    renderWalletTransactions(searchTerm);
+  } else {
+    // Generic Row-Hiding Fallback for unhandled sections
+    const tableId = id.replace('Search', 'Table');
+    const tableMapping = { 
+      'userTable': 'usersTable', 
+      'productTable': 'productsTable', 
+      'transactionTable': 'transactionsTable' 
+    };
+    const targetId = tableMapping[tableId] || tableId;
+    const table = document.getElementById(targetId);
+    if (table) {
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
     }
   }
-
-  if (id === 'productSearch') {
-    updateProductsTable(searchTerm);
-    return;
-  }
-
-  // Generic Row-Hiding Fallback
-  const query = searchTerm.toLowerCase();
-  const tableId = id.replace('Search', 'Table');
-  
-  // Map IDs to specific table elements if they have irregular names
-  const tableMapping = { 
-    'userTable': 'usersTable', 
-    'productTable': 'productsTable', 
-    'transactionTable': 'transactionsTable' 
-  };
-  
-  const targetId = tableMapping[tableId] || tableId;
-  const table = document.getElementById(targetId);
-  
-  if (!table) return;
-
-  const rows = table.querySelectorAll('tbody tr');
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(query) ? '' : 'none';
-  });
 }
 
 function handleFilter(e) {
-  const filterValue = e.target.value;
+  const filterValue = e.target.value.toLowerCase().trim();
   const id = e.target.id;
 
   if (id === 'categoryFilter') {
-    updateProductsTable(null, filterValue);
+    adminData.currentSearch.category = filterValue;
+    updateProductsTable();
     return;
   }
 
+  if (id === 'orderStatusFilter') {
+    adminData.currentSearch.orderStatus = filterValue;
+    updateOrdersTable();
+    return;
+  }
+
+  if (id === 'escrowStatusFilter') {
+    adminData.currentSearch.escrowStatus = filterValue;
+    updateEscrowTable();
+    return;
+  }
+
+  if (id === 'disputeStatusFilter') {
+    adminData.currentSearch.disputeStatus = filterValue;
+    updateDisputesTable();
+    return;
+  }
+
+  // Generic Row-Hiding Fallback for other sections (Users, Transactions etc if they have basic filters)
   const tableId = id.replace('Filter', 'Table');
   const targetId = { 
     'userTable': 'usersTable', 
     'productTable': 'productsTable', 
-    'transactionTable': 'transactionsTable' 
+    'transactionTable': 'transactionsTable'
   }[tableId] || tableId;
   
   const table = document.getElementById(targetId);
-
   if (!table) return;
 
   const rows = table.querySelectorAll('tbody tr');
@@ -3002,11 +3223,11 @@ function handleFilter(e) {
       return;
     }
 
+    const dataStatus = row.getAttribute('data-status');
     const statusCell = row.querySelector('.status-badge');
-    if (statusCell) {
-      const status = statusCell.textContent.toLowerCase();
-      row.style.display = status.includes(filterValue.toLowerCase()) ? '' : 'none';
-    }
+    const statusText = dataStatus || (statusCell ? statusCell.textContent.toLowerCase() : '');
+    
+    row.style.display = statusText.includes(filterValue) ? '' : 'none';
   });
 }
 
@@ -3406,6 +3627,53 @@ function editCategory(categoryId) { alert(`Edit category: ${categoryId}`); }
 window.viewCategory = viewCategory;
 window.editCategory = editCategory;
 window.viewDispute = viewDispute;
+
+async function resolveDispute(id) {
+    const outcome = prompt('Select Arbitration Outcome:\n(e.g., refund_buyer, release_seller, replace_item)');
+    if (!outcome) return;
+    
+    const comments = prompt('Enter official Arbitration resolution summary (Mandatory):');
+    if (!comments) return;
+
+    if (!confirm(`Are you sure you want to enforce this resolution?\nOutcome: ${outcome}`)) return;
+
+    try {
+        const db = firebase.database();
+        await db.ref(`disputes/${id}`).update({
+            status: 'resolved',
+            outcome: outcome.toLowerCase(),
+            resolution: comments,
+            resolvedBy: 'Admin',
+            resolvedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        const dispSnap = await db.ref(`disputes/${id}`).once('value');
+        const disp = dispSnap.val();
+        
+        if (disp) {
+            const notifData = {
+                title: 'Dispute Arbitration Concluded',
+                message: `The arbitration for order #${(disp.orderId || '').slice(-6)} is complete. Outcome: ${outcome.toUpperCase()}.\nAdmin Notes: ${comments}`,
+                type: 'alert',
+                read: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            
+            if (disp.buyerId && disp.buyerId !== 'unknown') await db.ref(`users/${disp.buyerId}/notifications`).push(notifData);
+            if (disp.sellerId && disp.sellerId !== 'unknown') await db.ref(`users/${disp.sellerId}/notifications`).push(notifData);
+            if (disp.orderId) await db.ref(`orders/${disp.orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
+        }
+        
+        if (window.NotificationManager) {
+             window.NotificationManager.showToast('Dispute Resolved', 'The arbitration ruling has been securely enforced.', 'success');
+        } else {
+             alert('Arbitration ruling successfully enforced.');
+        }
+    } catch (e) {
+        console.error('Arbitration Error:', e);
+        alert('Critical error while enforcing resolution. See console.');
+    }
+}
 window.resolveDispute = resolveDispute;
 window.viewTransaction = viewTransaction;
 window.viewEscrow = viewEscrow;
@@ -3553,35 +3821,52 @@ function renderWithdrawals(withdrawals) {
 }
 
 // Render Wallet Transactions Table
-function renderWalletTransactions(withdrawals) {
+function renderWalletTransactions(searchTerm) {
   const tbody = document.getElementById('walletTransactionsTableBody');
   if (!tbody) return;
 
-  // Combine withdrawals and other transactions if available
-  const transactions = withdrawals.map(w => ({
-    id: w.id,
-    user: w.userName,
-    type: 'Withdrawal',
-    amount: w.amount,
-    status: w.status,
-    date: w.createdAt
-  })).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+  // Sync state if passed directly
+  if (searchTerm !== undefined) adminData.currentSearch.transactions = searchTerm;
+  const query = (adminData.currentSearch.transactions || "").toLowerCase().trim();
 
-  if (transactions.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">No recent transactions</td></tr>';
+  let transactions = adminData.transactions || [];
+
+  // Apply search filter
+  if (query) {
+    transactions = transactions.filter(t => {
+      const id = (t.id || "").toLowerCase();
+      const user = (t.userName || t.user || "").toLowerCase();
+      const type = (t.type || t.title || "").toLowerCase();
+      const status = (t.status || "").toLowerCase();
+      const amount = (t.amount || "").toString();
+
+      return id.includes(query) || user.includes(query) || type.includes(query) || status.includes(query) || amount.includes(query);
+    });
+  }
+
+  const displayList = transactions.slice(0, 50);
+
+  if (displayList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center">${query ? 'No matching transactions' : 'No recent transactions'}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = transactions.map(t => `
-    <tr>
-      <td>#${t.id.substring(1, 6)}</td>
-      <td>${t.user || 'Unknown'}</td>
-      <td>${t.type}</td>
-      <td>RS ${t.amount.toLocaleString()}</td>
-      <td><span class="badge badge-${t.status === 'approved' ? 'success' : t.status === 'rejected' ? 'danger' : 'warning'}">${t.status}</span></td>
-      <td>${new Date(t.date).toLocaleDateString()}</td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = displayList.map(t => {
+    const status = t.status || 'completed';
+    const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' : 
+                        status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
+    
+    return `
+      <tr>
+        <td>#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
+        <td>${t.userName || t.user || 'Unknown'}</td>
+        <td>${t.type || t.title || 'Transaction'}</td>
+        <td>RS ${(t.amount || 0).toLocaleString()}</td>
+        <td><span class="badge badge-${statusClass}">${status}</span></td>
+        <td>${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // Approve Withdrawal
@@ -4413,3 +4698,99 @@ window.updateAdminPassword = async function() {
         btn.innerHTML = originalContent;
     }
 };
+
+/**
+ * v2 Isolated Analytics Implementation
+ */
+
+async function loadAnalyticsData() {
+    console.log('🚀 Syncing Platform Intelligence...');
+    
+    // 1. Ensure section is visible for layout calculations
+    const section = document.getElementById('analytics-section');
+    if (!section || !section.classList.contains('active')) return;
+
+    if (typeof STHAnalytics === 'undefined') {
+        console.error('Analytics Engine core missing!');
+        return;
+    }
+
+    // 2. Prevent Duplicate Listeners
+    if (v2AnalyticsActive) {
+        console.log('📡 Analytics stream already active. Refreshing current view...');
+        if (v2GlobalStats) refreshAllCharts();
+        return;
+    }
+
+    // Initialize Category Toggle State
+    let categoryMode = 'volume'; 
+
+    const setupToggles = () => {
+        const btnVol = document.getElementById('catToggleVolume');
+        const btnVal = document.getElementById('catToggleValue');
+        if (!btnVol || !btnVal) return;
+
+        btnVol.onclick = () => {
+            categoryMode = 'volume';
+            btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+            btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
+            if (v2GlobalStats) refreshCategoryChart();
+        };
+
+        btnVal.onclick = () => {
+            categoryMode = 'value';
+            btnVal.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
+            btnVol.style.cssText = 'border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;';
+            if (v2GlobalStats) refreshCategoryChart();
+        };
+    };
+
+    const refreshCategoryChart = () => {
+        if (!v2GlobalStats) return;
+        if (v2Charts.category) { v2Charts.category.destroy(); v2Charts.category = null; }
+        v2Charts.category = STHAnalytics.Admin.renderCategoryChart('v2-categoryChart', v2GlobalStats.charts.categories, categoryMode);
+    };
+
+    const refreshAllCharts = () => {
+        if (!v2GlobalStats) return;
+        
+        // Use timeout to ensure DOM layout is complete
+        setTimeout(() => {
+            if (v2Charts.revenue) v2Charts.revenue.destroy();
+            v2Charts.revenue = STHAnalytics.Admin.renderRevenueChart('v2-revenueChart', v2GlobalStats.charts.revenueTrend);
+
+            if (v2Charts.growth) v2Charts.growth.destroy();
+            v2Charts.growth = STHAnalytics.Admin.renderGrowthChart('v2-growthChart', v2GlobalStats.charts.userGrowth);
+
+            refreshCategoryChart();
+        }, 50);
+    };
+
+    setupToggles();
+
+    // 3. Start Global Stream
+    STHAnalytics.Admin.listenToGlobalMetrics((stats) => {
+        v2GlobalStats = stats;
+        v2AnalyticsActive = true;
+
+        // Update Top Counters
+        const elements = {
+            'v2-totalRevenue': 'RS ' + stats.counters.revenue.toLocaleString(),
+            'v2-orderCount': stats.counters.orders.toLocaleString(),
+            'v2-escrowValue': 'RS ' + stats.counters.escrowValue.toLocaleString(),
+            'v2-activeDisputes': stats.counters.activeDisputes.toLocaleString(),
+            'v2-usersNew24h': stats.counters.usersNew24h.toLocaleString(),
+            'v2-fulfillmentRate': stats.counters.fulfillmentRate + '%'
+        };
+
+        Object.keys(elements).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = elements[id];
+        });
+
+        const progress = document.getElementById('v2-fulfillmentProgress');
+        if (progress) progress.style.width = stats.counters.fulfillmentRate + '%';
+
+        refreshAllCharts();
+    });
+}
