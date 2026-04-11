@@ -1644,6 +1644,8 @@ async function loadWalletData() {
     // Sort users by createdAt to ensure consistent ID numbering
     users.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     adminData.users = users; // Save to global data
+    // Map for faster lookups
+    users.forEach(u => { globalUsersMap[u.id] = u; });
 
     // 1. Load Deposits
     db.ref('deposits').on('value', (snapshot) => {
@@ -1750,7 +1752,7 @@ function renderDeposits(deposits) {
             <td>
                 <div class="d-flex align-items-center">
                     <div>
-                        <div class="fw-bold">${deposit.userName || 'Unknown'}</div>
+                        <div class="fw-bold" style="color: #1e293b;">${deposit.userName || 'Unknown'}</div>
                         <div class="text-muted small">
                             <a href="#" onclick="viewUser('${deposit.userId}'); return false;" style="text-decoration: none; color: #667eea; font-weight: 600;">
                                 ${userDisplayId}
@@ -1762,21 +1764,26 @@ function renderDeposits(deposits) {
             <td>RS ${parseFloat(deposit.amount).toLocaleString()}</td>
             <td>${deposit.method}</td>
             <td>
-                <a href="${deposit.screenshotUrl}" target="_blank" class="btn btn-sm btn-info">
-                    <i class="fas fa-image"></i> View
+                <a href="${deposit.screenshotUrl}" target="_blank" class="btn btn-sm btn-outline-info" style="border-radius: 6px; font-weight: 600; padding: 4px 10px;">
+                    <i class="fas fa-image" style="margin-right: 4px;"></i> View
                 </a>
             </td>
             <td><span class="badge bg-${getStatusBadgeColor(deposit.status)}">${deposit.status}</span></td>
             <td>${new Date(deposit.createdAt).toLocaleDateString()}</td>
             <td>
-                ${deposit.status === 'pending' ? `
-                <button class="btn btn-sm btn-success me-1" onclick="approveDeposit('${deposit.id}')">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="rejectDeposit('${deposit.id}')">
-                    <i class="fas fa-times"></i>
-                </button>
-                ` : '-'}
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-sm btn-outline-primary" onclick="openDepositView('${deposit.id}')" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${deposit.status === 'pending' ? `
+                    <button class="btn btn-sm btn-success" onclick="approveDeposit('${deposit.id}')" title="Approve">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectDeposit('${deposit.id}')" title="Reject">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    ` : ''}
+                </div>
             </td>
         `;
     tbody.appendChild(tr);
@@ -3708,19 +3715,15 @@ document.addEventListener('DOMContentLoaded', () => {
       adminDropdown.style.display = adminDropdown.style.display === 'block' ? 'none' : 'block';
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (!adminUserBtn.contains(e.target) && !adminDropdown.contains(e.target)) {
         adminDropdown.style.display = 'none';
       }
     });
   }
-
-
 });
 
 
-// Duplicate loadWalletData removed. Using the one defined earlier.
 
 // Render Withdrawals Table with Event Delegation Support
 function renderWithdrawals(withdrawals) {
@@ -3740,40 +3743,29 @@ function renderWithdrawals(withdrawals) {
     const userDisplayId = getUserDisplayId(w.userId);
 
     // Use data attributes for event delegation
-    const viewBtn = w.status === 'pending' ? `
-      <button class="btn btn-sm btn-outline-primary withdrawal-action-btn"
-              data-action="view"
-              data-id="${w.id}"
-              data-uid="${w.userId}"
-              title="View">
-        <i class="fas fa-eye"></i>
-      </button>` : `
-      <button class="btn btn-sm btn-outline-secondary withdrawal-action-btn"
-              data-action="view"
-              data-id="${w.id}"
-              data-uid="${w.userId}"
-              title="View">
+    const viewBtn = `
+      <button class="btn btn-sm btn-outline-primary withdrawal-action-btn" 
+              data-action="view" 
+              data-id="${w.id}" 
+              title="View Details">
         <i class="fas fa-eye"></i>
       </button>`;
 
-    const actionButtons = w.status === 'pending' ? `
-      <div class="d-flex gap-1">
-        ${viewBtn}
-        <button class="btn btn-sm btn-success withdrawal-action-btn"
-                data-action="approve"
-                data-id="${w.id}"
-                data-uid="${w.userId}"
-                title="Approve">
-          <i class="fas fa-check"></i>
-        </button>
-        <button class="btn btn-sm btn-danger withdrawal-action-btn"
-                data-action="reject"
-                data-id="${w.id}"
-                data-uid="${w.userId}"
-                title="Reject">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>` : viewBtn;
+    const approveBtn = w.status === 'pending' ? `
+      <button class="btn btn-sm btn-success withdrawal-action-btn" 
+              data-action="approve" 
+              data-id="${w.id}" 
+              title="Approve">
+        <i class="fas fa-check"></i>
+      </button>` : '';
+
+    const rejectBtn = w.status === 'pending' ? `
+      <button class="btn btn-sm btn-danger withdrawal-action-btn" 
+              data-action="reject" 
+              data-id="${w.id}" 
+              title="Reject">
+        <i class="fas fa-times"></i>
+      </button>` : '';
 
     return `
     <tr>
@@ -3781,7 +3773,7 @@ function renderWithdrawals(withdrawals) {
       <td>
         <div class="d-flex align-items-center">
             <div>
-                <div class="fw-bold">${w.userName || 'Unknown'}</div>
+                <div class="fw-bold" style="color: #1e293b;">${w.userName || 'Unknown'}</div>
                 <div class="text-muted small">
                     <a href="#" class="view-user-link" data-user-id="${w.userId}" style="text-decoration: none; color: #667eea; font-weight: 600;">
                         ${userDisplayId}
@@ -3791,13 +3783,20 @@ function renderWithdrawals(withdrawals) {
         </div>
       </td>
       <td>RS ${parseFloat(w.amount || 0).toLocaleString()}</td>
-      <td>${w.method || 'Bank Transfer'}</td>
-      <td>${w.details || '-'}</td>
-      <td><span class="badge badge-${w.status === 'approved' ? 'success' : w.status === 'rejected' ? 'danger' : 'warning'}">${w.status}</span></td>
-      <td>${new Date(w.createdAt).toLocaleDateString()}</td>
-      <td>${actionButtons}</td>
+      <td>${w.bankDetails?.bankName || 'N/A'}</td>
+      <td>${w.bankDetails?.title || '-'}</td>
+      <td><span class="badge badge-${w.status === 'approved' ? 'success' : w.status === 'rejected' ? 'danger' : 'warning'}">${w.status || 'pending'}</span></td>
+      <td>${w.createdAt ? new Date(w.createdAt).toLocaleDateString() : 'N/A'}</td>
+      <td>
+        <div class="d-flex align-items-center gap-1">
+          ${viewBtn}
+          ${approveBtn}
+          ${rejectBtn}
+        </div>
+      </td>
     </tr>
-  `}).join('');
+    `;
+  }).join('');
 }
 
 // Render Wallet Transactions Table
@@ -3836,14 +3835,25 @@ function renderWalletTransactions(searchTerm) {
     const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' :
       status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
 
+    const transactionUser = t.userName || t.user || globalUsersMap[t.userId]?.name || 'Unknown User';
+    const userDisplayId = getUserDisplayId(t.userId);
+    const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A';
+
     return `
       <tr>
-        <td>#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
-        <td>${t.userName || t.user || 'Unknown'}</td>
-        <td>${t.type || t.title || 'Transaction'}</td>
-        <td>RS ${(t.amount || 0).toLocaleString()}</td>
-        <td><span class="badge badge-${statusClass}">${status}</span></td>
-        <td>${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'}</td>
+        <td style="font-family: monospace; font-weight: 600; color: #64748b;">#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
+        <td>
+            <div class="d-flex align-items-center">
+                <div>
+                    <div class="fw-bold" style="color: #1e293b;">${transactionUser}</div>
+                    <div class="text-muted small" style="color: #94a3b8; font-weight: 500;">${userDisplayId}</div>
+                </div>
+            </div>
+        </td>
+        <td style="font-weight: 500;">${t.type || t.title || 'Transaction'}</td>
+        <td style="font-weight: 700; color: #1e293b;">RS ${(t.amount || 0).toLocaleString()}</td>
+        <td><span class="badge badge-${statusClass}" style="padding: 5px 10px; border-radius: 6px;">${status}</span></td>
+        <td style="color: #64748b;">${dateStr}</td>
       </tr>
     `;
   }).join('');
@@ -3903,6 +3913,66 @@ async function rejectWithdrawal(id) {
     showError('Failed to reject withdrawal: ' + error.message);
   }
 }
+
+// ==================== DEPOSIT MODAL FUNCTIONS ====================
+
+window.openDepositView = async function (depositId) {
+  try {
+    const snapshot = await db.ref('deposits/' + depositId).once('value');
+    const data = snapshot.val();
+    if (!data) {
+      showError('Deposit not found');
+      return;
+    }
+
+    document.getElementById('viewDepUserName').textContent = data.userName || 'Unknown';
+    document.getElementById('viewDepAmount').textContent = 'RS ' + parseFloat(data.amount || 0).toLocaleString();
+    document.getElementById('viewDepRequestId').textContent = '#' + depositId;
+    document.getElementById('viewDepMethod').querySelector('span').textContent = data.method || 'Not specified';
+    document.getElementById('viewDepRequestDate').textContent = new Date(data.createdAt).toLocaleString();
+
+    // Status Styling
+    const statusEl = document.getElementById('viewDepStatus');
+    const status = (data.status || 'pending').toLowerCase();
+    statusEl.textContent = status.toUpperCase();
+    if (status === 'approved' || status === 'completed' || status === 'success') {
+      statusEl.style.background = '#dcfce7';
+      statusEl.style.color = '#166534';
+    } else if (status === 'rejected' || status === 'failed') {
+      statusEl.style.background = '#fee2e2';
+      statusEl.style.color = '#991b1b';
+    } else {
+      statusEl.style.background = '#fef3c7';
+      statusEl.style.color = '#92400e';
+    }
+
+    // Screenshot Handling
+    const imgEl = document.getElementById('viewDepScreenshot');
+    const placeholderEl = document.getElementById('viewDepScreenshotPlaceholder');
+    const linkEl = document.getElementById('viewDepScreenshotLink');
+
+    if (data.screenshotUrl) {
+      imgEl.src = data.screenshotUrl;
+      imgEl.style.display = 'block';
+      placeholderEl.style.display = 'none';
+      linkEl.href = data.screenshotUrl;
+      linkEl.style.display = 'inline-block';
+    } else {
+      imgEl.style.display = 'none';
+      placeholderEl.style.display = 'block';
+      linkEl.style.display = 'none';
+    }
+
+    document.getElementById('depositViewModal').style.display = 'block';
+  } catch (error) {
+    console.error('Error opening deposit view:', error);
+    showError('Failed to load deposit details');
+  }
+};
+
+window.closeDepositViewModal = function () {
+  document.getElementById('depositViewModal').style.display = 'none';
+};
 
 // ==================== WITHDRAWAL MODAL FUNCTIONS ====================
 

@@ -969,3 +969,46 @@ body {
         border-left: 3px solid var(--primary-color);
     }
 }
+/* --- Performance Insight Widget (Integrated Dashboard) --- */
+.insight-metrics {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.insight-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.insight-item .label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.insight-item .value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #4f46e5;
+}
+
+.mini-chart-area {
+    height: 120px;
+    position: relative;
+    width: 100%;
+}
+
+.performance-insight-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.performance-insight-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+}

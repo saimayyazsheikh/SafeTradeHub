@@ -70,7 +70,8 @@ function updateUserProfile(user) {
 }
 
 async function renderSellerDashboard(uid, userData) {
-    const contentArea = document.getElementById('dashboardContent');
+    const contentArea = document.getElementById('main-view');
+    if (!contentArea) return; // safety check
     const db = firebase.database();
 
     // Fetch Stats
@@ -177,29 +178,25 @@ async function renderSellerDashboard(uid, userData) {
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="dashboard-card">
+            <!-- Integrated Performance Insight -->
+            <div class="dashboard-card performance-insight-card">
                 <div class="card-header">
-                    <h3>Quick Actions</h3>
+                    <h3>Performance Insight</h3>
+                    <a href="#insights" class="btn-link">Full Report</a>
                 </div>
                 <div class="card-body">
-                    <div class="quick-actions-grid">
-                        <a href="product-upload.html" class="action-btn">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Add Product</span>
-                        </a>
-                        <a href="orders.html" class="action-btn">
-                            <i class="fas fa-box-open"></i>
-                            <span>Orders</span>
-                        </a>
-                        <a href="wallet.html" class="action-btn">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>Withdraw</span>
-                        </a>
-                        <a href="seller-profile.html?id=${uid}" class="action-btn">
-                            <i class="fas fa-store"></i>
-                            <span>View Shop</span>
-                        </a>
+                    <div class="insight-metrics">
+                        <div class="insight-item">
+                            <span class="label">Conversion</span>
+                            <span class="value" id="dash-conversion">0%</span>
+                        </div>
+                        <div class="insight-item">
+                            <span class="label">Impressions</span>
+                            <span class="value" id="dash-views">0</span>
+                        </div>
+                    </div>
+                    <div class="mini-chart-area">
+                        <canvas id="dash-mini-chart"></canvas>
                     </div>
                 </div>
             </div>
@@ -240,7 +237,8 @@ async function renderSellerDashboard(uid, userData) {
 }
 
 async function renderBuyerDashboard(uid, userData) {
-    const contentArea = document.getElementById('dashboardContent');
+    const contentArea = document.getElementById('main-view');
+    if (!contentArea) return; // safety check
     const db = firebase.database();
 
     // Fetch Orders
@@ -409,25 +407,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Dispute View Logic (Seller) ---
-    const navDisputes = document.getElementById('navDisputes');
-    const disputesView = document.getElementById('disputes-view');
-
-    if (navDisputes && mainView && disputesView) {
-        navDisputes.addEventListener('click', (e) => {
-            e.preventDefault();
-            
+    // --- Hash Navigation Support ---
+    function checkHash() {
+        const hash = window.location.hash;
+        if (hash === '#insights' && navInsights && mainView && insightsView) {
             mainView.style.display = 'none';
-            if (insightsView) insightsView.style.display = 'none';
-            disputesView.style.display = 'block';
-            
+            if (typeof disputesView !== 'undefined' && disputesView) disputesView.style.display = 'none';
+            insightsView.style.display = 'block';
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            navDisputes.classList.add('active');
-
-            // Load disputes data
-            loadSellerDisputes();
-        });
+            navInsights.classList.add('active');
+            const user = firebase.auth().currentUser;
+            if (user) initV2Insights(user.uid);
+        }
     }
+
+    window.addEventListener('hashchange', checkHash);
+    checkHash(); // Check hash on initial load
 });
 
 async function loadSellerDisputes() {
@@ -480,15 +475,22 @@ async function loadSellerDisputes() {
 
 async function initV2Insights(uid) {
 
-    console.log('🚀 Loading v2 Seller Insights for:', uid);
+    console.log('🚀 [v99] Loading Seller Insights for:', uid);
     
-    if (typeof STHAnalytics === 'undefined') return;
+    if (typeof STHAnalytics === 'undefined') {
+        console.error('❌ [v99] STHAnalytics not found!');
+        return;
+    }
 
     STHAnalytics.Seller.listenToPerformance(uid, (stats) => {
-        // Update Metrics
-        document.getElementById('v2-conversionRate').innerText = stats.conversionRate + '%';
-        document.getElementById('v2-totalViews').innerText = stats.totalViews.toLocaleString();
-        document.getElementById('v2-totalRevenue').innerText = 'RS ' + stats.revenue.toLocaleString();
+        // Update Metrics - with safety checks
+        const crEl = document.getElementById('v2-conversionRate');
+        const tvEl = document.getElementById('v2-totalViews');
+        const trEl = document.getElementById('v2-totalRevenue');
+
+        if (crEl) crEl.innerText = stats.conversionRate + '%';
+        if (tvEl) tvEl.innerText = stats.totalViews.toLocaleString();
+        if (trEl) trEl.innerText = 'RS ' + stats.revenue.toLocaleString();
 
         // Update Tooltip based on conversion
         const tooltip = document.getElementById('v2-conversionTooltip');

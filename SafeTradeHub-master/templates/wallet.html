@@ -70,6 +70,9 @@
       <a href="profile.html" class="nav-item">
         <i class="fas fa-user"></i> Profile
       </a>
+      <a href="dashboard.html#insights" class="nav-item" id="navInsights" style="display: none;">
+        <i class="fas fa-chart-line"></i> Insights
+      </a>
       <a href="settings.html" class="nav-item">
         <i class="fas fa-cog"></i> Settings
       </a>
@@ -99,6 +102,8 @@
           if (user.role === 'Seller') {
             const navProducts = document.getElementById('navProducts');
             if (navProducts) navProducts.style.display = 'flex';
+            const navInsights = document.getElementById('navInsights');
+            if (navInsights) navInsights.style.display = 'flex';
           }
         } catch (e) {
           console.error('Error parsing user data for sidebar:', e);
@@ -464,6 +469,8 @@
 
         if (userData.role === 'Seller') {
           document.getElementById('navProducts').style.display = 'flex';
+          const navInsights = document.getElementById('navInsights');
+          if (navInsights) navInsights.style.display = 'flex';
         }
       });
     });

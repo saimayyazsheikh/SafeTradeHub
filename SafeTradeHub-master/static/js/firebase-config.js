@@ -21,4 +21,4 @@ if (!firebase.apps.length) {
 // Make services available globally if needed
 const auth = firebase.auth();
 const db = firebase.database();
-const storage = firebase.storage();
+const storage = (typeof firebase.storage === 'function') ? firebase.storage() : null;

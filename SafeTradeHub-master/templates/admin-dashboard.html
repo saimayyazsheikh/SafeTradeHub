@@ -1671,6 +1671,106 @@
     </div>
   </div>
 
+  <!-- Deposit View Modal -->
+  <div id="depositViewModal" class="modal"
+    style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+    <div class="modal-content"
+      style="background-color: #ffffff; margin: 5% auto; padding: 0; width: 90%; max-width: 650px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); border: none; overflow: hidden;">
+      
+      <!-- Modal Header -->
+      <div style="background: linear-gradient(135deg, #1e2937 0%, #111827 100%); padding: 25px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2 style="margin: 0; font-size: 1.25rem; color: #ffffff; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-plus-circle" style="color: #60a5fa;"></i>
+            Deposit Details
+          </h2>
+          <p style="margin: 5px 0 0; color: #94a3b8; font-size: 0.85rem; font-weight: 500;">Reviewing funds deposit request for verification</p>
+        </div>
+        <span onclick="closeDepositViewModal()" style="background: rgba(255,255,255,0.1); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: 0.2s;">
+          <i class="fas fa-times"></i>
+        </span>
+      </div>
+
+      <div id="depositViewBody" style="padding: 30px;">
+        
+        <!-- User Profile Card -->
+        <div style="display: flex; align-items: center; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px;">
+          <div style="width: 60px; height: 60px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);">
+            <i class="fas fa-user"></i>
+          </div>
+          <div style="flex: 1;">
+            <h3 id="viewDepUserName" style="margin: 0; font-size: 1.1rem; color: #1e293b; font-weight: 700;">-</h3>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+              <span id="viewDepStatus" class="badge" style="padding: 4px 12px; border-radius: 50px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">PENDING</span>
+              <span style="height: 4px; width: 4px; background: #cbd5e1; border-radius: 50%;"></span>
+              <span style="color: #64748b; font-size: 0.8rem; font-weight: 500;" id="viewDepRequestId">-</span>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px;">Amount</div>
+            <div id="viewDepAmount" style="font-size: 1.4rem; color: #10b981; font-weight: 800; letter-spacing: -0.5px;">-</div>
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+          
+          <!-- Payment Proof Section -->
+          <div style="background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <h4 style="margin: 0 0 15px; font-size: 0.85rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;">
+              <i class="fas fa-image" style="color: #94a3b8;"></i> Payment Proof
+            </h4>
+            
+            <div id="viewDepScreenshotContainer" style="width: 100%; height: 180px; background: #f1f5f9; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                <img id="viewDepScreenshot" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                <div id="viewDepScreenshotPlaceholder" style="text-align: center; color: #94a3b8;">
+                    <i class="fas fa-camera-retro" style="font-size: 2rem; margin-bottom: 8px;"></i>
+                    <p style="font-size: 0.7rem; font-weight: 600;">No Screenshot</p>
+                </div>
+            </div>
+            <div style="margin-top: 10px; text-align: center;">
+                <a id="viewDepScreenshotLink" href="#" target="_blank" style="color: #2563eb; font-size: 0.8rem; font-weight: 600; text-decoration: none;">
+                    <i class="fas fa-external-link-alt" style="margin-right: 4px;"></i> View Full Receipt
+                </a>
+            </div>
+          </div>
+
+          <!-- Secondary Info Section -->
+          <div style="display: flex; flex-direction: column; gap: 15px;">
+            
+            <div style="background: #f0fdf4; padding: 15px 20px; border-radius: 12px; border: 1px solid #dcfce7;">
+                <div style="color: #166534; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Payment Method</div>
+                <div id="viewDepMethod" style="color: #14532d; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-university"></i> <span>-</span>
+                </div>
+            </div>
+
+            <div style="background: #ffffff; padding: 15px 20px; border-radius: 12px; border: 1px solid #f1f5f9;">
+              <div style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Request Date</div>
+              <div id="viewDepRequestDate" style="color: #334155; font-size: 0.9rem; font-weight: 600;">-</div>
+            </div>
+
+            <div style="padding: 0 10px;">
+              <p style="color: #94a3b8; font-size: 0.75rem; line-height: 1.5; margin: 0;">
+                <i class="fas fa-shield-alt" style="margin-right: 4px;"></i>
+                Ensure the transaction ID and receipt match the user's details before approval.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Footer -->
+      <div style="background: #f8fafc; padding: 20px 30px; text-align: right; border-top: 1px solid #e2e8f0;">
+        <button class="btn btn-secondary" onclick="closeDepositViewModal()" 
+          style="padding: 10px 25px; border-radius: 10px; font-weight: 700; background: white; border: 1.5px solid #e2e8f0; color: #4b5563; transition: 0.2s;">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Withdrawal Approve & Payout Modal -->
   <div id="withdrawalApproveModal" class="modal"
     style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
@@ -1905,7 +2005,7 @@
     </div>
   </div>
 
-  <script src="/static/js/admin-dashboard.js?v=wallet_premium_ui_v9"></script>
+  <script src="/static/js/admin-dashboard.js?v=wallet_pro_v11"></script>
   <script src="/static/js/disputes-engine.js?v=4"></script>
   <script src="/static/js/logistics-hub-engine.js?v=2"></script>
   <script src="/static/js/staff-repair.js?v=2"></script>
