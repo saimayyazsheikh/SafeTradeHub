@@ -153,10 +153,18 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-.badge-pending { background: var(--status-pending); }
-.badge-completed { background: var(--status-completed); }
-.badge-shipped { background: var(--status-shipped); }
+.badge-pending { background: linear-gradient(135deg, #ff9d00 0%, #ff6b00 100%); }
+.badge-received_at_seller_hub { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+.badge-sent_to_hub { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+.badge-verified { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+.badge-in_transit { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+.badge-shipped { background: var(--status-shipped); } /* Legacy support */
+.badge-arrived_at_dest_hub { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); }
+.badge-out_for_delivery { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.badge-delivered { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+.badge-completed { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
 .badge-cancelled { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); }
+.badge-disputed { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); }
 
 .action-strip {
     display: flex;

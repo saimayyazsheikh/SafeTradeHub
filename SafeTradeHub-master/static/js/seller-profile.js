@@ -211,32 +211,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Helper for Add to Cart (simplified version of global one)
+// Helper for Add to Cart (Integrated with Global State)
 function addToCart(id, name, price, img) {
-    // Dispatch event that header-manager or cart logic listens to
-    // Or directly use localStorage if simple
-    // For consistency, let's try to use the existing logic if available globally
-    // But since this is a standalone page, we might need to replicate or import.
-    // Assuming header-manager.js handles cart count, we just need to update localStorage.
+    const urlParams = new URLSearchParams(window.location.search);
+    const sellerId = urlParams.get('id');
+    const sellerName = document.getElementById('sellerName')?.textContent || 'SafeTradeHub';
 
-    let cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existing = cart.find(item => item.id === id);
-
-    if (existing) {
-        existing.quantity += 1;
+    if (window.SafeTradeHub && window.SafeTradeHub.cart) {
+        window.SafeTradeHub.cart.add({
+            id: id,
+            title: name,
+            price: price,
+            img: img,
+            sellerId: sellerId,
+            sellerName: sellerName
+        });
     } else {
-        cart.push({ id, name, price, img, quantity: 1 });
-    }
+        // Fallback for standalone/legacy
+        let cart = JSON.parse(localStorage.getItem('sthub_cart')) || [];
+        const existing = cart.find(item => item.id === id);
 
-    localStorage.setItem('cart', JSON.stringify(cart));
- 
-    // Dispatch event to update header
-    window.dispatchEvent(new Event('storage'));
-    
-    if (window.NotificationManager) {
-        window.NotificationManager.showToast('Cart Updated', 'Product added to cart!', 'success');
-    } else {
-        alert('Product added to cart!');
+        if (existing) {
+            existing.qty = (existing.qty || 1) + 1;
+        } else {
+            cart.push({ 
+                id, 
+                title: name, 
+                price, 
+                img, 
+                qty: 1, 
+                sellerId: sellerId, 
+                sellerName: sellerName,
+                addedAt: new Date().toISOString()
+            });
+        }
+        localStorage.setItem('sthub_cart', JSON.stringify(cart));
+        window.dispatchEvent(new Event('storage'));
+        
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast('Cart Updated', 'Product added to cart!', 'success');
+        } else {
+            alert('Product added to cart!');
+        }
     }
 }
 

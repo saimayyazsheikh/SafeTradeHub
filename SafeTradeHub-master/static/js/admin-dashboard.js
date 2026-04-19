@@ -556,9 +556,11 @@ async function getDashboardStats() {
         completed: orders.filter(o => o.status === 'delivered' || o.status === 'completed').length,
         today: orders.filter(o => isToday(o.createdAt)).length,
         today: orders.filter(o => isToday(o.createdAt)).length,
-        // Revenue is strictly the Platform Fee (Escrow Fee), not the total GMV
-        totalValue: orders.reduce((acc, o) => acc + (parseFloat(o.escrowFee) || 0), 0).toFixed(0),
-        revenueToday: orders.filter(o => isToday(o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.escrowFee) || 0), 0).toFixed(0)
+        // Platform Revenue includes both Escrow Fee (2%) and Shipping Fee (5%)
+        totalValue: orders.reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        revenueToday: orders.filter(o => isToday(o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        shippingRevenue: orders.reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        shippingToday: orders.filter(o => isToday(o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0)
       },
       escrows: {
         total: escrows.length,
@@ -880,27 +882,58 @@ async function loadEscrowData() {
   try {
     showLoading('escrow');
 
-    // Fetch all escrows from RTDB
-    const snapshot = await db.ref('escrows').once('value');
-    const escrows = [];
-    snapshot.forEach(child => {
-      escrows.push({ id: child.key, ...child.val() });
+    // 1. Setup Real-time Listener (Premium sync)
+    db.ref('escrows').on('value', (snapshot) => {
+      const escrows = [];
+      snapshot.forEach(child => {
+        escrows.push({ id: child.key, ...child.val() });
+      });
+
+      // Sort by date desc
+      escrows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      adminData.escrows = escrows;
+
+      updateEscrowTable();
+      updateEscrowStats();
+      hideLoading('escrow');
     });
-
-    // Sort by date desc
-    escrows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-    adminData.escrows = escrows;
-
-
-    updateEscrowTable();
-
-    hideLoading('escrow');
   } catch (error) {
-    console.error('Error loading escrow data:', error);
-    showError('Failed to load escrow data');
+    console.error('Error in loadEscrowData:', error);
+    showError('Failed to initialize Escrow listener');
     hideLoading('escrow');
   }
+}
+
+function updateEscrowStats() {
+  const escrows = adminData.escrows || [];
+  const now = Date.now();
+  const last24h = now - (24 * 60 * 60 * 1000);
+
+  let totalHeld = 0;
+  let activeHolds = 0;
+  let released24h = 0;
+
+  escrows.forEach(e => {
+    const amount = parseFloat(e.amount || 0);
+    const status = (e.status || "").toLowerCase();
+
+    if (status === 'held' || status === 'holding') {
+      totalHeld += amount;
+      activeHolds++;
+    } else if (status === 'released' && e.releasedAt >= last24h) {
+      released24h += amount;
+    }
+  });
+
+  // Use the admin side IDs
+  updateElementText('adminEscrowValue', 'RS ' + totalHeld.toLocaleString());
+  updateElementText('adminActiveHoldsCount', activeHolds.toLocaleString());
+  updateElementText('adminReleased24h', 'RS ' + released24h.toLocaleString());
+}
+
+function updateElementText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = text;
 }
 
 // Update Escrow Table
@@ -1007,8 +1040,6 @@ function updateEscrowTable(searchTerm) {
 
 // Release Escrow Payment (Global)
 window.releaseEscrow = async function (escrowId) {
-  if (!await showConfirmationModal('Release Payment', 'Are you sure you want to release these funds to the seller? This cannot be undone.', { confirmText: 'Release Funds', confirmColor: '#10b981' })) return;
-
   try {
     showLoading(true);
     const escrowRef = db.ref(`escrows/${escrowId}`);
@@ -1023,6 +1054,18 @@ window.releaseEscrow = async function (escrowId) {
     const order = orderSnap.val();
 
     if (!order) throw new Error('Associated order not found');
+
+    if ((order.status || '').toLowerCase() !== 'delivered' && (order.status || '').toLowerCase() !== 'completed') {
+      showLoading(false);
+      showError('Cannot release funds. Order status must be Delivered.');
+      return;
+    }
+
+    showLoading(false);
+    
+    if (!await showConfirmationModal('Release Payment', 'Are you sure you want to release these funds to the seller? This cannot be undone.', { confirmText: 'Release Funds', confirmColor: '#10b981' })) return;
+
+    showLoading(true);
 
     // 2. Identify Seller (Robust Lookup)
     let sellerId = escrow.sellerId;
@@ -1806,10 +1849,10 @@ async function approveDeposit(depositId) {
     await depositRef.update({ status: 'approved', processedAt: firebase.database.ServerValue.TIMESTAMP });
 
     // 2. Update User Wallet
-    const userWalletRef = db.ref(`wallets/${deposit.userId}`);
+    const userWalletRef = db.ref(`users/${deposit.userId}/wallet`);
     await userWalletRef.transaction(wallet => {
-      if (!wallet) wallet = { available_balance: 0, total_deposited: 0, in_escrow: 0, total_withdrawn: 0 };
-      wallet.available_balance = (wallet.available_balance || 0) + deposit.amount;
+      if (!wallet) wallet = { balance: 0, total_deposited: 0, in_escrow: 0, total_withdrawn: 0 };
+      wallet.balance = (wallet.balance || 0) + deposit.amount;
       wallet.total_deposited = (wallet.total_deposited || 0) + deposit.amount;
       return wallet;
     });
@@ -1883,10 +1926,13 @@ async function updateWalletStats() {
     // 1. Total System Balance (Sum of all user wallets)
     let totalBalance = 0;
     try {
-      const walletsSnap = await db.ref('wallets').once('value');
-      if (walletsSnap.exists()) {
-        walletsSnap.forEach(snap => {
-          totalBalance += (snap.val().available_balance || 0);
+      const usersSnap = await db.ref('users').once('value');
+      if (usersSnap.exists()) {
+        usersSnap.forEach(snap => {
+          const userData = snap.val();
+          if (userData && userData.wallet) {
+            totalBalance += (userData.wallet.balance || 0);
+          }
         });
       }
     } catch (e) { }
@@ -2113,12 +2159,14 @@ function updateDashboardStats() {
   updateElementText('totalUsers', stats.users?.total || 0);
   updateElementText('totalOrders', stats.orders?.total || 0);
   updateElementText('totalRevenue', `RS ${stats.orders?.totalValue || 0}`);
+  updateElementText('shippingRevenue', `RS ${stats.orders?.shippingRevenue || 0}`);
   updateElementText('pendingDisputes', stats.disputes?.open || 0);
 
   // Update trends (Real Data)
   const usersToday = stats.users?.today || 0;
   const ordersToday = stats.orders?.today || 0;
   const revenueToday = stats.orders?.revenueToday || 0;
+  const shippingToday = stats.orders?.shippingToday || 0;
   const openDisputes = stats.disputes?.open || 0;
 
   updateElementHTML('usersTrend', usersToday > 0
@@ -2130,8 +2178,12 @@ function updateDashboardStats() {
     : `<i class="fas fa-minus"></i> No new orders today`);
 
   updateElementHTML('revenueTrend', revenueToday > 0
-    ? `<i class="fas fa-arrow-up"></i> RS ${revenueToday} today`
-    : `<i class="fas fa-minus"></i> No revenue today`);
+    ? `<i class="fas fa-arrow-up"></i> RS ${revenueToday} profit today`
+    : `<i class="fas fa-minus"></i> No profit today`);
+
+  updateElementHTML('shippingTrend', shippingToday > 0
+    ? `<i class="fas fa-arrow-up"></i> RS ${shippingToday} today`
+    : `<i class="fas fa-minus"></i> No shipping today`);
 
   updateElementHTML('disputesTrend', openDisputes > 0
     ? `<i class="fas fa-exclamation-circle"></i> ${openDisputes} open`
@@ -2196,14 +2248,20 @@ function updateUsersTable(searchTerm = null) {
 
   const query = (adminData.currentSearch.users || "").toLowerCase().trim();
 
-  // Filter Data based on query
+  // Filter Data based on query and explicitly only allow Buyers and Sellers
   const filteredUsers = adminData.users.filter(user => {
+    const roleLower = (user.role || "").toLowerCase();
+    
+    // Strictly hide ANY user that is not explicitly a buyer or a seller (e.g. Admin, Staff, System accounts, N/A)
+    if (roleLower !== 'buyer' && roleLower !== 'seller') {
+        return false;
+    }
+
     const name = (user.displayName || user.name || user.fullName || user.username || "").toLowerCase();
     const email = (user.email || "").toLowerCase();
-    const role = (user.role || "").toLowerCase();
     const id = (user.id || "").toLowerCase();
 
-    return name.includes(query) || email.includes(query) || role.includes(query) || id.includes(query);
+    return name.includes(query) || email.includes(query) || roleLower.includes(query) || id.includes(query);
   });
 
   if (filteredUsers.length === 0) {
@@ -2495,40 +2553,42 @@ window.viewOrder = async function (orderId) {
   const buyerPhone = order.buyer ? order.buyer.phone : (order.buyerPhone || 'N/A');
   const buyerAddress = order.buyer ? order.buyer.address : (order.shippingAddress || 'N/A');
 
-  // Seller Details Logic (Robust Fallback)
+  // Seller Details Logic (Robust Fallback for "Actual Seller")
   let sellerId = order.sellerId;
-  let sellerName = order.sellerName; // Fallback name
+  let sellerName = order.sellerName || 'Unknown';
 
-  // 1. If ID invalid/admin, try first item
+  // 1. If seller is generic admin, try first item's internal sellerId
   if ((!sellerId || sellerId === 'admin') && order.items && order.items.length > 0) {
     if (order.items[0].sellerId && order.items[0].sellerId !== 'admin') {
       sellerId = order.items[0].sellerId;
     }
   }
 
-  // 2. Deep Filter: If still invalid, look up product owner in DB
+  // 2. Database Deep lookup (if still admin) - Check actual product owner
   if ((!sellerId || sellerId === 'admin') && order.items && order.items.length > 0 && order.items[0].id) {
     try {
-      const productSnapshot = await db.ref('products/' + order.items[0].id + '/sellerId').once('value');
-      if (productSnapshot.exists()) {
-        sellerId = productSnapshot.val();
-
+      const productSnap = await db.ref('products/' + order.items[0].id).once('value');
+      if (productSnap.exists()) {
+        const pData = productSnap.val();
+        if (pData.sellerId && pData.sellerId !== 'admin') {
+          sellerId = pData.sellerId;
+        } else if (pData.uid && pData.uid !== 'admin') {
+          sellerId = pData.uid;
+        }
       }
     } catch (e) {
-      console.error('Error looking up product seller:', e);
+      console.error('Deep seller lookup failed:', e);
     }
   }
 
-  // 3. Resolve User Details
+  // 3. Resolve User Profile
   let sellerUser = adminData.users.find(u => u.id === sellerId);
-
-  // If user not found in cache, strict fetch
+  
   if (!sellerUser && sellerId && sellerId !== 'admin' && sellerId !== 'N/A') {
     try {
       const userSnap = await db.ref('users/' + sellerId).once('value');
       if (userSnap.exists()) {
         sellerUser = { id: sellerId, ...userSnap.val() };
-        // Optionally add to cache
         adminData.users.push(sellerUser);
       }
     } catch (e) {
@@ -2577,12 +2637,13 @@ window.viewOrder = async function (orderId) {
           </div>
         </div>
 
-        <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
-          <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Seller Details</h4>
+        <!-- Seller Details -->
+        <div style="background: #fdf2f2; padding: 16px; border-radius: 12px; border: 1px solid #fee2e2;">
+          <h4 style="margin: 0 0 12px 0; color: #991b1b; font-size: 1rem; border-bottom: 1px solid #fecaca; padding-bottom: 8px;">Seller Details</h4>
           <div style="font-size: 0.9rem;">
             <p style="margin: 4px 0;"><strong>Name:</strong> ${sellerDisplayName}</p>
             <p style="margin: 4px 0;"><strong>Email:</strong> ${sellerEmail}</p>
-            <p style="margin: 4px 0; font-size: 0.8rem; color: #6b7280;">ID: ${sellerDisplayId}</p>
+            <p style="margin: 4px 0; font-size: 0.8rem; color: #991b1b;">Seller ID: ${sellerDisplayId}</p>
           </div>
         </div>
       </div>
@@ -2617,52 +2678,41 @@ window.viewOrder = async function (orderId) {
         <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
           <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Tracking</h4>
           
-          <!-- Tracking Progress Bar -->
-          <div style="margin: 20px 0;">
+          <!-- High-Fidelity 6-Stage Tracking Stepper -->
+          <div style="margin: 25px 0;">
             ${(() => {
-      const stages = ['pending', 'shipped', 'delivered'];
-      const currentStatus = (order.status || 'pending').toLowerCase();
+        const currentStatus = (order.status || 'pending').toLowerCase();
+        
+        // Define status-to-index mapping (6 stages)
+        let currentIndex = 0;
+        if (currentStatus === 'delivered' || currentStatus === 'completed') currentIndex = 5;
+        else if (currentStatus === 'out_for_delivery') currentIndex = 4;
+        else if (currentStatus === 'at_destination_hub') currentIndex = 3;
+        else if (currentStatus === 'in_transit' || currentStatus === 'shipped') currentIndex = 2;
+        else if (currentStatus === 'received_at_hub' || currentStatus === 'verified' || currentStatus === 'picked_up') currentIndex = 1;
+        else currentIndex = 0;
 
-      // Determine current stage index
-      let currentIndex = 0;
-      if (currentStatus === 'delivered' || currentStatus === 'completed') currentIndex = 2;
-      else if (currentStatus === 'shipped') currentIndex = 1;
-      else currentIndex = 0;
+        const stageLabels = ['Ordered', 'Processing', 'In Transit', 'At Hub', 'Delivery', 'Delivered'];
+        const stageIcons = ['fa-clock', 'fa-box-open', 'fa-route', 'fa-warehouse', 'fa-truck-fast', 'fa-check-double'];
 
-      // Steps HTML
-      return `
-                <div style="display: flex; justify-content: space-between; position: relative; margin-bottom: 10px;">
-                    <!-- Line Background -->
-                    <div style="position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); height: 4px; background: #e5e7eb; z-index: 0;"></div>
-                    <!-- Active Line -->
-                    <div style="position: absolute; top: 50%; left: 0; width: ${currentIndex * 50}%; transform: translateY(-50%); height: 4px; background: #10b981; z-index: 0; transition: width 0.3s ease;"></div>
+        return `
+          <div style="display: flex; justify-content: space-between; position: relative; margin-bottom: 10px; padding: 0 10px;">
+              <!-- Line Background -->
+              <div style="position: absolute; top: 15px; left: 10px; right: 10px; height: 3px; background: #e5e7eb; z-index: 0;"></div>
+              <!-- Active Line -->
+              <div style="position: absolute; top: 15px; left: 10px; width: calc(${currentIndex / 5 * 100}% - 20px); height: 3px; background: #10b981; z-index: 0; transition: width 0.5s ease; min-width: 0;"></div>
 
-                    <!-- Step 1: Pending -->
-                    <div style="position: relative; z-index: 1; text-align: center;">
-                        <div style="width: 30px; height: 30px; background: ${currentIndex >= 0 ? '#10b981' : '#e5e7eb'}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold;">
-                            ${currentIndex > 0 ? '<i class="fas fa-check"></i>' : '1'}
-                        </div>
-                        <div style="font-size: 0.8rem; margin-top: 5px; color: ${currentIndex >= 0 ? '#374151' : '#9ca3af'}; font-weight: ${currentIndex >= 0 ? '600' : '400'};">Pending</div>
+              ${stageLabels.map((label, idx) => `
+                <div style="position: relative; z-index: 1; text-align: center; flex: 1;">
+                    <div style="width: 32px; height: 32px; background: ${currentIndex >= idx ? '#10b981' : '#f3f4f6'}; color: ${currentIndex >= idx ? 'white' : '#9ca3af'}; border: 2px solid ${currentIndex >= idx ? '#10b981' : '#e5e7eb'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: ${currentIndex === idx ? '0 0 0 4px rgba(16, 185, 129, 0.2)' : 'none'}; transition: all 0.3s ease;">
+                        <i class="fas ${currentIndex > idx ? 'fa-check' : stageIcons[idx]}" style="font-size: 0.85rem;"></i>
                     </div>
-
-                    <!-- Step 2: Shipped -->
-                    <div style="position: relative; z-index: 1; text-align: center;">
-                        <div style="width: 30px; height: 30px; background: ${currentIndex >= 1 ? '#10b981' : (currentIndex === 1 ? '#3b82f6' : '#e5e7eb')}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold;">
-                             ${currentIndex > 1 ? '<i class="fas fa-check"></i>' : '2'}
-                        </div>
-                        <div style="font-size: 0.8rem; margin-top: 5px; color: ${currentIndex >= 1 ? '#374151' : '#9ca3af'}; font-weight: ${currentIndex >= 1 ? '600' : '400'};">Shipped</div>
-                    </div>
-
-                    <!-- Step 3: Delivered -->
-                    <div style="position: relative; z-index: 1; text-align: center;">
-                        <div style="width: 30px; height: 30px; background: ${currentIndex >= 2 ? '#10b981' : '#e5e7eb'}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold;">
-                             ${currentIndex >= 2 ? '<i class="fas fa-check"></i>' : '3'}
-                        </div>
-                        <div style="font-size: 0.8rem; margin-top: 5px; color: ${currentIndex >= 2 ? '#374151' : '#9ca3af'}; font-weight: ${currentIndex >= 2 ? '600' : '400'};">Delivered</div>
-                    </div>
+                    <div style="font-size: 0.65rem; margin-top: 8px; color: ${currentIndex >= idx ? '#111827' : '#9ca3af'}; font-weight: ${currentIndex >= idx ? '700' : '500'}; white-space: nowrap;">${label}</div>
                 </div>
-                `;
-    })()}
+              `).join('')}
+          </div>
+        `;
+      })()}
           </div>
 
           <div style="font-size: 0.9rem; margin-top: 20px; border-top: 1px dashed #e5e7eb; padding-top: 10px;">
@@ -3296,7 +3346,9 @@ async function rejectVerification(userId) {
 }
 
 // Placeholder functions for other actions
-window.viewUser = async function (userId) {
+window.viewUser = async function viewUser(userId) {
+  try {
+    console.log('🔍 Intelligence Record Requested for:', userId);
   let user = adminData.users.find(u => u.id === userId);
 
   if (!user) {
@@ -3320,27 +3372,43 @@ window.viewUser = async function (userId) {
   const modal = document.getElementById('userDetailModal');
   if (!modal) return;
 
+  // Smart Address Formatter
+  const formatAddress = (addr) => {
+      if (!addr) return 'No verified address on file.';
+      if (typeof addr === 'string') return addr;
+      if (typeof addr === 'object') {
+          const parts = [addr.street, addr.city, addr.state, addr.country, addr.zip].filter(Boolean);
+          return parts.length > 0 ? parts.join(', ') : 'Incomplete Address Object';
+      }
+      return 'Invalid Address Data';
+  };
+
+  const safeSetText = (id, text) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = text;
+  };
+
   // Populate Fields
-  document.getElementById('uDetName').innerText = user.fullName || user.displayName || user.name || 'Unknown User';
-  document.getElementById('uDetEmail').innerText = user.email || 'No email provided';
-  document.getElementById('uDetId').innerText = user.id;
-  document.getElementById('uDetPhone').innerText = user.phone || 'N/A';
+  const displayName = user.fullName || user.displayName || user.name || 'Unknown User';
+  safeSetText('uDetName', displayName);
+  safeSetText('uDetEmail', user.email || 'No email provided');
+  safeSetText('uDetId', user.id);
+  safeSetText('uDetPhone', user.phone || 'N/A');
 
   const role = user.role || 'User';
   const roleEl = document.getElementById('uDetRole');
   if (roleEl) {
-    roleEl.innerText = role;
-    roleEl.className = `badge ${role === 'Admin' ? 'badge-danger' : (role === 'Staff' ? 'badge-info' : 'badge-success')}`;
+      roleEl.innerText = role;
+      roleEl.className = `badge ${role === 'Admin' ? 'badge-danger' : (role === 'Staff' ? 'badge-info' : 'badge-success')}`;
   }
 
-  document.getElementById('uDetJoined').innerText = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A';
-  document.getElementById('uDetAddress').innerText = user.address || (user.verification?.shop?.address) || 'No verified address on file.';
+  safeSetText('uDetJoined', user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A');
+  safeSetText('uDetAddress', formatAddress(user.address || user.verification?.shop?.address));
 
   const avatarImg = document.getElementById('uDetAvatar');
   if (avatarImg) {
-    const displayName = user.fullName || user.displayName || user.name || 'User';
-    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=128`;
-    avatarImg.src = user.profileImage || user.photoURL || fallbackAvatar;
+      const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0D8ABC&color=fff&size=128&bold=true`;
+      avatarImg.src = user.profileImage || user.photoURL || fallback;
   }
 
   // KYC Evidence Logic
@@ -3398,7 +3466,10 @@ window.viewUser = async function (userId) {
     `;
   }
 
-  modal.style.display = 'block';
+    modal.style.display = 'block';
+  } catch (err) {
+    console.error('Modal Error:', err);
+  }
 };
 
 window.closeUserDetailModal = function () {
@@ -3890,10 +3961,10 @@ async function rejectWithdrawal(id) {
     }
 
     // 2. Refund amount to user wallet
-    const userWalletRef = db.ref('wallets/' + withdrawal.userId);
+    const userWalletRef = db.ref(`users/${withdrawal.userId}/wallet`);
     await userWalletRef.transaction(wallet => {
-      if (!wallet) wallet = { available_balance: 0, in_escrow: 0, total_withdrawn: 0 };
-      wallet.available_balance = (wallet.available_balance || 0) + parseFloat(withdrawal.amount);
+      if (!wallet) wallet = { balance: 0, in_escrow: 0, total_withdrawn: 0 };
+      wallet.balance = (wallet.balance || 0) + parseFloat(withdrawal.amount);
       wallet.in_escrow = Math.max(0, (wallet.in_escrow || 0) - parseFloat(withdrawal.amount));
       return wallet;
     });
@@ -4018,9 +4089,9 @@ async function openWithdrawalView(requestId) {
     // Fetch user's current balance
     let balance = '-';
     if (data.userId) {
-      const walletSnap = await db.ref('wallets/' + data.userId).once('value');
+      const walletSnap = await db.ref(`users/${data.userId}/wallet`).once('value');
       const wallet = walletSnap.val();
-      balance = wallet ? 'RS ' + (wallet.available_balance || 0).toLocaleString() : 'RS 0';
+      balance = wallet ? 'RS ' + (wallet.balance || 0).toLocaleString() : 'RS 0';
     }
 
     // Populate modal
@@ -4078,9 +4149,9 @@ async function openWithdrawalApprove(requestId) {
     // Fetch user's current balance
     let balance = '-';
     if (data.userId) {
-      const walletSnap = await db.ref('wallets/' + data.userId).once('value');
+      const walletSnap = await db.ref(`users/${data.userId}/wallet`).once('value');
       const wallet = walletSnap.val();
-      balance = 'RS ' + (wallet?.available_balance || 0).toLocaleString();
+      balance = 'RS ' + (wallet?.balance || 0).toLocaleString();
     }
 
     // Populate modal

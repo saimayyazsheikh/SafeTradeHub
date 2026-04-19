@@ -10,6 +10,22 @@
 class HeaderManager {
   constructor() {
     this.isInitialized = false;
+    
+    // Define global updateCartCount for consistency across all pages
+    window.updateCartCount = () => {
+      const el = document.getElementById('cartCount');
+      if (!el) return;
+      try {
+        const cart = JSON.parse(localStorage.getItem('sthub_cart') || '[]');
+        const count = Array.isArray(cart) ? cart.reduce((n, i) => n + (Number(i.qty) || 1), 0) : 0;
+        el.textContent = count;
+        // Optionally update visibility if 0 - but user expects the bubble
+        el.style.display = count >= 0 ? 'flex' : 'none';
+      } catch (e) {
+        console.error('Error updating cart badge:', e);
+      }
+    };
+
     this.init();
   }
 
@@ -45,7 +61,7 @@ class HeaderManager {
   setupHeader() {
     const headerActions = document.querySelector('.header-actions');
     if (!headerActions) {
-      console.warn('⚠️ HeaderManager: .header-actions not found');
+      // Silencing warning for pages like dashboards that may not have standard header actions
       return;
     }
 
@@ -77,10 +93,7 @@ class HeaderManager {
 
   updateHeaderState() {
     const headerActions = document.querySelector('.header-actions');
-    if (!headerActions) {
-      console.warn('⚠️ HeaderManager: .header-actions not found in updateHeaderState');
-      return;
-    }
+    if (!headerActions) return;
 
     // ROBUST authentication check with multiple methods
     let isAuthenticated = false;
@@ -169,11 +182,17 @@ class HeaderManager {
       }
     }
 
-    // Add cart if it doesn't exist
+    // Manage cart visibility
     const isSeller = (user.role || '').toLowerCase() === 'seller';
-    if (!container.querySelector('a[href="cart.html"]')) {
+    const existingCart = container.querySelector('a[href="cart.html"]');
+    const cartVisibility = (!isVerified || isSeller) ? 'none' : 'grid';
+
+    if (existingCart) {
+      existingCart.style.display = cartVisibility;
+      existingCart.classList.add('auth-element'); // Mark for cleanup on state change
+    } else {
       const cartHTML = `
-        <a class="icon-btn auth-element" href="cart.html" aria-label="Cart" title="Cart" style="position:relative; ${(!isVerified || isSeller) ? 'display: none;' : ''}">
+        <a class="icon-btn auth-element" href="cart.html" aria-label="Cart" title="Cart" style="position:relative; display: ${cartVisibility};">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/>
             <circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/>
@@ -280,8 +299,8 @@ class HeaderManager {
     this.addUserMenuStyles();
 
     // Update cart count
-    if (typeof updateCartCount === 'function') {
-      updateCartCount();
+    if (window.updateCartCount) {
+      window.updateCartCount();
     }
   }
 
@@ -304,8 +323,8 @@ class HeaderManager {
     container.insertAdjacentHTML('beforeend', authLinksHTML);
 
     // Update cart count
-    if (typeof updateCartCount === 'function') {
-      updateCartCount();
+    if (window.updateCartCount) {
+      window.updateCartCount();
     }
   }
 

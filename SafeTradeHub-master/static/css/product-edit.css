@@ -296,6 +296,7 @@ body {
   grid-template-columns: 1fr 1fr 50px;
   gap: 15px;
   margin-bottom: 12px;
+  align-items: stretch;
 }
 
 .btn-add-spec {

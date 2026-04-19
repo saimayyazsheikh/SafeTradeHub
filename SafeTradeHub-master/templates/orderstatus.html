@@ -366,7 +366,7 @@
           { status: 'delivered', icon: 'fas fa-check-double', label: 'Arrived' }
       ];
 
-      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
+      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered', 'completed'];
       const currentRank = statusOrder.indexOf(order.status);
 
       container.innerHTML = `
@@ -468,7 +468,7 @@
         { id: 'delivered', label: 'Delivered', desc: 'Package handed over and escrow released.', icon: 'fas fa-box-open' }
       ];
 
-      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
+      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered', 'completed'];
       const currentIndex = statusOrder.indexOf(currentStatus);
 
       // Convert history object to array and sort by timestamp
@@ -493,7 +493,7 @@
     }
 
     function getProgressPercentage(status) {
-      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
+      const statusOrder = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered', 'completed'];
       const index = statusOrder.indexOf(status);
       if (index === -1) return 0;
       return (index / (statusOrder.length - 1)) * 100;
@@ -507,7 +507,8 @@
             'in_transit': 'In Transit',
             'arrived_at_dest_hub': 'At Destination Hub',
             'out_for_delivery': 'Out for Delivery',
-            'delivered': 'Delivered'
+            'delivered': 'Delivered',
+            'completed': 'Delivered'
         };
         return mapping[status] || (status ? status.replace(/_/g, ' ') : 'Processing');
     }

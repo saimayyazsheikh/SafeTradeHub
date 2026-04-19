@@ -157,7 +157,7 @@ window.updateStaffTable = function(searchTerm) {
         } else if (s.role) {
             rolesHtml = `<span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">${s.role}</span>`;
         } else {
-            rolesHtml = `<span style="background: #f3f4f6; color: #4b5563; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">Regular Staff</span>`;
+            rolesHtml = `<span style="background: #f3f4f6; color: #4b5563; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">General Staff</span>`;
         }
         
         const isActive = s.status === 'Active' || s.status === true;

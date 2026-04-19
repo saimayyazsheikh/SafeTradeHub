@@ -117,39 +117,7 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Request notification permission & get FCM token
-async function requestNotificationPermission() {
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      const token = await messaging.getToken({
-        vapidKey: 'BJ13KKFRdr9XHWWFTGBZc1wSE5gRJaBLtUDH9QJxeCKDG2YolMlbnSrBIkEc_Aein7dq6M1-t9GQtJmUDQVice0' // Replace this with your actual VAPID key from Firebase Console
-      });
-      // FCM Token obtained successfully
-      sendTokenToServer(token);
-      alert('Notifications enabled! You\'ll receive updates about your orders and important announcements.');
-    } else {
-      alert('Notifications are disabled. You can enable them later by clicking the bell icon.');
-    }
-  } catch (error) {
-    console.error('Error getting FCM token:', error);
-    alert('Unable to set up notifications. Please try again later.');
-  }
-}
 
-// Send FCM token to backend
-function sendTokenToServer(token) {
-  fetch('/save-fcm-token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fcmToken: token })
-  })
-    .then(response => response.json())
-    .then(data => {
-      // Token saved successfully
-    })
-    .catch(error => console.error('Error saving token:', error));
-}
 
 // Initialize cart count on page load
 updateCartCount();

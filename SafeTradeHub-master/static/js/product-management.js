@@ -299,7 +299,14 @@ function renderProductCard(product) {
       </div>
       <div class="product-content">
         <h3 class="product-title">${product.name}</h3>
-        <p class="product-description">${product.description}</p>
+        ${product.status === 'rejected' && product.rejectionReason ? `
+          <div class="product-rejection-reason">
+            <i class="fas fa-exclamation-circle"></i>
+            <div>
+              <strong>Rejected:</strong> ${product.rejectionReason}
+            </div>
+          </div>
+        ` : `<p class="product-description">${product.description}</p>`}
         <div class="product-meta">
           <div class="product-price">RS ${product.price.toFixed(2)}</div>
           <div class="product-category">${product.category}</div>
@@ -369,7 +376,14 @@ function renderProductListItem(product) {
           <h3 class="product-title">${product.name}</h3>
           <div class="product-price">RS ${product.price.toFixed(2)}</div>
         </div>
-        <p class="product-description">${product.description}</p>
+        ${product.status === 'rejected' && product.rejectionReason ? `
+          <div class="product-rejection-reason" style="margin-bottom: 12px;">
+            <i class="fas fa-exclamation-circle"></i>
+            <div>
+              <strong>Rejected:</strong> ${product.rejectionReason}
+            </div>
+          </div>
+        ` : `<p class="product-description">${product.description}</p>`}
         <div class="product-meta">
           <div class="product-category">${product.category}</div>
           <div class="product-stats">
@@ -1011,6 +1025,8 @@ function getStatusClass(status) {
       return 'draft';
     case 'inactive':
       return 'inactive';
+    case 'rejected':
+      return 'rejected';
     default:
       return 'draft';
   }
@@ -1026,6 +1042,8 @@ function getStatusText(status) {
       return 'Draft';
     case 'inactive':
       return 'Inactive';
+    case 'rejected':
+      return 'Rejected';
     default:
       return 'Draft';
   }

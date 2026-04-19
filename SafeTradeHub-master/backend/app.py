@@ -127,6 +127,23 @@ def staff_required(f):
             return jsonify({'success': False, 'error': str(e)}), 401
     return decorated_function
 
+# --- Helpers ---
+def log_audit(action, admin_id, target_id, old_val, new_val, is_logistics=False):
+    """Log an administrative action to the audit trail"""
+    try:
+        audit_ref = db.reference('audit_logs')
+        audit_ref.push({
+            'action': action,
+            'adminId': admin_id,
+            'targetId': target_id,
+            'oldValue': old_val,
+            'newValue': new_val,
+            'isLogistics': is_logistics,
+            'timestamp': {".sv": "timestamp"}
+        })
+    except Exception as e:
+        print(f"❌ Failed to log audit: {e}")
+
 # --- API: Auth ---
 # --- API: Auth Management ---
 @app.route('/api/auth/verify', methods=['POST'])
@@ -336,17 +353,37 @@ def update_dispute_status():
              price = float(order_data.get('price', order_data.get('totalAmount', 0)))
              
              if resolution_type == 'Refund Buyer' and buyer_id:
-                  buyer_wallet_ref = db.reference(f'users/{buyer_id}/wallet/balance')
-                  current_bal = buyer_wallet_ref.get() or 0
-                  buyer_wallet_ref.set(float(current_bal) + price)
+                  # Atomic Update for Buyer Wallet
+                  buyer_wallet_ref = db.reference(f'users/{buyer_id}/wallet')
+                  def refund_txn(current):
+                      if not current: return {'balance': price, 'in_escrow': 0}
+                      current['balance'] = (current.get('balance') or 0) + price
+                      current['in_escrow'] = max(0, (current.get('in_escrow') or 0) - price)
+                      return current
+                  buyer_wallet_ref.transaction(refund_txn)
+
                   update_payload['resolutionSummary'] = f"Refunded {price} tokens to buyer {buyer_id}."
                   db.reference(f'orders/{order_id}/status').set('refunded')
                   send_system_notification(buyer_id, 'Dispute Resolved & Refunded', f'A refund of {price} tokens has been credited to your wallet for order #{order_id}.', 'payment', f'/orders.html#{order_id}')
 
              elif resolution_type == 'Release To Seller' and seller_id:
-                  seller_wallet_ref = db.reference(f'users/{seller_id}/wallet/balance')
-                  current_bal = seller_wallet_ref.get() or 0
-                  seller_wallet_ref.set(float(current_bal) + price)
+                  # Credit Seller
+                  seller_wallet_ref = db.reference(f'users/{seller_id}/wallet')
+                  def release_txn(current):
+                      if not current: return {'balance': price, 'totalEarned': price}
+                      current['balance'] = (current.get('balance') or 0) + price
+                      current['totalEarned'] = (current.get('totalEarned') or 0) + price
+                      return current
+                  seller_wallet_ref.transaction(release_txn)
+
+                  # Deduct from Buyer in_escrow
+                  if buyer_id:
+                      buyer_escrow_ref = db.reference(f'users/{buyer_id}/wallet/in_escrow')
+                      def clear_escrow_txn(current):
+                          if current is None: return 0
+                          return max(0, current - price)
+                      buyer_escrow_ref.transaction(clear_escrow_txn)
+
                   update_payload['resolutionSummary'] = f"Released {price} tokens to seller {seller_id}."
                   db.reference(f'orders/{order_id}/status').set('completed')
                   send_system_notification(seller_id, 'Dispute Resolved & Payment Released', f'Payment of {price} tokens has been released to your wallet for order #{order_id}.', 'payment', '/seller-profile.html')
@@ -457,11 +494,17 @@ def submit_review():
         if uid != reviewer_id:
             return jsonify({'success': False, 'error': 'Reviewer mismatch'}), 403
 
+        if not target_id:
+            return jsonify({'success': False, 'error': 'Target user ID is missing. This order may have invalid merchant data.'}), 400
+
         # REAL-TIME ROLE & INTEGRITY CHECKS
         reviewer_data = db.reference(f'users/{uid}').get()
-        reviewer_role = (reviewer_data.get('role') or 'Buyer').lower()
+        reviewer_role = (reviewer_data.get('role') if reviewer_data else 'Buyer') or 'Buyer'
+        reviewer_role = reviewer_role.lower()
+
         target_data = db.reference(f'users/{target_id}').get()
-        target_role = (target_data.get('role') or 'Buyer').lower()
+        target_role = (target_data.get('role') if target_data else 'Buyer') or 'Buyer'
+        target_role = target_role.lower()
 
         if uid == target_id:
             return jsonify({'success': False, 'error': 'You cannot review yourself.'}), 403
@@ -631,12 +674,14 @@ def update_tracking():
         buyer_id = order_snapshot.get('buyerId')
         seller_id = order_snapshot.get('sellerId')
         
-        notif_message = f"Order #{order_id} is now: {STATUS_DISPLAY_NAMES.get(new_status, new_status)}"
+        short_id = str(order_id)[-6:]
+        friendly_status = STATUS_DISPLAY_NAMES.get(new_status, new_status)
+        notif_message = f"Order #{short_id} is now: {friendly_status}"
         
         if buyer_id:
             send_system_notification(buyer_id, 'Shipment Update', notif_message, 'order', f'/orders.html#{order_id}')
         if seller_id:
-            send_system_notification(seller_id, 'Shipment Update', notif_message, 'order', f'/seller-dashboard.html')
+            send_system_notification(seller_id, 'Shipment Update', notif_message, 'order', f'/orders.html#{order_id}')
 
         # 5. Log Audit Trail
         log_audit("logistics_update", staff_id, order_id, 
@@ -738,18 +783,18 @@ def request_withdrawal():
         uid = decoded_token['uid']
         
         # Atomic Balance Check & Status Flagging
-        wallet_ref = db.reference(f'wallets/{uid}')
+        wallet_ref = db.reference(f'users/{uid}/wallet')
         
         def lock_funds_transaction(current_wallet):
             if current_wallet is None:
-                current_wallet = {'available_balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
+                current_wallet = {'balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
             
-            balance = float(current_wallet.get('available_balance', 0))
+            balance = float(current_wallet.get('balance', 0))
             if balance < amount:
                 raise ValueError(f"Insufficient funds. Available: RS {balance}")
             
-            # Lock funds: Move from available_balance to in_escrow
-            current_wallet['available_balance'] = balance - amount
+            # Lock funds: Move from balance to in_escrow
+            current_wallet['balance'] = balance - amount
             current_wallet['in_escrow'] = float(current_wallet.get('in_escrow', 0)) + amount
             return current_wallet
 
@@ -846,11 +891,11 @@ def complete_withdrawal():
         amount = float(req_data.get('amount', 0))
 
         # Atomic Balance Deduction
-        wallet_ref = db.reference(f'wallets/{uid}')
+        wallet_ref = db.reference(f'users/{uid}/wallet')
         
         def deduct_balance_transaction(current_wallet):
             if current_wallet is None:
-                current_wallet = {'available_balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
+                current_wallet = {'balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
             
             escrow = float(current_wallet.get('in_escrow', 0))
             if escrow < amount:
@@ -937,11 +982,11 @@ def approve_payout():
         amount = float(req_data.get('amount', 0))
 
         # Atomic Balance Deduction from in_escrow
-        wallet_ref = db.reference(f'wallets/{uid}')
+        wallet_ref = db.reference(f'users/{uid}/wallet')
         
         def deduct_balance_transaction(current_wallet):
             if current_wallet is None:
-                current_wallet = {'available_balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
+                current_wallet = {'balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
             
             escrow = float(current_wallet.get('in_escrow', 0))
             if escrow < amount:
@@ -1025,18 +1070,18 @@ def reject_withdrawal():
         amount = float(request_snap.get('amount', 0))
 
         # Atomic Fund Return
-        wallet_ref = db.reference(f'wallets/{user_id}')
+        wallet_ref = db.reference(f'users/{user_id}/wallet')
         
         def return_funds_transaction(current_wallet):
             if current_wallet is None:
-                current_wallet = {'available_balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
+                current_wallet = {'balance': 0, 'in_escrow': 0, 'total_withdrawn': 0}
             
             escrow = float(current_wallet.get('in_escrow', 0))
-            balance = float(current_wallet.get('available_balance', 0))
+            balance = float(current_wallet.get('balance', 0))
             
-            # Move back from in_escrow to available_balance
+            # Move back from in_escrow to balance
             current_wallet['in_escrow'] = max(0, escrow - amount)
-            current_wallet['available_balance'] = balance + amount
+            current_wallet['balance'] = balance + amount
             return current_wallet
 
         try:
@@ -1120,14 +1165,17 @@ def place_bid():
             return jsonify({'success': False, 'error': 'Forbidden: Sellers are restricted from bidding on any marketplace items.'}), 403
 
         # WALLET BALANCE GUARD
-        wallet_ref = db.reference(f'wallets/{uid}')
-        wallet = wallet_ref.get() or {'available_balance': 0, 'locked_balance': 0}
-        available_balance = float(wallet.get('available_balance', 0))
+        wallet_ref = db.reference(f'users/{uid}/wallet')
+        wallet = wallet_ref.get() or {'balance': 0, 'locked_balance': 0}
+        available_balance = float(wallet.get('balance', 0))
         
-        if available_balance < bid_amount:
+        # Calculate total required (Bid + 5% Shipping + 2% Escrow)
+        total_required = bid_amount * 1.07
+        
+        if available_balance < total_required:
             return jsonify({
                 'success': False, 
-                'error': f'Insufficient Balance: Please add tokens to your wallet to place this bid. (Required: RS {bid_amount}, Available: RS {available_balance})'
+                'error': f'Insufficient Balance: Please add tokens to your wallet to secure this bid. (Required Total with Fees: RS {total_required:,.2f}, Available: RS {available_balance:,.2f})'
             }), 400
 
         # ATOMIC BID TRANSACTION
@@ -1199,60 +1247,71 @@ def place_bid():
             if new_highest_bidder == uid:
                 # Release Previous Bidder (if exists and different)
                 if old_highest_bidder and old_highest_bidder != uid:
-                    prev_wallet_ref = db.reference(f'wallets/{old_highest_bidder}')
+                    prev_wallet_ref = db.reference(f'users/{old_highest_bidder}/wallet')
+                    total_to_refund = old_highest_bid * 1.07
+                    
                     def release_funds(w):
                         if not w: return w
-                        w['available_balance'] = float(w.get('available_balance', 0)) + old_highest_bid
-                        w['locked_balance'] = max(0, float(w.get('locked_balance', 0)) - old_highest_bid)
+                        w['balance'] = float(w.get('balance', 0)) + total_to_refund
+                        w['locked_balance'] = max(0, float(w.get('locked_balance', 0)) - total_to_refund)
                         return w
                     prev_wallet_ref.transaction(release_funds)
                     
                     db.reference(f'transactions/{old_highest_bidder}').push({
-                        'type': 'bid_refunded', 'amount': old_highest_bid, 'productId': product_id,
-                        'description': 'Outbid: Funds unlocked.', 'timestamp': {".sv": "timestamp"}
+                        'type': 'bid_refunded', 'amount': total_to_refund, 'productId': product_id,
+                        'description': f'Outbid on {product_id}: Bid + Fees unlocked.', 'timestamp': {".sv": "timestamp"}
                     })
-                    send_system_notification(old_highest_bidder, 'Outbid!', f'Your RS {old_highest_bid} has been returned to your available balance.', 'warning')
+                    send_system_notification(old_highest_bidder, 'Outbid!', f'Your RS {total_to_refund:,.2f} (Bid + Fees) has been returned to your available balance.', 'warning')
 
                 # Lock New Bidder's Funds
-                # If user was already high bidder, we release their OLD bid before locking the NEW one
+                total_to_lock = new_highest_bid * 1.07
                 def lock_new_funds(w):
                     if not w: return w
-                    avail = float(w.get('available_balance', 0))
+                    avail = float(w.get('balance', 0))
                     locked = float(w.get('locked_balance', 0))
                     
                     # If updating own bid, refund old first
-                    adjustment_refund = old_highest_bid if old_highest_bidder == uid else 0
+                    adjustment_refund = (old_highest_bid * 1.07) if old_highest_bidder == uid else 0
                     
-                    if (avail + adjustment_refund) < new_highest_bid:
+                    if (avail + adjustment_refund) < total_to_lock:
                         raise ValueError("Insufficient funds at lock time")
                         
-                    w['available_balance'] = avail + adjustment_refund - new_highest_bid
-                    w['locked_balance'] = locked - adjustment_refund + new_highest_bid
+                    w['balance'] = avail + adjustment_refund - total_to_lock
+                    w['locked_balance'] = locked - adjustment_refund + total_to_lock
                     return w
                 
                 try:
                     wallet_ref.transaction(lock_new_funds)
                 except ValueError:
-                    # Critical: This shouldn't happen if pre-check passed, but we must handle it
-                    return jsonify({'success': False, 'error': 'Insufficient balance to secure this bid.'}), 400
+                    return jsonify({'success': False, 'error': 'Insufficient balance to secure this bid (including fees).'}), 400
 
                 db.reference(f'transactions/{uid}').push({
-                    'type': 'bid_locked', 'amount': new_highest_bid, 'productId': product_id,
-                    'description': f'Funds locked for bid on {product_id}', 'timestamp': {".sv": "timestamp"}
+                    'type': 'bid_locked', 'amount': total_to_lock, 'productId': product_id,
+                    'description': f'Funds locked (Bid + Fees) for auction on {product_id}', 'timestamp': {".sv": "timestamp"}
                 })
+
+                # 4. Bid Success Notifications
+                send_system_notification(uid, 'Bid Placed Successfully', f'Your bid of RS {new_highest_bid:,.2f} is now active on {product.get("name")}.', 'order', f'/product-detail.html?id={product_id}')
+                
+                seller_id = product.get('sellerId')
+                if seller_id:
+                    send_system_notification(seller_id, 'New Bid Received', f'A new bid of RS {new_highest_bid:,.2f} has been placed on your listing: {product.get("name")}.', 'order', f'/product-detail.html?id={product_id}')
 
             # Path B: User was outbid by a proxy instantly
             elif new_highest_bidder != uid and new_highest_bidder == old_highest_bidder:
                 # Previous bidder's lock needs update to the new proxy-triggered price
+                total_new_lock = new_highest_bid * 1.07
+                total_old_lock = old_highest_bid * 1.07
+                
                 def update_proxy_lock(w):
                     if not w: return w
-                    avail = float(w.get('available_balance', 0))
+                    avail = float(w.get('balance', 0))
                     locked = float(w.get('locked_balance', 0))
-                    diff = new_highest_bid - old_highest_bid
-                    w['available_balance'] = avail - diff
+                    diff = total_new_lock - total_old_lock
+                    w['balance'] = avail - diff
                     w['locked_balance'] = locked + diff
                     return w
-                db.reference(f'wallets/{new_highest_bidder}').transaction(update_proxy_lock)
+                db.reference(f'users/{new_highest_bidder}/wallet').transaction(update_proxy_lock)
 
             # 4. Final Logs & Response
             # Fetch bidder name for denormalization
@@ -1363,10 +1422,10 @@ def finalize_auction():
                 'address': winner_profile.get('address', 'N/A')
             },
             'subtotal': winning_bid_amt,
-            'shippingTotal': 0, 
+            'shippingTotal': winning_bid_amt * 0.05, 
             'escrowFee': winning_bid_amt * 0.02,
-            'total': winning_bid_amt + (winning_bid_amt * 0.02),
-            'totalAmount': winning_bid_amt + (winning_bid_amt * 0.02),
+            'total': winning_bid_amt * 1.07,
+            'totalAmount': winning_bid_amt * 1.07,
             'status': 'pending', 
             'paymentMethod': 'wallet_tokens',
             'trackingNumber': tracking_number,
@@ -1383,7 +1442,7 @@ def finalize_auction():
             'orderId': order_id,
             'buyerId': winner_uid,
             'sellerId': seller_uid,
-            'amount': winning_bid_amt,
+            'amount': winning_bid_amt * 1.07,
             'status': 'holding',
             'createdAt': {".sv": "timestamp"}
         })
@@ -1392,20 +1451,21 @@ def finalize_auction():
         product_ref.update({'orderId': order_id, 'escrowId': escrow_id})
 
         # 4. Wallet Transition: locked_balance -> in_escrow
-        winner_wallet_ref = db.reference(f'wallets/{winner_uid}')
+        winner_wallet_ref = db.reference(f'users/{winner_uid}/wallet')
         def transition_to_escrow(w):
             if not w: return w
             locked = float(w.get('locked_balance', 0))
             escrow = float(w.get('in_escrow', 0))
-            w['locked_balance'] = max(0, locked - winning_bid_amt)
-            w['in_escrow'] = escrow + winning_bid_amt
+            total_to_move = winning_bid_amt * 1.07
+            w['locked_balance'] = max(0, locked - total_to_move)
+            w['in_escrow'] = escrow + total_to_move
             return w
         
         winner_wallet_ref.transaction(transition_to_escrow)
 
         # 5. Logging & Notifications
         db.reference(f'transactions/{winner_uid}').push({
-            'type': 'auction_win', 'amount': winning_bid_amt, 'productId': product_id, 'orderId': order_id,
+            'type': 'auction_win', 'amount': winning_bid_amt * 1.07, 'productId': product_id, 'orderId': order_id,
             'description': f'Auction for {product.get("name")} finalized. Order #{order_id} created.',
             'timestamp': {".sv": "timestamp"}
         })

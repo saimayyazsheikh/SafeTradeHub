@@ -97,8 +97,14 @@ class MessagesManager {
                 // Filter chats where current user is a participant
                 const chatPromises = [];
                 for (const [chatId, chatData] of Object.entries(chatsData)) {
-                    if (chatData.participants && chatData.participants.includes(this.currentUser.uid)) {
-                        chatPromises.push(this.processChat(chatId, chatData, db));
+                    if (chatData && chatData.participants) {
+                        const participants = Array.isArray(chatData.participants) 
+                            ? chatData.participants 
+                            : Object.values(chatData.participants);
+                            
+                        if (participants.includes(this.currentUser.uid)) {
+                            chatPromises.push(this.processChat(chatId, chatData, db));
+                        }
                     }
                 }
 
@@ -131,16 +137,29 @@ class MessagesManager {
     async processChat(chatId, chatData, db) {
         try {
             // Get the other participant
-            const otherUserId = chatData.participants.find(id => id !== this.currentUser.uid);
+            const participants = Array.isArray(chatData.participants) 
+                ? chatData.participants 
+                : Object.values(chatData.participants || {});
+            const otherUserId = participants.find(id => id !== this.currentUser.uid);
+            
+            if (!otherUserId) return null;
 
-            // Fetch other user data
-            const userSnapshot = await db.ref('users/' + otherUserId).once('value');
-            const userData = userSnapshot.val() || {};
+            // Fetch other user data (individually to bypass root node permission restrictions)
+            const [nameSnap, fullNameSnap, userSnap, picSnap, profSnap] = await Promise.all([
+                db.ref(`users/${otherUserId}/displayName`).once('value').catch(() => ({ val: () => null })),
+                db.ref(`users/${otherUserId}/fullName`).once('value').catch(() => ({ val: () => null })),
+                db.ref(`users/${otherUserId}/username`).once('value').catch(() => ({ val: () => null })),
+                db.ref(`users/${otherUserId}/profilePic`).once('value').catch(() => ({ val: () => null })),
+                db.ref(`users/${otherUserId}/profile/avatar`).once('value').catch(() => ({ val: () => null }))
+            ]);
+            
+            const userName = nameSnap.val() || fullNameSnap.val() || userSnap.val() || 'User';
+            const userAvatar = picSnap.val() || profSnap.val() || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`;
 
             // Fetch product data
             let productData = null;
             if (chatData.productId) {
-                const productSnapshot = await db.ref('products/' + chatData.productId).once('value');
+                const productSnapshot = await db.ref('products/' + chatData.productId).once('value').catch(() => ({ val: () => null }));
                 productData = productSnapshot.val();
             }
 
@@ -148,8 +167,8 @@ class MessagesManager {
                 chatId,
                 otherUser: {
                     uid: otherUserId,
-                    name: userData.name || userData.displayName || 'User',
-                    avatar: userData.profile?.avatar || userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=random`
+                    name: userName,
+                    avatar: userAvatar
                 },
                 product: productData ? {
                     id: chatData.productId,
@@ -405,9 +424,10 @@ class MessagesManager {
             });
 
             // Send System Notification to the recipient
+            const senderName = this.currentUser.name || this.currentUser.displayName || this.currentUser.fullName || 'User';
             const notificationRef = db.ref(`users/${otherUserId}/notifications`);
             await notificationRef.push({
-                title: `New Message from ${this.currentUser.name || 'User'}`,
+                title: `New Message from ${senderName}`,
                 message: text.length > 50 ? text.substring(0, 47) + '...' : text,
                 type: 'order', // Using 'order' icon (blue) for chats
                 read: false,

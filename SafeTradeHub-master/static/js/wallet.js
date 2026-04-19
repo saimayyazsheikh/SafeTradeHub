@@ -72,10 +72,44 @@ async function loadWalletData() {
     const userData = userSnap.val() || {};
     toggleRoleUI(userData.role);
 
-    // Listen for wallet balance changes
-    db.ref(`wallets/${currentUser.uid}`).on('value', snapshot => {
-        const wallet = snapshot.val() || {};
-        cachedBalance = wallet.available_balance || 0;
+    // Listen for wallet balance changes from the user's node
+    db.ref(`users/${currentUser.uid}/wallet`).on('value', async snapshot => {
+        let wallet = snapshot.val();
+        
+        // --- EMERGENCY MIGRATION LAYER (wallets/ -> users/uid/wallet) ---
+        // If the new wallet node is empty or missing balance, check the legacy node
+        if (!wallet || (wallet.balance === undefined && wallet.available_balance === undefined)) {
+            const legacySnap = await db.ref(`wallets/${currentUser.uid}`).once('value');
+            const legacyWallet = legacySnap.val();
+            
+            if (legacyWallet) {
+                console.log("Legacy wallet found, migrating...");
+                // Map legacy fields to new fields
+                const migratedWallet = {
+                    balance: legacyWallet.available_balance || 0,
+                    total_deposited: legacyWallet.total_deposited || 0,
+                    total_withdrawn: legacyWallet.total_withdrawn || 0,
+                    in_escrow: legacyWallet.in_escrow || 0,
+                    locked_balance: legacyWallet.locked_balance || 0,
+                    lastMigrated: firebase.database.ServerValue.TIMESTAMP
+                };
+                
+                // Perform the migration
+                await db.ref(`users/${currentUser.uid}/wallet`).update(migratedWallet);
+                // After update, the listener will fire again with the new data.
+                return;
+            }
+        }
+
+        wallet = wallet || {};
+        
+        // --- FALLBACK LAYER ---
+        if (wallet.balance === undefined && wallet.available_balance !== undefined) {
+            wallet.balance = wallet.available_balance;
+        }
+
+        // Match dashboard.js and checkout.html (.balance)
+        cachedBalance = wallet.balance || 0;
         updateWalletUI(wallet);
         
         // Update max withdraw hint if applicable
@@ -121,18 +155,18 @@ function toggleRoleUI(role) {
 }
 
 function updateWalletUI(wallet) {
-    const balance = wallet.available_balance || 0;
-    const withdrawn = wallet.total_withdrawn || 0;
+    const balance = wallet.balance || wallet.available_balance || 0;
+    const withdrawn = wallet.total_withdrawn || wallet.withdrawn || 0;
     const escrow = wallet.in_escrow || 0;
     const locked = wallet.locked_balance || 0;
 
-    document.getElementById('walletBalance').textContent = `RS ${balance.toLocaleString()}`;
+    document.getElementById('walletBalance').textContent = `RS ${parseFloat(balance).toLocaleString()}`;
     const tw = document.getElementById('totalWithdrawn');
-    if (tw) tw.textContent = `RS ${withdrawn.toLocaleString()}`;
-    document.getElementById('escrowHeld').textContent = `RS ${escrow.toLocaleString()}`;
+    if (tw) tw.textContent = `RS ${parseFloat(withdrawn).toLocaleString()}`;
+    document.getElementById('escrowHeld').textContent = `RS ${parseFloat(escrow).toLocaleString()}`;
     
     const lb = document.getElementById('lockedBalance');
-    if (lb) lb.textContent = `RS ${locked.toLocaleString()}`;
+    if (lb) lb.textContent = `RS ${parseFloat(locked).toLocaleString()}`;
 }
 
 function loadTransactions() {
@@ -141,33 +175,86 @@ function loadTransactions() {
     // Listen to multiple nodes and merge
     const depositsRef = db.ref('deposits').orderByChild('userId').equalTo(currentUser.uid);
     const withdrawalsRef = db.ref('withdrawal_requests').orderByChild('userId').equalTo(currentUser.uid);
-    const walletInternalRef = db.ref(`transactions/${currentUser.uid}`);
+    const transactionsRef = db.ref('transactions').orderByChild('userId').equalTo(currentUser.uid);
+    const walletRef = db.ref('walletTransactions').orderByChild('userId').equalTo(currentUser.uid);
 
     Promise.all([
         depositsRef.once('value'),
         withdrawalsRef.once('value'),
-        walletInternalRef.once('value')
-    ]).then(([depSnap, witSnap, intSnap]) => {
+        transactionsRef.once('value'),
+        walletRef.once('value')
+    ]).then(([depSnap, witSnap, txnSnap, walSnap]) => {
         const list = [];
         
-        depSnap.forEach(c => list.push({ id: c.key, ...c.val(), type: 'Deposit' }));
-        witSnap.forEach(c => list.push({ id: c.key, ...c.val(), type: 'Withdrawal' }));
-        intSnap.forEach(c => {
+        // 1. Deposits
+        depSnap.forEach(c => {
             const data = c.val();
-            // Avoid duplicates if already in witSnap
-            if (data.type !== 'Withdrawal') {
-                list.push({ id: c.key, ...data });
-            }
+            list.push({ 
+                id: c.key, 
+                ...data, 
+                type: 'Deposit', 
+                method: data.method || 'Manual',
+                timestamp: data.createdAt || data.timestamp 
+            });
         });
 
-        // Filter
+        // 2. Withdrawals
+        witSnap.forEach(c => {
+            const data = c.val();
+            list.push({ 
+                id: c.key, 
+                ...data, 
+                type: 'Withdrawal', 
+                method: data.bankDetails?.bankName || 'Bank Transfer',
+                timestamp: data.createdAt || data.timestamp 
+            });
+        });
+
+        // 3. Payments (Checkout / Bids)
+        txnSnap.forEach(c => {
+            const data = c.val();
+            // Map types for better UI display
+            let displayType = 'Payment';
+            if (data.type === 'payment') displayType = 'Order Payment';
+            if (data.type === 'escrow_hold') displayType = 'Escrow Hold';
+            if (data.type === 'refund') displayType = 'Refund';
+
+            list.push({ 
+                id: c.key, 
+                ...data, 
+                type: displayType, 
+                method: data.method || 'Wallet Token',
+                timestamp: data.createdAt || data.timestamp
+            });
+        });
+
+        // 4. Credits (Escrow Release / Earnings)
+        walSnap.forEach(c => {
+            const data = c.val();
+            let displayType = 'Credit';
+            if (data.type === 'credit') displayType = 'Escrow Release';
+            if (data.type === 'bonus') displayType = 'Bonus';
+
+            list.push({ 
+                id: c.key, 
+                ...data, 
+                type: displayType, 
+                method: 'Wallet Credit',
+                timestamp: data.createdAt || data.timestamp
+            });
+        });
+
+        // Filter by Type
         let filtered = list;
         if (filterType !== 'all') {
-            filtered = list.filter(t => t.type.toLowerCase() === filterType.toLowerCase());
+            filtered = list.filter(t => {
+                const searchType = t.type.toLowerCase().replace(/\s+/g, '_');
+                return searchType.includes(filterType.toLowerCase());
+            });
         }
 
         // Sort by date desc
-        filtered.sort((a, b) => (b.createdAt || b.timestamp) - (a.createdAt || a.timestamp));
+        filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         renderTransactions(filtered);
     });
@@ -188,15 +275,18 @@ function renderTransactions(transactions) {
 
     transactions.forEach(t => {
         const tr = document.createElement('tr');
-        const date = new Date(t.createdAt || t.timestamp).toLocaleDateString();
-        const type = t.type;
-        const method = t.method || (t.bankDetails ? t.bankDetails.bankName : 'System');
-        const amount = parseFloat(t.amount).toLocaleString();
-        const status = t.status;
+        const date = new Date(t.timestamp || t.createdAt).toLocaleDateString();
+        const type = t.type || 'Transaction';
+        const method = t.method || 'System';
+        const amount = parseFloat(t.amount || 0).toLocaleString();
+        const status = t.status || 'completed';
         
+        // Define which types are deductions (Red) vs additions (Green)
+        const isDeduction = ['Withdrawal', 'Escrow Hold', 'Order Payment', 'Payment'].includes(type);
+
         let actionHtml = '';
         if (t.slipUrl) {
-            actionHtml = `<button class="btn-sm btn-outline-success" onclick="viewSlip('${t.slipUrl}')" style="padding: 2px 8px; font-size: 0.75rem;">
+            actionHtml = `<button class="btn-sm btn-outline-success" onclick="viewSlip('${t.slipUrl}')" style="padding: 2px 8px; font-size: 0.75rem; margin-left: 8px;">
                             <i class="fas fa-file-invoice"></i> View Slip
                           </button>`;
         }
@@ -209,8 +299,8 @@ function renderTransactions(transactions) {
                     <small style="color:var(--text-secondary);">${method}</small>
                 </div>
             </td>
-            <td style="color: ${type === 'Withdrawal' || type === 'Escrow Hold' ? '#ef4444' : '#10b981'}; font-weight:600;">
-                ${type === 'Withdrawal' || type === 'Escrow Hold' ? '-' : '+'} RS ${amount}
+            <td style="color: ${isDeduction ? '#ef4444' : '#10b981'}; font-weight:600;">
+                ${isDeduction ? '-' : '+'} RS ${amount}
             </td>
             <td>
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -224,10 +314,22 @@ function renderTransactions(transactions) {
 }
 
 function getStatusBadge(status) {
-    switch (status) {
-        case 'approved': return 'success';
-        case 'pending': return 'warning';
-        case 'rejected': return 'danger';
+    if (!status) return 'secondary';
+    const s = status.toLowerCase();
+    switch (s) {
+        case 'approved':
+        case 'completed':
+        case 'released':
+        case 'paid':
+            return 'success';
+        case 'pending':
+        case 'processing':
+        case 'holding':
+            return 'warning';
+        case 'rejected':
+        case 'failed':
+        case 'cancelled':
+            return 'danger';
         default: return 'secondary';
     }
 }

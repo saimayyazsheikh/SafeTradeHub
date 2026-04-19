@@ -654,6 +654,12 @@
                   <option value="F8 Islamabad">F8 Islamabad</option>
                   <option value="I8 Islamabad">I8 Islamabad</option>
                   <option value="G9 Islamabad">G9 Islamabad</option>
+                  <option value="DHA Karachi">DHA Karachi</option>
+                  <option value="Gulshan Karachi">Gulshan Karachi</option>
+                  <option value="DHA Lahore">DHA Lahore</option>
+                  <option value="Gulberg Lahore">Gulberg Lahore</option>
+                  <option value="Bosan Road Multan">Bosan Road Multan</option>
+                  <option value="Canal Road Faisalabad">Canal Road Faisalabad</option>
                 </select>
               </div>
 
@@ -785,10 +791,11 @@
 
           
 
-          // Listen for real-time updates
+          // Listen for real-time updates from the user's wallet node
           db.ref(`users/${userId}/wallet`).on('value', (snapshot) => {
             const wallet = snapshot.val() || {};
             
+            // Reverted to .balance to match dashboard.js and restore funds
             walletBalance = wallet.balance || 0;
             updateWalletDisplay();
           }, (error) => {
@@ -875,7 +882,9 @@
             shippingCost: Number(i.shippingCost) || 0,
             img: i.img || '',
             qty: Number(i.qty) || 1,
-            desc: i.desc || i.description || ''
+            desc: i.desc || i.description || '',
+            sellerId: i.sellerId || '',
+            sellerName: i.sellerName || ''
           })) : [];
         } catch (error) {
           console.error('Error reading cart:', error);
@@ -884,7 +893,7 @@
       }
 
       const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-      const shippingTotal = cart.reduce((total, item) => total + ((Number(item.shippingCost) || 0) * item.qty), 0);
+      const shippingTotal = cart.reduce((total, item) => total + (Number(item.shippingCost) || 0), 0);
       const escrowFee = subtotal * 0.02; // 2% escrow fee
       return subtotal + shippingTotal + escrowFee;
     }
@@ -944,7 +953,9 @@
             price: Number(i.price) || 0,
             img: i.img || '',
             qty: Number(i.qty) || 1,
-            desc: i.desc || i.description || ''
+            desc: i.desc || i.description || '',
+            sellerId: i.sellerId || '',
+            sellerName: i.sellerName || ''
           })) : [];
           
         } catch (error) {
@@ -975,7 +986,7 @@
         const qty = Number(item.qty) || 1;
         const line = price * qty;
         subtotal += line;
-        shippingTotal += shipping * qty;
+        shippingTotal += shipping;
 
         return `
       <div class="review-row">
@@ -988,19 +999,20 @@
           ${shipping > 0 ? `<div class="muted" style="font-size: 0.85rem;">Shipping: ${formatPrice(shipping)}</div>` : ''}
           ${item.desc ? `<div class="muted" style="font-size: 0.85rem;">${item.desc}</div>` : ''}
         </div>
-        <div class="strong">${formatPrice(line + (shipping * qty))}</div>
+        <div class="strong">${formatPrice(line + shipping)}</div>
       </div>
 
     `;
       }).join('');
 
-      // Calculate escrow fee
       const escrowFee = subtotal * 0.02; // 2% escrow fee
+      // Use per-item shipping if set, otherwise apply the 5% platform shipping fee
+      if (shippingTotal === 0) shippingTotal = subtotal * 0.05;
       const total = subtotal + shippingTotal + escrowFee;
 
       document.getElementById('subtotal').textContent = formatPrice(subtotal);
       document.getElementById('escrowFee').textContent = formatPrice(escrowFee);
-      document.getElementById('shippingTotal').textContent = shippingTotal > 0 ? formatPrice(shippingTotal) : 'Free';
+      document.getElementById('shippingTotal').textContent = formatPrice(shippingTotal);
       document.getElementById('grand').textContent = formatPrice(total);
 
       // Update wallet display after cart calculation
@@ -1107,7 +1119,9 @@
             shippingCost: Number(i.shippingCost) || 0,
             img: i.img || '',
             qty: Number(i.qty) || 1,
-            desc: i.desc || i.description || ''
+            desc: i.desc || i.description || '',
+            sellerId: i.sellerId || '',
+            sellerName: i.sellerName || ''
           })) : [];
         } catch (error) {
           console.error('Error reading cart for checkout:', error);
@@ -1147,19 +1161,32 @@
         return;
       }
 
-      if (!isValid) {
-        if (window.SafeTradeHub) {
-          window.SafeTradeHub.showNotification('Please fix the errors in the form', 'error');
-        } else {
-          alert('Please fix the errors in the form');
+      // --- INVENTORY CHECK ---
+      try {
+        const db = firebase.database();
+        for (const item of cart) {
+          const productSnap = await db.ref(`products/${item.id}`).once('value');
+          if (!productSnap.exists()) {
+            throw new Error(`Product "${item.title}" no longer exists.`);
+          }
+          const productData = productSnap.val();
+          const currentStock = parseInt(productData.stock) || 0;
+          
+          if (currentStock < item.qty) {
+            throw new Error(`Insufficient stock for "${item.title}". Only ${currentStock} available.`);
+          }
         }
+      } catch (err) {
+        if (window.SafeTradeHub) window.SafeTradeHub.showNotification(err.message, 'error');
+        else alert(err.message);
         return;
       }
+      // -----------------------
 
       // Calculate totals
       const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-      const shippingTotal = cart.reduce((total, item) => total + ((Number(item.shippingCost) || 0) * item.qty), 0);
       const escrowFee = subtotal * 0.02; // 2% escrow fee
+      const shippingTotal = subtotal * 0.05; // 5% shipping fee
       const total = subtotal + shippingTotal + escrowFee;
 
       // Check wallet balance
@@ -1267,35 +1294,88 @@
         };
         updates[`transactions/${transactionId}`] = transactionData;
 
-        // 4. Update Wallet (Atomic Transaction)
-        // We can't do a simple update for wallet balance because it needs to be transactional based on current value.
-        // So we'll do the multi-path update for the new records first, then run a transaction on the wallet.
+        // 4. Update Wallet & Inventory (Transactional)
+        // We'll run inventory updates first, then wallet.
+        // This ensures stock is reserved before funds are moved.
+        
+        const inventoryPromises = cart.map(item => {
+          return db.ref(`products/${item.id}`).transaction((currentProduct) => {
+            if (currentProduct) {
+              const stock = parseInt(currentProduct.stock) || 0;
+              if (stock < item.qty) return; // Abort if someone else bought it first
+              
+              const newStock = stock - item.qty;
+              currentProduct.stock = newStock;
+              
+              // If stock reaches 0, mark as sold out
+              if (newStock <= 0) {
+                currentProduct.isActive = false;
+                currentProduct.status = 'sold_out';
+              }
+            }
+            return currentProduct;
+          });
+        });
 
-        // First, write the new records
+        await Promise.all(inventoryPromises);
+
+        // Write the other records (Order, Escrow, Transaction)
         await db.ref().update(updates);
 
-        // Then, update the wallet balance transactionally
-        // Then, update the wallet balance transactionally
-        const walletRef = db.ref(`wallets/${user.uid}`);
-        await walletRef.transaction((currentWallet) => {
+        // 5. Update Wallet (Atomic Transaction)
+        const walletRef = db.ref(`users/${user.uid}/wallet`);
+        const { committed, snapshot } = await walletRef.transaction((currentWallet) => {
           if (currentWallet) {
-            if ((currentWallet.available_balance || 0) < total) {
-              // Abort if balance became insufficient
-              throw new Error('Insufficient balance');
+            const balance = currentWallet.balance || 0;
+            if (balance < total) {
+              return; // Abort if insufficient (check already done but for safety)
             }
-            currentWallet.available_balance = (currentWallet.available_balance || 0) - total;
+            currentWallet.balance = balance - total;
+            currentWallet.in_escrow = (currentWallet.in_escrow || 0) + total;
             currentWallet.total_spent = (currentWallet.total_spent || 0) + total;
-            currentWallet.in_escrow = (currentWallet.in_escrow || 0) + total; // Add to escrow held amount
+            return currentWallet;
           } else {
-             // Failsafe initialization
+             // Fallback if node doesn't exist (though it should if balance check passed)
              return {
-                 available_balance: -total, // Will be caught by insufficient balance logic theoretically
+                 balance: 0, // Assume 0 if we somehow passed the check but node is gone
                  in_escrow: total,
                  total_spent: total
              };
           }
-          return currentWallet;
         });
+
+        if (!committed) {
+          throw new Error('Transaction failed: Insufficient funds or concurrent update.');
+        }
+
+        // 6. Send Order Confirmation Notifications
+        try {
+          const timestamp = firebase.database.ServerValue.TIMESTAMP;
+          
+          // Notify Buyer
+          const buyerNotif = {
+            title: 'Order Confirmed',
+            message: `Your order #${orderId.slice(-6)} has been placed successfully.`,
+            type: 'order',
+            read: false,
+            timestamp: timestamp,
+            link: `orders.html#${orderId}`
+          };
+          await db.ref(`users/${user.uid}/notifications`).push(buyerNotif);
+
+          // Notify Seller
+          const sellerNotif = {
+            title: 'New Order Received',
+            message: `You have received a new order #${orderId.slice(-6)}. Please prepare for shipment.`,
+            type: 'order',
+            read: false,
+            timestamp: timestamp,
+            link: `orders.html#${orderId}`
+          };
+          await db.ref(`users/${sellerId}/notifications`).push(sellerNotif);
+        } catch (notifErr) {
+          console.warn('Notifications failed to send:', notifErr);
+        }
 
         // Clear cart
         if (window.SafeTradeHub) {

@@ -247,6 +247,23 @@ class SellerChat {
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             });
 
+            // Increment unread count for the recipient
+            await chatRef.child(`unreadCounts/${this.sellerId}`).transaction((current) => {
+                return (current || 0) + 1;
+            });
+
+            // Send notification to the recipient
+            const senderName = this.currentUser.name || this.currentUser.displayName || this.currentUser.fullName || 'User';
+            const notificationRef = db.ref(`users/${this.sellerId}/notifications`);
+            await notificationRef.push({
+                title: `New Message from ${senderName}`,
+                message: text.length > 50 ? text.substring(0, 47) + '...' : text,
+                type: 'order',
+                read: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                link: 'messages.html'
+            });
+
         } catch (error) {
             console.error('Error sending message:', error);
             alert('Failed to send message. Please check your Firebase rules and try again.');

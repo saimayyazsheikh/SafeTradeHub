@@ -30,7 +30,18 @@ window.STHAnalytics = (function() {
 
             const processAndNotify = () => {
                 const results = {
-                    counters: { revenue: 0, orders: 0, usersNew24h: 0, activeDisputes: 0, escrowValue: 0, fraudReports: 0, fulfillmentRate: 0 },
+                    counters: { 
+                        revenue: 0, 
+                        gmv: 0,
+                        shippingRevenue: 0, 
+                        escrowRevenue: 0,
+                        orders: 0, 
+                        usersNew24h: 0, 
+                        activeDisputes: 0, 
+                        escrowValue: 0, 
+                        fraudReports: 0, 
+                        fulfillmentRate: 0 
+                    },
                     charts: { revenueTrend: {}, userGrowth: {}, categories: {}, security: { disputes: { active: 0, resolved: 0 }, reports: { active: 0, resolved: 0 } }, escrowStatus: {} }
                 };
 
@@ -41,11 +52,19 @@ window.STHAnalytics = (function() {
                 let completed = 0;
                 Object.values(state.orders).forEach(o => {
                     if (!o) return;
-                    const amt = parseFloat(o.total || 0);
+                    const amt = parseFloat(o.total || o.totalAmount || 0);
+                    const shippingAmt = parseFloat(o.shippingTotal || 0);
+                    const escrowAmt = parseFloat(o.escrowFee || 0);
+                    
                     const date = new Date(o.createdAt || o.timestamp);
                     results.counters.orders++;
+                    
                     if (o.status === 'completed' || o.status === 'delivered') {
-                        results.counters.revenue += amt;
+                        results.counters.gmv = (results.counters.gmv || 0) + amt;
+                        results.counters.revenue += (escrowAmt + shippingAmt);
+                        results.counters.shippingRevenue += shippingAmt;
+                        results.counters.escrowRevenue += escrowAmt;
+                        
                         completed++;
                         if (!isNaN(date)) {
                             const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -59,7 +78,10 @@ window.STHAnalytics = (function() {
                 Object.values(state.products).forEach(p => {
                     if (!p) return;
                     const cat = p.category || 'General';
+                    const price = parseFloat(p.price || 0);
                     if (!results.charts.categories[cat]) results.charts.categories[cat] = { volume: 0, value: 0 };
+                    results.charts.categories[cat].volume++;
+                    results.charts.categories[cat].value += price;
                 });
 
                 // User Growth
@@ -96,6 +118,72 @@ window.STHAnalytics = (function() {
                 type: 'line',
                 data: { labels: labels, datasets: [{ label: 'Revenue (RS)', data: data, borderColor: THEME.primary, backgroundColor: 'rgba(79, 70, 229, 0.05)', fill: true, tension: 0.4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            return canvas._chartInstance;
+        },
+
+        renderCategoryChart: (canvasId, categories, mode = 'volume') => {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas?.getContext('2d');
+            if (!ctx) return null;
+            if (canvas._chartInstance) canvas._chartInstance.destroy();
+
+            const labels = Object.keys(categories || {}).sort((a, b) => categories[b][mode] - categories[a][mode]);
+            const data = labels.map(cat => categories[cat][mode]);
+
+            canvas._chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: mode === 'volume' ? 'Product Count' : 'Market Value (RS)',
+                        data: data,
+                        backgroundColor: mode === 'volume' ? THEME.secondary : THEME.primary,
+                        borderRadius: 4,
+                        indexAxis: 'y' // Horizontal bar
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { display: false } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+            return canvas._chartInstance;
+        },
+
+        renderGrowthChart: (canvasId, growthData) => {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas?.getContext('2d');
+            if (!ctx) return null;
+            if (canvas._chartInstance) canvas._chartInstance.destroy();
+
+            const labels = Object.keys(growthData || {}).sort();
+            const data = labels.map(l => growthData[l]);
+
+            canvas._chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Users',
+                        data: data,
+                        borderColor: THEME.success,
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
             });
             return canvas._chartInstance;
         }
@@ -141,7 +229,8 @@ window.STHAnalytics = (function() {
                     if (sid === sellerUid) {
                         stats.salesCount++;
                         
-                        const amt = parseFloat(o.total || o.amount || 0);
+                        // Use subtotal (base price) for seller revenue, not the total which includes platform shipping/escrow
+                        const amt = parseFloat(o.subtotal || o.price || o.amount || 0);
                         if (o.status === 'completed' || o.status === 'delivered') {
                             stats.revenue += amt;
                         }

@@ -470,12 +470,23 @@ function viewEscrowDetails(escrowId) {
 }
 
 function releaseEscrowFunds(escrowId) {
+  const escrowIndex = escrowData.findIndex(e => e.id === escrowId);
+  if (escrowIndex === -1) return;
+
+  const escrow = escrowData[escrowIndex];
+  
+  // Check order status from localStorage
+  const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+  const order = orders.find(o => o.id === escrow.orderId);
+  
+  if (order && order.status !== 'delivered' && order.status !== 'completed') {
+    alert('Cannot release funds. Order status must be Delivered.');
+    return;
+  }
+
   if (!confirm('Are you sure you want to release funds for this escrow transaction?')) {
     return;
   }
-  
-  const escrowIndex = escrowData.findIndex(e => e.id === escrowId);
-  if (escrowIndex === -1) return;
   
   // Update escrow status
   escrowData[escrowIndex].status = 'released';

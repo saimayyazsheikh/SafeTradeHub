@@ -766,6 +766,40 @@ class NotificationManager {
   }
 }
 
+// Global notification helpers
+async function requestNotificationPermission() {
+    try {
+        const messaging = firebase.messaging();
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            const token = await messaging.getToken({
+                vapidKey: 'BJ13KKFRdr9XHWWFTGBZc1wSE5gRJaBLtUDH9QJxeCKDG2YolMlbnSrBIkEc_Aein7dq6M1-t9GQtJmUDQVice0'
+            });
+            sendTokenToServer(token);
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast('Success', 'Notifications enabled! You\'ll receive updates about your orders.', 'success');
+            } else {
+                alert('Notifications enabled!');
+            }
+        } else {
+            alert('Notifications are disabled. You can enable them later by clicking the bell icon.');
+        }
+    } catch (error) {
+        console.error('Error getting FCM token:', error);
+    }
+}
+
+function sendTokenToServer(token) {
+    fetch('/save-fcm-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fcmToken: token })
+    }).catch(error => console.error('Error saving token:', error));
+}
+
+window.requestNotificationPermission = requestNotificationPermission;
+window.sendTokenToServer = sendTokenToServer;
+
 // Global Instance
 window.NotificationManager = new NotificationManager();
 

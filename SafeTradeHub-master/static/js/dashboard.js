@@ -109,7 +109,11 @@ async function renderSellerDashboard(uid, userData) {
     const totalProducts = products.length;
     const activeProducts = products.filter(p => p.isActive !== false).length;
     const totalSales = orders.length;
-    const walletBalance = userData.wallet?.balance || 0;
+    const walletBalance = userData.wallet?.balance || userData.wallet?.available_balance || 0;
+    
+    // Aggregate View Metrics
+    const totalViews = products.reduce((acc, p) => acc + (parseInt(p.views) || 0), 0);
+    const conversionRate = totalViews > 0 ? ((totalSales / totalViews) * 100).toFixed(1) : 0;
 
     contentArea.innerHTML = `
         <!-- Stats Grid -->
@@ -168,7 +172,22 @@ async function renderSellerDashboard(uid, userData) {
                                     <tr>
                                         <td>${p.name || p.title}</td>
                                         <td>RS ${p.price}</td>
-                                        <td><span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                                        <td>
+                                            ${(() => {
+                                                if (p.status === 'rejected') {
+                                                    return `
+                                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                                            <span class="status-badge cancelled">Rejected</span>
+                                                            ${p.rejectionReason ? `<div style="font-size: 0.7rem; color: #b91c1c; background: #fee2e2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca; margin-top: 2px; max-width: 150px; white-space: normal; line-height: 1.2;">
+                                                                <strong>Reason:</strong> ${p.rejectionReason}
+                                                            </div>` : ''}
+                                                        </div>
+                                                    `;
+                                                }
+                                                if (p.status === 'pending_verification') return '<span class="status-badge pending">Pending</span>';
+                                                return `<span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span>`;
+                                            })()}
+                                        </td>
                                         <td>${p.views || 0}</td>
                                     </tr>
                                 `).join('') || '<tr><td colspan="4">No products found</td></tr>'}
@@ -188,11 +207,11 @@ async function renderSellerDashboard(uid, userData) {
                     <div class="insight-metrics">
                         <div class="insight-item">
                             <span class="label">Conversion</span>
-                            <span class="value" id="dash-conversion">0%</span>
+                            <span class="value" id="dash-conversion">${conversionRate}%</span>
                         </div>
                         <div class="insight-item">
                             <span class="label">Impressions</span>
-                            <span class="value" id="dash-views">0</span>
+                            <span class="value" id="dash-views">${totalViews.toLocaleString()}</span>
                         </div>
                     </div>
                     <div class="mini-chart-area">
@@ -262,7 +281,7 @@ async function renderBuyerDashboard(uid, userData) {
     }
 
     // Calculate Stats
-    const walletBalance = userData.wallet?.balance || 0;
+    const walletBalance = userData.wallet?.balance || userData.wallet?.available_balance || 0;
     const totalOrders = orders.length;
     
     // Pending includes all logistics states before delivery

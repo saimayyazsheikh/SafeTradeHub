@@ -86,9 +86,9 @@ function setupEventListeners() {
     // Form Submission
     document.getElementById('productUploadForm').addEventListener('submit', handleFormSubmit);
     
-    // Cancel/Draft (Optional logic for Drafts can be added here)
-    document.getElementById('saveDraft').addEventListener('click', () => {
-        window.NotificationManager.showToast('Draft Saved', 'Your progress has been saved locally.', 'success');
+    // Save Draft Logic
+    document.getElementById('saveDraft').addEventListener('click', (e) => {
+        handleFormSubmit(e, 'draft');
     });
 
     // Auction Toggle Logic
@@ -98,12 +98,24 @@ function setupEventListeners() {
 
     if (auctionToggle) {
         auctionToggle.addEventListener('change', (e) => {
+            const inventoryGroup = document.getElementById('inventoryGroup');
+            const productStock = document.getElementById('productStock');
+            
             if (e.target.checked) {
                 auctionFields.style.display = 'grid';
                 if (fixedPriceGroup) fixedPriceGroup.classList.add('hidden-price');
+                if (inventoryGroup) {
+                    inventoryGroup.classList.add('hidden-price');
+                    if (productStock) productStock.removeAttribute('required');
+                }
+                if (productStock) productStock.value = 1; // Auctions are single-item by default
             } else {
                 auctionFields.style.display = 'none';
                 if (fixedPriceGroup) fixedPriceGroup.classList.remove('hidden-price');
+                if (inventoryGroup) {
+                    inventoryGroup.classList.remove('hidden-price');
+                    if (productStock) productStock.setAttribute('required', 'required');
+                }
             }
         });
     }
@@ -124,7 +136,7 @@ function addSpecificationRow(key = '', val = '') {
     div.innerHTML = `
         <input type="text" placeholder="Key (e.g. RAM)" class="axiom-input spec-key" value="${key}">
         <input type="text" placeholder="Value (e.g. 16GB)" class="axiom-input spec-val" value="${val}">
-        <button type="button" class="btn-axiom btn-axiom-ghost" style="padding: 0; color: #ef4444;" onclick="this.parentElement.remove()">
+        <button type="button" class="btn-axiom btn-axiom-ghost" style="padding: 0; display: flex; justify-content: center; align-items: center; color: #ef4444;" onclick="this.parentElement.remove()">
             <i class="fas fa-trash"></i>
         </button>
     `;
@@ -222,29 +234,37 @@ window.removeUploadedImage = (idx) => {
 
 /* --- FORM SUBMISSION --- */
 
-async function handleFormSubmit(e) {
-    e.preventDefault();
+async function handleFormSubmit(e, targetStatus = 'pending_verification') {
+    if (e) e.preventDefault();
     
+    const isDraft = targetStatus === 'draft';
     const isAuction = document.getElementById('auctionEnabled').checked;
 
     // 1. Validation
-    if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
-        window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
+    if (!document.getElementById('productName').value.trim()) {
+        window.NotificationManager.showToast('Title Required', 'Please provide at least a product title to save.', 'warning');
         return;
     }
 
-    const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
-    if (unsafeItems.length > 0) {
-        showUnsafeModal(unsafeItems);
-        return;
-    }
+    if (!isDraft) {
+        if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
+            window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
+            return;
+        }
 
-    // Agreement checks
-    if (!document.getElementById('agreeTerms').checked || 
-        !document.getElementById('confirmAccuracy').checked || 
-        !document.getElementById('confirmOwnership').checked) {
-        window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
-        return;
+        const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
+        if (unsafeItems.length > 0) {
+            showUnsafeModal(unsafeItems);
+            return;
+        }
+
+        // Agreement checks
+        if (!document.getElementById('agreeTerms').checked || 
+            !document.getElementById('confirmAccuracy').checked || 
+            !document.getElementById('confirmOwnership').checked) {
+            window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
+            return;
+        }
     }
 
     try {
@@ -253,11 +273,17 @@ async function handleFormSubmit(e) {
         // 2. Upload Images to Storage
         const imageUrls = [];
         for (const imgObj of uploadedImages) {
-            const storagePath = `products/${currentUser.id}/${Date.now()}_${imgObj.file.name}`;
-            const storageRef = firebase.storage().ref(storagePath);
-            const snapshot = await storageRef.put(imgObj.file);
-            const downloadURL = await snapshot.ref.getDownloadURL();
-            imageUrls.push({ url: downloadURL, isMain: imgObj.isMain });
+            // If it's a draft and we don't have a file (maybe it's a re-save), we handle it
+            // but for now, product-upload always has files for uploadedImages
+            if (imgObj.file) {
+                const storagePath = `products/${currentUser.id}/${Date.now()}_${imgObj.file.name}`;
+                const storageRef = firebase.storage().ref(storagePath);
+                const snapshot = await storageRef.put(imgObj.file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                imageUrls.push({ url: downloadURL, isMain: imgObj.isMain });
+            } else if (imgObj.url) {
+                imageUrls.push({ url: imgObj.url, isMain: imgObj.isMain });
+            }
         }
         
         // 3. Prepare Specifications
@@ -277,21 +303,21 @@ async function handleFormSubmit(e) {
             name: document.getElementById('productName').value,
             category: document.getElementById('productCategory').value,
             condition: document.getElementById('productCondition').value,
-            price: isAuction ? parseFloat(document.getElementById('auctionStartingPrice').value) : parseFloat(document.getElementById('productPrice').value),
-            stock: parseInt(document.getElementById('productStock').value),
-            location: document.getElementById('productLocation').value,
-            description: document.getElementById('productDescription').value,
+            price: (isAuction ? parseFloat(document.getElementById('auctionStartingPrice').value) : parseFloat(document.getElementById('productPrice').value)) || 0,
+            stock: isAuction ? 1 : (parseInt(document.getElementById('productStock').value) || 0),
+            location: document.getElementById('productLocation').value || '',
+            description: document.getElementById('productDescription').value || '',
             tags: document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t),
             specifications: specs,
-            shippingMethod: document.getElementById('shippingMethod').value,
-            shippingCost: parseFloat(document.getElementById('shippingCost').value) || 0,
-            returnPolicy: document.getElementById('returnPolicy').value,
+            shippingMethod: 'standard',
+            shippingCost: 0,
+            returnPolicy: document.getElementById('returnPolicy').value || '',
             images: imageUrls,
             sellerId: currentUser.id,
             sellerName: currentUser.name || 'SafeTrade Merchant',
-            isActive: false, // Inactive until verified by staff
+            isActive: false, 
             verified: false,
-            status: 'pending_verification',
+            status: targetStatus,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             views: 0,
@@ -302,14 +328,15 @@ async function handleFormSubmit(e) {
 
         if (isAuction) {
             payload.listingType = 'auction';
+            const startPrice = parseFloat(document.getElementById('auctionStartingPrice').value) || 0;
             payload.auction = {
                 enabled: true,
-                startingPrice: parseFloat(document.getElementById('auctionStartingPrice').value),
-                minIncrement: parseFloat(document.getElementById('auctionMinIncrement').value),
-                duration: parseInt(document.getElementById('auctionDuration').value),
-                currentBid: parseFloat(document.getElementById('auctionStartingPrice').value),
+                startingPrice: startPrice,
+                minIncrement: parseFloat(document.getElementById('auctionMinIncrement').value) || 10,
+                duration: parseInt(document.getElementById('auctionDuration').value) || 7,
+                currentBid: startPrice,
                 startTime: new Date().toISOString(),
-                endTime: new Date(Date.now() + parseInt(document.getElementById('auctionDuration').value) * 24 * 60 * 60 * 1000).toISOString()
+                endTime: new Date(Date.now() + (parseInt(document.getElementById('auctionDuration').value) || 7) * 24 * 60 * 60 * 1000).toISOString()
             };
             // Map root fields for compatibility
             payload.startingBid = payload.auction.startingPrice;
@@ -324,17 +351,25 @@ async function handleFormSubmit(e) {
         // 5. Submit to DB
         await productRef.set(payload);
 
-        // 6. Notify Seller
-        firebase.database().ref(`users/${currentUser.id}/notifications`).push({
-            title: 'Listing Submitted',
-            message: `Your product "${payload.name}" is now pending AI and staff verification.`,
-            type: 'success',
-            read: false,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-
-        showLoading(false);
-        document.getElementById('successModal').classList.add('show');
+        // 6. Notify Seller (Only for non-drafts or informative)
+        if (!isDraft) {
+            firebase.database().ref(`users/${currentUser.id}/notifications`).push({
+                title: 'Listing Submitted',
+                message: `Your product "${payload.name}" is now pending AI and staff verification.`,
+                type: 'success',
+                read: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            showLoading(false);
+            document.getElementById('successModal').classList.add('show');
+        } else {
+            showLoading(false);
+            window.NotificationManager.showToast('Draft Saved', 'Your progress has been saved. You can find it in your Product Management dashboard.', 'success');
+            setTimeout(() => {
+                window.location.href = 'product-management.html';
+            }, 1500);
+        }
 
     } catch (error) {
         console.error('Upload Failed:', error);
@@ -387,7 +422,31 @@ async function fetchPriceComparison(query) {
             return;
         }
 
-        container.innerHTML = data.results.map(item => `
+        let minPrice = Infinity, maxPrice = 0, sumPrice = 0, count = 0;
+        data.results.forEach(item => {
+            const pMatch = (item.price || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
+            if (pMatch) {
+                const p = parseFloat(pMatch[0]);
+                if (p > 0) {
+                    if (p < minPrice) minPrice = p;
+                    if (p > maxPrice) maxPrice = p;
+                    sumPrice += p;
+                    count++;
+                }
+            }
+        });
+        const avgPrice = count > 0 ? sumPrice / count : 0;
+        if (minPrice === Infinity) minPrice = 0;
+
+        const summaryHtml = count > 0 ? `
+            <div style="display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Lowest</span><strong style="color: #10b981; font-size: 0.95rem;">Rs ${minPrice.toLocaleString()}</strong></div>
+                <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Average</span><strong style="color: #4f46e5; font-size: 0.95rem;">Rs ${Math.round(avgPrice).toLocaleString()}</strong></div>
+                <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Highest</span><strong style="color: #ef4444; font-size: 0.95rem;">Rs ${maxPrice.toLocaleString()}</strong></div>
+            </div>
+        ` : '';
+
+        container.innerHTML = summaryHtml + data.results.map(item => `
             <a href="${item.link}" target="_blank" class="comparison-item">
                 <div class="comparison-details">
                     <div class="comparison-title" title="${item.title}">${item.title}</div>
@@ -428,3 +487,14 @@ function showUnsafeModal(unsafeItems) {
 }
 
 window.closeUnsafeModal = () => document.getElementById('unsafeItemsModal').classList.remove('show');
+
+/* --- TERMS MODAL --- */
+window.showTermsModal = () => {
+    const modal = document.getElementById('termsModal');
+    if (modal) modal.classList.add('show');
+};
+
+window.closeTermsModal = () => {
+    const modal = document.getElementById('termsModal');
+    if (modal) modal.classList.remove('show');
+};

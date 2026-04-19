@@ -78,6 +78,14 @@ function populateGeneralInfo() {
         auctionToggle.checked = true;
         auctionFields.style.display = 'grid';
         if (fixedPriceGroup) fixedPriceGroup.classList.add('hidden-price');
+        const inventoryGroup = document.getElementById('inventoryGroup');
+        const productStock = document.getElementById('productStock');
+        if (inventoryGroup) {
+            inventoryGroup.classList.add('hidden-price');
+            if (productStock) productStock.removeAttribute('required');
+        }
+        if (productStock) productStock.value = 1;
+
         document.getElementById('auctionStartingPrice').value = auction.startingPrice || '';
         document.getElementById('auctionMinIncrement').value = auction.minIncrement || '';
         document.getElementById('auctionDuration').value = auction.duration || '7';
@@ -92,7 +100,6 @@ function populateGeneralInfo() {
     
     // Shipping
     document.getElementById('shippingMethod').value = currentProduct.shippingMethod || 'standard';
-    document.getElementById('shippingCost').value = currentProduct.shippingCost || 0;
     document.getElementById('returnPolicy').value = currentProduct.returnPolicy || '';
 
     // Price Comparison (Initial Load)
@@ -174,6 +181,14 @@ function setupEventListeners() {
     // Form Submission
     document.getElementById('productEditForm').addEventListener('submit', handleFormSubmit);
     
+    // Save as Draft (Specific to Edit page)
+    const draftBtn = document.getElementById('saveDraftEdit');
+    if (draftBtn) {
+        draftBtn.addEventListener('click', (e) => {
+            handleFormSubmit(e, 'draft');
+        });
+    }
+
     // Cancel
     document.getElementById('cancelEdit').addEventListener('click', () => {
         window.location.href = 'product-management.html';
@@ -186,12 +201,24 @@ function setupEventListeners() {
 
     if (auctionToggle) {
         auctionToggle.addEventListener('change', (e) => {
+            const inventoryGroup = document.getElementById('inventoryGroup');
+            const productStock = document.getElementById('productStock');
+            
             if (e.target.checked) {
                 auctionFields.style.display = 'grid';
                 if (fixedPriceGroup) fixedPriceGroup.classList.add('hidden-price');
+                if (inventoryGroup) {
+                    inventoryGroup.classList.add('hidden-price');
+                    if (productStock) productStock.removeAttribute('required');
+                }
+                if (productStock) productStock.value = 1;
             } else {
                 auctionFields.style.display = 'none';
                 if (fixedPriceGroup) fixedPriceGroup.classList.remove('hidden-price');
+                if (inventoryGroup) {
+                    inventoryGroup.classList.remove('hidden-price');
+                    if (productStock) productStock.setAttribute('required', 'required');
+                }
             }
         });
     }
@@ -224,7 +251,7 @@ function addSpecificationRow(key = '', val = '') {
     div.innerHTML = `
         <input type="text" placeholder="Key (e.g. RAM)" class="axiom-input spec-key" value="${key}">
         <input type="text" placeholder="Value (e.g. 16GB)" class="axiom-input spec-val" value="${val}">
-        <button type="button" class="btn-axiom btn-axiom-ghost" style="padding: 0; color: #ef4444;" onclick="this.parentElement.remove()">
+        <button type="button" class="btn-axiom btn-axiom-ghost" style="padding: 0; display: flex; justify-content: center; align-items: center; color: #ef4444;" onclick="this.parentElement.remove()">
             <i class="fas fa-trash"></i>
         </button>
     `;
@@ -307,19 +334,22 @@ window.removeNewImage = (idx) => {
 
 /* --- CORE UPDATE LOGIC --- */
 
-async function handleFormSubmit(e) {
-    e.preventDefault();
+async function handleFormSubmit(e, targetStatus = 'pending_verification') {
+    if (e) e.preventDefault();
+    
+    const isDraft = targetStatus === 'draft';
+    const msg = isDraft ? 'Save this as a draft?' : 'Are you sure you want to list this product? It will be sent for verification.';
     
     const confirm = await window.NotificationManager.showConfirm(
-        'Update Listing',
-        'Are you sure you want to save these changes to your product?'
+        isDraft ? 'Save Draft' : 'Update & List',
+        msg
     );
     
     if (!confirm) return;
 
-    // AI Safety Gate: Check for unsafe items in new uploads
+    // AI Safety Gate: Check for unsafe items in new uploads (Only if not a draft)
     const unsafeItems = newImagesToUpload.filter(img => img.verification && img.verification.isSafe === false);
-    if (unsafeItems.length > 0) {
+    if (!isDraft && unsafeItems.length > 0) {
         showUnsafeModal(unsafeItems);
         return;
     }
@@ -336,8 +366,8 @@ async function handleFormSubmit(e) {
             ...uploadedMedia
         ];
         
-        if (finalImages.length === 0) {
-            throw new Error('At least one image is required for the listing.');
+        if (!isDraft && finalImages.length === 0) {
+            throw new Error('At least one image is required for listing.');
         }
 
         // 3. Ensure a main image exists
@@ -370,24 +400,37 @@ async function handleFormSubmit(e) {
             name: document.getElementById('productName').value,
             category: document.getElementById('productCategory').value,
             condition: document.getElementById('productCondition').value,
-            price: isAuction ? auctionData.startingPrice : parseFloat(document.getElementById('productPrice').value),
-            stock: parseInt(document.getElementById('productStock').value),
-            location: document.getElementById('productLocation').value,
-            description: document.getElementById('productDescription').value,
+            price: isAuction ? auctionData.startingPrice : (parseFloat(document.getElementById('productPrice').value) || 0),
+            stock: isAuction ? 1 : (parseInt(document.getElementById('productStock').value) || 0),
+            location: document.getElementById('productLocation').value || '',
+            description: document.getElementById('productDescription').value || '',
             tags: document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t),
             specifications: specs,
-            shippingMethod: document.getElementById('shippingMethod').value,
-            shippingCost: parseFloat(document.getElementById('shippingCost').value),
-            returnPolicy: document.getElementById('returnPolicy').value,
+            shippingMethod: 'standard',
+            shippingCost: 0,
+            returnPolicy: document.getElementById('returnPolicy').value || '',
             images: finalImages,
             auction: auctionData,
+            status: targetStatus,
             updatedAt: new Date().toISOString()
         };
 
         await firebase.database().ref(`products/${currentProduct.id}`).update(updatePayload);
         
+        // 5. Notify Seller if promoted from Draft to Pending
+        if (targetStatus === 'pending_verification') {
+            firebase.database().ref(`users/${currentUser.id}/notifications`).push({
+                title: 'Listing Submitted',
+                message: `Your product "${updatePayload.name}" is now pending AI and staff verification.`,
+                type: 'success',
+                read: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
         showLoading(false);
-        window.NotificationManager.showToast('Success', 'Product listing updated successfully!', 'success');
+        const successMsg = isDraft ? 'Draft updated successfully!' : 'Product listed for verification!';
+        window.NotificationManager.showToast('Success', successMsg, 'success');
         
         setTimeout(() => {
             window.location.href = 'product-management.html';
@@ -480,7 +523,31 @@ function renderComparisonResults(results) {
         return;
     }
 
-    container.innerHTML = results.map(item => `
+    let minPrice = Infinity, maxPrice = 0, sumPrice = 0, count = 0;
+    results.forEach(item => {
+        const pMatch = (item.price || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
+        if (pMatch) {
+            const p = parseFloat(pMatch[0]);
+            if (p > 0) {
+                if (p < minPrice) minPrice = p;
+                if (p > maxPrice) maxPrice = p;
+                sumPrice += p;
+                count++;
+            }
+        }
+    });
+    const avgPrice = count > 0 ? sumPrice / count : 0;
+    if (minPrice === Infinity) minPrice = 0;
+
+    const summaryHtml = count > 0 ? `
+        <div style="display: flex; justify-content: space-between; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+            <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Lowest</span><strong style="color: #10b981; font-size: 0.95rem;">Rs ${minPrice.toLocaleString()}</strong></div>
+            <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Average</span><strong style="color: #4f46e5; font-size: 0.95rem;">Rs ${Math.round(avgPrice).toLocaleString()}</strong></div>
+            <div><span style="display: block; color: #64748b; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 2px;">Highest</span><strong style="color: #ef4444; font-size: 0.95rem;">Rs ${maxPrice.toLocaleString()}</strong></div>
+        </div>
+    ` : '';
+
+    container.innerHTML = summaryHtml + results.map(item => `
         <a href="${item.link}" target="_blank" class="comparison-item">
             <div class="comparison-details">
                 <div class="comparison-title" title="${item.title}">${item.title}</div>

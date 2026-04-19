@@ -409,14 +409,15 @@
                         if (navInsights) navInsights.style.display = 'flex';
                     }
                     // Update Mini Profile
-                    document.getElementById('userName').textContent = user.name || 'User';
+                    const name = user.displayName || user.fullName || user.name || 'User';
+                    document.getElementById('userName').textContent = name;
                     document.getElementById('userRole').textContent = user.role || 'Buyer';
                     if (user.profile && user.profile.avatar) {
                         document.getElementById('userAvatar').src = user.profile.avatar;
                     } else if (user.profilePic) {
                         document.getElementById('userAvatar').src = user.profilePic;
                     } else {
-                        document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`;
+                        document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
                     }
                 } catch (e) {
                     console.error('Error parsing user data for sidebar:', e);

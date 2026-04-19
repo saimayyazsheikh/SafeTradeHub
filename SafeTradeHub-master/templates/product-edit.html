@@ -154,7 +154,7 @@
                       <input type="number" id="productPrice" name="price" class="axiom-input" placeholder="0.00" step="0.01" min="0">
                     </div>
                   </div>
-                  <div class="axiom-group">
+                  <div class="axiom-group" id="inventoryGroup">
                     <label for="productStock" class="axiom-label">Inventory Level</label>
                     <input type="number" id="productStock" name="stock" class="axiom-input" placeholder="1" min="0" required>
                   </div>
@@ -195,7 +195,6 @@
                 <div class="auction-toggle-label">
                   <i class="fas fa-bolt"></i>
                   <span>Enable Auction Mode</span>
-                  <div class="auction-badge"><i class="fas fa-star"></i> ELITE FEATURE</div>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="auctionEnabled" name="auctionEnabled">
@@ -307,16 +306,17 @@
               <div class="input-grid">
                 <div class="axiom-group">
                   <label for="shippingMethod" class="axiom-label">Shipping Profile</label>
-                  <select id="shippingMethod" name="shippingMethod" class="axiom-select">
-                    <option value="standard">Standard Carrier</option>
-                    <option value="express">Express Priority</option>
-                    <option value="pickup">Local Handover Only</option>
-                    <option value="both">All Options Available</option>
+                  <select id="shippingMethod" name="shippingMethod" class="axiom-select" disabled>
+                    <option value="standard" selected>Safe Ship Elite (Automated)</option>
                   </select>
                 </div>
                 <div class="axiom-group">
-                  <label for="shippingCost" class="axiom-label">Handling Fee (RS)</label>
-                  <input type="number" id="shippingCost" name="shippingCost" class="axiom-input" placeholder="0.00" step="0.01" min="0">
+                  <label class="axiom-label">Shipping Cost</label>
+                  <div class="axiom-input" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-magic" style="color: #4f46e5;"></i>
+                    <span>Automated (5% of Total)</span>
+                  </div>
+                  <div class="axiom-hint" style="color: #4f46e5; font-weight: 600;">Managed by SafeTrade Hub Logistics</div>
                 </div>
               </div>
 
@@ -333,8 +333,11 @@
               <button type="button" id="cancelEdit" class="btn-axiom btn-axiom-ghost">
                 Discard Changes
               </button>
+              <button type="button" id="saveDraftEdit" class="btn-axiom btn-axiom-ghost" style="color: var(--axiom-primary); border-color: var(--axiom-primary);">
+                Save as Draft
+              </button>
               <button type="submit" form="productEditForm" class="btn-axiom btn-axiom-primary">
-                <i class="fas fa-save"></i> Save Product Changes
+                <i class="fas fa-save"></i> Save & List Product
               </button>
             </div>
           </div>

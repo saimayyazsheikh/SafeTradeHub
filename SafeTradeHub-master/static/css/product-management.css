@@ -385,8 +385,38 @@
 }
 
 .product-status.inactive {
+  background: #64748b;
+  color: white;
+}
+
+.product-status.rejected {
   background: #ef4444;
   color: white;
+}
+
+.product-rejection-reason {
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+
+.product-rejection-reason i {
+  margin-top: 2px;
+  color: #ef4444;
+}
+
+.product-rejection-reason strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
 }
 
 .product-actions {

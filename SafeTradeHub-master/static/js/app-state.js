@@ -83,6 +83,8 @@ window.SafeTradeHub = {
                     shippingCost: Number(product.shippingCost) || 0,
                     img: product.img || product.image || '',
                     qty: 1,
+                    sellerId: product.sellerId || product.seller_id || 'admin',
+                    sellerName: product.sellerName || product.merchantName || 'SafeTradeHub',
                     desc: product.desc || product.description || '',
                     addedAt: new Date().toISOString()
                 };
@@ -380,14 +382,16 @@ window.SafeTradeHub = {
 };
 
 // Legacy compatibility functions
-function addToCart(id, name, price, image, description) {
+function addToCart(id, name, price, image, description, sellerId, sellerName) {
     return window.SafeTradeHub.cart.add({
         id: id,
         title: name,
         name: name,
         price: price,
         img: image,
-        description: description
+        description: description,
+        sellerId: sellerId,
+        sellerName: sellerName
     });
 }
 

@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Camera – Safe Trade Hub</title>
   <link rel="stylesheet" href="/static/css/style.css" />
-  <link rel="stylesheet" href="/static/css/category-template.css" />
+  <link rel="stylesheet" href="/static/css/category-shared.css" />
+  <link rel="stylesheet" href="/static/css/category-shared.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
   <!-- Firebase -->
@@ -17,48 +18,13 @@
 
   <!-- Firebase Configuration -->
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
-      authDomain: "safetradehub-def1d.firebaseapp.com",
-      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
-      projectId: "safetradehub-def1d",
-      storageBucket: "safetradehub-def1d.firebasestorage.app",
-      messagingSenderId: "633146502278",
-      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
-      measurementId: "G-1857Q7JPKZ"
-    };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    const firebaseConfig = { apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI", authDomain: "safetradehub-def1d.firebaseapp.com", databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com", projectId: "safetradehub-def1d", storageBucket: "safetradehub-def1d.firebasestorage.app", messagingSenderId: "633146502278", appId: "1:633146502278:web:6c82d4a0768daebdd7b507", measurementId: "G-1857Q7JPKZ" };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
   </script>
 
   <!-- Load authentication system -->
   <script src="/static/js/auth-manager.js"></script>
   <script src="/static/js/header-manager.js"></script>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-  <!-- Firebase Configuration -->
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
-      authDomain: "safetradehub-def1d.firebaseapp.com",
-      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
-      projectId: "safetradehub-def1d",
-      storageBucket: "safetradehub-def1d.firebasestorage.app",
-      messagingSenderId: "633146502278",
-      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
-      measurementId: "G-1857Q7JPKZ"
-    };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-  </script>
-
-  <!-- Load authentication system -->
   <script src="/static/js/auth-manager.js"></script>
   <script src="/static/js/header-manager.js"></script>
 </head>
@@ -196,9 +162,13 @@
   <script>
     const CURRENT_CATEGORY = 'camera';
   </script>
+  <script src="/static/js/notification-manager.js"></script>
   <script src="/static/js/category-manager.js"></script>
   <script src="/static/js/seller-chat.js"></script>
 
 </body>
 
 </html>
+
+
+

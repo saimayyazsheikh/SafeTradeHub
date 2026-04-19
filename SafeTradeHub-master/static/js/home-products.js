@@ -27,11 +27,11 @@ class HomeProductsManager {
                     return;
                 }
 
-                // Convert object to array and reverse to show newest first
-                this.products = Object.entries(data).map(([id, product]) => ({
-                    id,
-                    ...product
-                })).reverse();
+                // Convert object to array, filter for active products, and reverse to show newest first
+                this.products = Object.entries(data)
+                    .map(([id, product]) => ({ id, ...product }))
+                    .filter(p => p.isActive && p.status === 'active')
+                    .reverse();
 
                 this.renderProducts();
             });
@@ -53,7 +53,7 @@ class HomeProductsManager {
 
     createProductCard(product) {
         // Handle image extraction
-        let image = 'images/placeholder.jpg';
+        let image = '/static/images/mobile.jpg';
         if (product.images && product.images.length > 0) {
             const firstImage = product.images[0];
             if (typeof firstImage === 'string') {
@@ -78,7 +78,10 @@ class HomeProductsManager {
      * FIXED PRICE CARD — Standard Blue Theme
      */
     createFixedCard(product, image) {
+        const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+        const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
         const formattedPrice = this.formatPrice(product.price);
+        
         return `
         <article class="card card-fixed" onclick="window.location.href='product-detail.html?id=${product.id}'">
           <div class="card-img">
@@ -87,12 +90,18 @@ class HomeProductsManager {
           <div class="card-content">
             <h3 class="card-title">${this.escapeHtml(product.name)}</h3>
             <p class="card-price">PKR ${formattedPrice}</p>
+            ${!isSeller ? `
             <button class="btn primary" 
                 data-id="${product.id}"
                 onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
                 style="width:100%;">
                 Add to Cart
-            </button>
+            </button>` : `
+            <button class="btn secondary" 
+                onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
+                style="width:100%;">
+                View Details
+            </button>`}
           </div>
         </article>
         `;
@@ -102,6 +111,9 @@ class HomeProductsManager {
      * AUCTION CARD — Indigo Elite Theme with LIVE badge & countdown
      */
     createAuctionCard(product, image, auction) {
+        const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+        const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+        
         const currentBid = auction.currentHighestBid || auction.startingPrice || product.price || 0;
         const formattedBid = this.formatPrice(currentBid);
 
@@ -131,13 +143,19 @@ class HomeProductsManager {
               <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">Current Bid</span>
               PKR ${formattedBid}
             </p>
+            ${!isSeller ? `
             <button class="btn primary auction-btn btn-pulse" 
                 data-id="${product.id}"
                 onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
                 style="width:100%;"
                 ${isEnded ? 'disabled style="width:100%; opacity:0.5;"' : ''}>
                 <i class="fas fa-gavel"></i> ${isEnded ? 'Ended' : 'Place Bid'}
-            </button>
+            </button>` : `
+            <button class="btn secondary" 
+                onclick="event.stopPropagation(); window.location.href='product-detail.html?id=${product.id}'"
+                style="width:100%;">
+                View Details
+            </button>`}
           </div>
         </article>
         `;

@@ -64,7 +64,7 @@
 
         <div class="sidebar-footer">
             <div class="user-mini-profile">
-                <img src="/static/images/avatar-placeholder.png" alt="User" class="user-avatar-small" id="userAvatar">
+                <img src="/static/images/mobile.jpg" alt="User" class="user-avatar-small" id="userAvatar">
                 <div class="user-info-mini">
                     <h4 id="userName">Loading...</h4>
                     <span id="userRole">...</span>
@@ -326,28 +326,6 @@
                 border-bottom-right-radius: 12px;
             }
 
-            .status-badge {
-                padding: 6px 12px;
-                border-radius: 100px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-            }
-
-            .status-badge::before {
-                content: '';
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: currentColor;
-            }
-
-            .status-badge.pending { background: #fffbeb; color: #b45309; }
-            .status-badge.completed { background: #ecfdf5; color: #059669; }
-            .status-badge.in_transit { background: #ebf5ff; color: #1d4ed8; }
-            .status-badge.verified { background: #f5f3ff; color: #6d28d9; }
 
             .action-btn-group {
                 display: flex;
@@ -469,7 +447,7 @@
                 'sent_to_hub': 'Received at Origin Hub',
                 'verified': 'Verified & Sealed',
                 'in_transit': 'In Transit',
-                'arrived_at_dest_hub': 'At Destination Hub',
+                'arrived_at_dest_hub': 'Arrived at Destination Hub',
                 'out_for_delivery': 'Out for Delivery',
                 'delivered': 'Delivered',
                 'cancelled': 'Cancelled',
@@ -502,79 +480,81 @@
             const container = document.getElementById('ordersContainer');
             if (!container) return;
 
-            try {
-                let orders = [];
-                // 1. Fetch relevant orders
-                if (role === 'Seller') {
-                    const snap = await db.ref('orders').limitToLast(100).once('value');
-                    if (snap.exists()) {
-                        const checkOwnershipPromises = [];
-                        snap.forEach(child => {
-                            const o = child.val();
-                            if (!o) return;
-                            
-                            const checkPromise = async () => {
-                                try {
-                                    if (o.sellerId === uid) return { id: child.key, ...o };
-                                    if (o.items && Array.isArray(o.items) && o.items.some(i => i && i.sellerId === uid)) return { id: child.key, ...o };
-                                    
-                                    // product owner fallback
-                                    if (o.items && o.items[0] && o.items[0].id) {
-                                        const pSnap = await db.ref(`products/${o.items[0].id}/sellerId`).once('value');
-                                        if (pSnap.exists() && pSnap.val() === uid) return { id: child.key, ...o };
-                                    }
-                                } catch (e) {
-                                    console.warn('Ownership check failed for order:', child.key, e);
-                                }
-                                return null;
-                            };
-                            checkOwnershipPromises.push(checkPromise());
-                        });
-                        const results = await Promise.all(checkOwnershipPromises);
-                        orders = results.filter(res => res !== null);
+            // Use .on('value') for real-time synchronization
+            db.ref('orders').on('value', async (snap) => {
+                try {
+                    let orders = [];
+                    const allOrders = snap.val();
+                    if (!allOrders) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
+                                <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
+                                <h3 style="color: #64748b;">No Orders Yet</h3>
+                                <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
+                            </div>
+                        `;
+                        return;
                     }
-                } else {
-                    const snap = await db.ref('orders').once('value');
-                    if (snap.exists()) {
-                        snap.forEach(child => {
-                            const val = child.val();
-                            if (!val) return;
-                            if (val.buyerId === uid || (val.buyer && val.buyer.id === uid)) {
-                                orders.push({ id: child.key, ...val });
+
+                    // Convert and Filter
+                    Object.keys(allOrders).forEach(key => {
+                        const o = allOrders[key];
+                        o.id = key;
+                        
+                        if (role === 'Seller') {
+                            if (o.sellerId === uid) {
+                                orders.push(o);
+                            } else if (o.items && Array.isArray(o.items) && o.items.some(i => i && i.sellerId === uid)) {
+                                orders.push(o);
                             }
-                        });
+                        } else {
+                            if (o.buyerId === uid || (o.buyer && o.buyer.id === uid)) {
+                                orders.push(o);
+                            }
+                        }
+                    });
+
+                    if (orders.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
+                                <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
+                                <h3 style="color: #64748b;">No Orders Yet</h3>
+                                <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
+                            </div>
+                        `;
+                        return;
                     }
+
+                    // Sort by date desc
+                    orders.sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return dateB - dateA;
+                    });
+                    
+                    window.allOrdersRaw = orders; // store for filtering
+                    
+                    // Maintain active filter
+                    const activeTab = document.querySelector('.filter-tab.active');
+                    const activeFilter = activeTab ? activeTab.getAttribute('data-filter') : 'all';
+                    
+                    if (activeFilter === 'all') {
+                        await renderOrderCards(orders, role);
+                    } else {
+                        filterOrders(activeFilter);
+                    }
+
+                } catch (error) {
+                    console.error('CRITICAL: Error processing orders:', error);
                 }
-
-                if (orders.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
-                            <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
-                            <h3 style="color: #64748b;">No Orders Yet</h3>
-                            <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                // Sort by date desc - with safety
-                orders.sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return dateB - dateA;
-                });
-                
-                window.allOrdersRaw = orders; // store for filtering
-
-                await renderOrderCards(orders, role);
-            } catch (error) {
-                console.error('CRITICAL: Error loading orders:', error);
+            }, (error) => {
+                console.error('Firebase permission/read error:', error);
                 container.innerHTML = `<div style="text-align:center; color:#ef4444; padding:40px;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
                     <p>Failed to synchronize order engine.</p>
                     <small>${error.message}</small>
                 </div>`;
-            }
+            });
         }
 
         async function renderOrderCards(orders, role) {
@@ -634,7 +614,7 @@
                         } catch(e) {}
                     }
                     
-                    const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/placeholder.jpg') : '/static/images/placeholder.jpg';
+                    const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/mobile.jpg') : '/static/images/mobile.jpg';
                     const itemCount = o.items ? o.items.length : 0;
                     const showReview = (statusClass === 'delivered' || statusClass === 'completed');
                     const showDispute = (statusClass === 'delivered' || statusClass === 'arrived_at_dest_hub' || statusClass === 'out_for_delivery') && o.status !== 'under_review' && o.status !== 'disputed' && !o.disputeId;
@@ -808,7 +788,7 @@
                         <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-store"></i> Merchant
                         </h4>
-                        <p style="font-size:0.85rem; margin-bottom:4px; font-weight:700;">${order.sellerName || 'SafeTradeHub Official'}</p>
+                        <p style="font-size:0.85rem; margin-bottom:4px; font-weight:700;" id="merchantName_${order.id}">${order.sellerName || 'SafeTradeHub Official'}</p>
                         <p style="font-size:0.8rem; color:#64748b;">Verification: <span style="color:#10b981;"><i class="fas fa-check-circle"></i> Axiom Certified</span></p>
                     </div>
 
@@ -827,7 +807,7 @@
                     <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
                         ${items.map(item => `
                             <div class="item-row">
-                                <img src="${item.img || item.image || '/static/images/placeholder.jpg'}" class="item-img" alt="${item.name}">
+                                <img src="${item.img || item.image || '/static/images/mobile.jpg'}" class="item-img" alt="${item.name}">
                                 <div style="flex:1;">
                                     <p style="font-size:0.9rem; font-weight:700; margin-bottom:2px;">${item.name || item.title || 'Product'}</p>
                                     <p style="font-size:0.8rem; color:#64748b;">Quantity: ${(item.quantity || item.qty || 1)} x RS ${(item.price || 0)}</p>
@@ -856,7 +836,20 @@
                         </div>
                     </div>
                 </div>
+
             `;
+
+            // Dynamically fetch actual seller name
+            if (order.sellerId) {
+                firebase.database().ref('users/' + order.sellerId).once('value').then(snap => {
+                    const sellerData = snap.val();
+                    if (sellerData) {
+                        const actualName = sellerData.displayName || sellerData.name || sellerData.fullName || sellerData.username || order.sellerName || 'SafeTradeHub Official';
+                        const merchantEl = document.getElementById('merchantName_' + order.id);
+                        if (merchantEl) merchantEl.textContent = actualName;
+                    }
+                }).catch(e => console.error("Error fetching merchant name:", e));
+            }
 
             modal.style.display = 'block';
         }

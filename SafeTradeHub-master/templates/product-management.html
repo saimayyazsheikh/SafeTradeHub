@@ -122,6 +122,9 @@
         <button class="tab-btn" data-tab="auction" onclick="switchTab('auction')" style="padding: 12px 24px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; position: relative;">
             Live Auctions
         </button>
+        <button class="tab-btn" data-tab="draft" onclick="switchTab('draft')" style="padding: 12px 24px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; position: relative;">
+            Drafts
+        </button>
     </div>
 
     <style>
@@ -148,6 +151,11 @@
             transition: all 0.2s;
         }
         .btn-auction-details:hover { background: #ede9fe; }
+        .action-buttons-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 
     <div id="productsContent">
@@ -278,7 +286,11 @@
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
         
-        document.getElementById('tableTitle').textContent = tab === 'fixed' ? 'Fixed Price Listings' : 'Live Auctions';
+        let title = 'Fixed Price Listings';
+        if (tab === 'auction') title = 'Live Auctions';
+        if (tab === 'draft') title = 'Product Drafts';
+        
+        document.getElementById('tableTitle').textContent = title;
         document.getElementById('auctionStats').style.display = tab === 'auction' ? 'block' : 'none';
         
         renderProducts();
@@ -311,10 +323,14 @@
       const tableHead = document.getElementById('tableHead');
       
       const filtered = globalProducts.filter(p => {
-          const isAuction = !!p.auction?.enabled;
-          // Hide ANY sold item from these active tabs
-          if (p.status === 'Sold') return false;
+          if (currentTab === 'draft') {
+              return p.status === 'draft';
+          }
           
+          // For active tabs, hide drafts and sold items
+          if (p.status === 'draft' || p.status === 'Sold') return false;
+          
+          const isAuction = !!p.auction?.enabled;
           return currentTab === 'auction' ? isAuction : !isAuction;
       });
 
@@ -326,6 +342,17 @@
                   <th>Current Bid</th>
                   <th>Bids</th>
                   <th>End Time</th>
+                  <th>Actions</th>
+              </tr>
+          `;
+      } else if (currentTab === 'draft') {
+          tableHead.innerHTML = `
+              <tr>
+                  <th>Image</th>
+                  <th>Draft Name</th>
+                  <th>Last Updated</th>
+                  <th>Category</th>
+                  <th>Status</th>
                   <th>Actions</th>
               </tr>
           `;
@@ -344,7 +371,7 @@
       }
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${currentTab === 'auction' ? 6 : 7}" style="text-align:center;">No ${currentTab} products found</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No ${currentTab} products found</td></tr>`;
         return;
       }
 
@@ -354,6 +381,7 @@
         else if (p.img || p.images) imgUrl = p.img || p.images;
 
         if (currentTab === 'auction') {
+            // ... (Auction row template)
             const currentBid = p.auction?.currentHighestBid || p.auction?.startingPrice || p.startingBid || 0;
             const bidCount = p.auction?.bidCount || 0;
             
@@ -386,8 +414,31 @@
                             <button onclick="openBidsModal('${p.id}', '${p.name}')" class="btn-auction-details">
                                 <i class="fas fa-list-ol"></i> View Bids
                             </button>
-                            <a href="product-edit.html?id=${p.id}" class="btn-icon edit" title="Edit"><i class="fas fa-pencil-alt"></i></a>
+                            <a href="product-edit.html?id=${p.id}" class="btn-icon edit" title="Resume Editing"><i class="fas fa-pencil-alt"></i></a>
                             <button onclick="deleteProduct('${p.id}')" class="btn-icon delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        if (currentTab === 'draft') {
+            const lastUpdated = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A');
+            return `
+                <tr>
+                    <td><img src="${imgUrl}" alt="${p.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"></td>
+                    <td><strong>${p.name || 'Untitled Draft'}</strong></td>
+                    <td>${lastUpdated}</td>
+                    <td>${p.category || 'N/A'}</td>
+                    <td><span class="status-badge pending">Draft</span></td>
+                    <td>
+                        <div class="action-buttons-container">
+                            <a href="product-edit.html?id=${p.id}" class="btn-axiom btn-axiom-primary" title="Resume Editing" style="padding: 6px 15px; font-size: 0.8rem; border-radius: 8px; text-decoration: none; height: 32px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-edit" style="font-size: 0.85rem;"></i> Resume
+                            </a>
+                            <button onclick="deleteProduct('${p.id}')" class="btn-icon delete" title="Delete" style="height: 32px; width: 32px;">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -400,7 +451,22 @@
                 <td>${p.name || p.title}</td>
                 <td>RS ${p.price}</td>
                 <td>${p.category || 'N/A'}</td>
-                <td><span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                <td>
+                    ${(() => {
+                        if (p.status === 'rejected') {
+                            return `
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <span class="status-badge cancelled">Rejected</span>
+                                    ${p.rejectionReason ? `<div style="font-size: 0.75rem; color: #ef4444; background: #fee2e2; padding: 6px 10px; border-radius: 6px; border: 1px solid #fecaca; margin-top: 4px; max-width: 200px; white-space: normal;">
+                                        <strong>Reason:</strong> ${p.rejectionReason}
+                                    </div>` : ''}
+                                </div>
+                            `;
+                        }
+                        if (p.status === 'pending_verification') return '<span class="status-badge pending">Pending</span>';
+                        return `<span class="status-badge ${p.isActive !== false ? 'completed' : 'pending'}">${p.isActive !== false ? 'Active' : 'Inactive'}</span>`;
+                    })()}
+                </td>
                 <td>${p.views || 0}</td>
                 <td>
                     <div class="action-buttons-container">

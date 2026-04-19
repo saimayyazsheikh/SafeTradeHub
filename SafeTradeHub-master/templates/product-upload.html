@@ -5,12 +5,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Upload Product – Safe Trade Hub</title>
-  
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap"
+    rel="stylesheet">
+
   <!-- Styles -->
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="stylesheet" href="/static/css/product-upload.css" />
@@ -47,7 +49,7 @@
       <div class="container">
         <h1>Upload New Product</h1>
         <p>List your product and start selling on SafeTradeHub's premium marketplace.</p>
-        
+
         <div class="breadcrumb-glass">
           <a href="dashboard.html">Dashboard</a>
           <span>/</span>
@@ -58,44 +60,51 @@
       <!-- Wave Divider -->
       <div class="wave-divider">
         <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-          <path d="M1200 120L0 120 0 0C161.45 27.2 329.13 42 491.4 42 679.5 42 863 15.65 1060.5 15.65 1106.6 15.65 1153.21 17.5 1200 21.19V120z" class="wave-fill"></path>
+          <path
+            d="M1200 120L0 120 0 0C161.45 27.2 329.13 42 491.4 42 679.5 42 863 15.65 1060.5 15.65 1106.6 15.65 1153.21 17.5 1200 21.19V120z"
+            class="wave-fill"></path>
         </svg>
       </div>
     </section>
 
     <!-- Main Layout -->
     <div class="edit-layout-container">
-      
+
       <!-- Sticky Navigation Rail -->
       <aside class="edit-nav-rail">
         <button class="nav-item active" data-section="general">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           General Info
         </button>
         <button class="nav-item" data-section="details">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           Description & Tags
         </button>
         <button class="nav-item" data-section="media">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           Images
         </button>
         <button class="nav-item" data-section="specs">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           Specifications
         </button>
         <button class="nav-item" data-section="shipping">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           Shipping & Policy
         </button>
@@ -104,7 +113,7 @@
       <!-- Content Area -->
       <main class="edit-content-pane">
         <form id="productUploadForm">
-          
+
           <!-- Section: General -->
           <section id="section-general" class="form-section active">
             <div class="general-info-layout">
@@ -112,10 +121,11 @@
               <div class="axiom-card">
                 <h2 class="card-title">Basic Information</h2>
                 <p class="card-desc">Essential details to help buyers find your product.</p>
-                
+
                 <div class="axiom-group">
                   <label for="productName" class="axiom-label">Product Name</label>
-                  <input type="text" id="productName" name="name" class="axiom-input" placeholder="e.g. Sony Alpha a7 IV Mirrorless Camera" required>
+                  <input type="text" id="productName" name="name" class="axiom-input"
+                    placeholder="e.g. Sony Alpha a7 IV Mirrorless Camera" required>
                   <div class="axiom-hint">Be specific. This helps with search accuracy.</div>
                 </div>
 
@@ -154,11 +164,13 @@
                 <div class="input-grid" style="margin-top: 20px;">
                   <div class="axiom-group" id="fixedPriceGroup">
                     <label for="productPrice" class="axiom-label">Fixed Listing Price (RS)</label>
-                    <input type="number" id="productPrice" name="price" class="axiom-input" placeholder="0.00" step="0.01" min="0">
+                    <input type="number" id="productPrice" name="price" class="axiom-input" placeholder="0.00"
+                      step="0.01" min="0">
                   </div>
-                  <div class="axiom-group">
+                  <div class="axiom-group" id="inventoryGroup">
                     <label for="productStock" class="axiom-label">Inventory Level</label>
-                    <input type="number" id="productStock" name="stock" class="axiom-input" placeholder="1" min="0" required>
+                    <input type="number" id="productStock" name="stock" class="axiom-input" placeholder="1" min="0"
+                      required>
                   </div>
                 </div>
 
@@ -170,13 +182,16 @@
 
               <!-- Price Comparison Sidebar -->
               <aside class="comparison-card">
-                <div class="card-header" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                <div class="card-header"
+                  style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05);">
                   <h2 class="card-title" style="font-size: 1.1rem; margin-bottom: 4px;">Market Insight</h2>
-                  <p class="card-desc" style="font-size: 0.8rem; margin-bottom: 0;">Real-time prices from other markets</p>
+                  <p class="card-desc" style="font-size: 0.8rem; margin-bottom: 0;">Real-time prices from other markets
+                  </p>
                 </div>
                 <div id="comparisonResults" class="comparison-results">
                   <div class="comparison-placeholder">
-                    <i class="fas fa-search-dollar" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+                    <i class="fas fa-search-dollar"
+                      style="font-size: 2rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
                     <p>Enter a product name to see prices from Daraz and OLX.</p>
                   </div>
                 </div>
@@ -197,7 +212,6 @@
                 <div class="auction-toggle-label">
                   <i class="fas fa-bolt"></i>
                   <span>Enable Auction Mode</span>
-                  <div class="auction-badge"><i class="fas fa-star"></i> ELITE FEATURE</div>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="auctionEnabled" name="auctionEnabled">
@@ -240,10 +254,11 @@
             <div class="axiom-card">
               <h2 class="card-title">Product Description</h2>
               <p class="card-desc">Provide detailed information to build buyer trust.</p>
-              
+
               <div class="axiom-group">
                 <label for="productDescription" class="axiom-label">Description</label>
-                <textarea id="productDescription" name="description" class="axiom-textarea" rows="10" placeholder="Describe features, flaws, dimensions, etc." required></textarea>
+                <textarea id="productDescription" name="description" class="axiom-textarea" rows="10"
+                  placeholder="Describe features, flaws, dimensions, etc." required></textarea>
                 <div class="axiom-hint">
                   <span id="descriptionCount">0</span>/2000 characters
                 </div>
@@ -251,8 +266,10 @@
 
               <div class="axiom-group" style="margin-bottom: 0;">
                 <label for="productTags" class="axiom-label">Search Tags</label>
-                <input type="text" id="productTags" name="tags" class="axiom-input" placeholder="e.g. apple, phone, gaming (separate with commas)">
-                <div id="tagPreview" class="tag-preview" style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                <input type="text" id="productTags" name="tags" class="axiom-input"
+                  placeholder="e.g. apple, phone, gaming (separate with commas)">
+                <div id="tagPreview" class="tag-preview"
+                  style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
               </div>
             </div>
           </section>
@@ -262,11 +279,14 @@
             <div class="axiom-card">
               <h2 class="card-title">Media & Visuals</h2>
               <p class="card-desc">Products with high-quality images sell 3x faster.</p>
-              
+
               <div class="axiom-group">
                 <label class="axiom-label">Main Image</label>
-                <div class="upload-new-trigger" style="border: 2px dashed #e2e8f0; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative;" onclick="document.getElementById('mainImage').click()">
-                  <i class="fas fa-camera" style="font-size: 1.5rem; color: #4f46e5; margin-bottom: 10px; display: block;"></i>
+                <div class="upload-new-trigger"
+                  style="border: 2px dashed #e2e8f0; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative;"
+                  onclick="document.getElementById('mainImage').click()">
+                  <i class="fas fa-camera"
+                    style="font-size: 1.5rem; color: #4f46e5; margin-bottom: 10px; display: block;"></i>
                   <span style="font-weight: 700; color: #1e293b;">Click to Upload Main Image</span>
                   <input type="file" id="mainImage" name="mainImage" accept="image/*" style="display: none;" required>
                 </div>
@@ -275,10 +295,14 @@
 
               <div class="axiom-group" style="margin-top: 30px;">
                 <label class="axiom-label">Additional Images (Optional)</label>
-                <div class="upload-new-trigger" style="border: 2px dashed #e2e8f0; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('additionalImages').click()">
-                  <i class="fas fa-images" style="font-size: 1.5rem; color: #6366f1; margin-bottom: 10px; display: block;"></i>
+                <div class="upload-new-trigger"
+                  style="border: 2px dashed #e2e8f0; border-radius: 15px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s;"
+                  onclick="document.getElementById('additionalImages').click()">
+                  <i class="fas fa-images"
+                    style="font-size: 1.5rem; color: #6366f1; margin-bottom: 10px; display: block;"></i>
                   <span style="font-weight: 700; color: #1e293b;">Upload More Angles</span>
-                  <input type="file" id="additionalImages" name="additionalImages" accept="image/*" multiple style="display: none;">
+                  <input type="file" id="additionalImages" name="additionalImages" accept="image/*" multiple
+                    style="display: none;">
                 </div>
                 <div id="additionalImagesPreview" class="current-images-grid" style="margin-top: 20px;"></div>
               </div>
@@ -290,7 +314,7 @@
             <div class="axiom-card">
               <h2 class="card-title">Technical Specifications</h2>
               <p class="card-desc">Define key attributes like RAM, Storage, or Warranty.</p>
-              
+
               <div id="specificationsContainer" class="specs-list" style="margin-bottom: 20px;">
                 <!-- JS Dynamic entries -->
               </div>
@@ -306,41 +330,46 @@
             <div class="axiom-card">
               <h2 class="card-title">Shipping & Policy</h2>
               <p class="card-desc">Define delivery methods and return rules.</p>
-              
+
               <div class="input-grid">
                 <div class="axiom-group">
                   <label for="shippingMethod" class="axiom-label">Shipping Method</label>
-                  <select id="shippingMethod" name="shippingMethod" class="axiom-select">
-                    <option value="standard">Standard Carrier</option>
-                    <option value="express">Express Priority</option>
-                    <option value="pickup">Local Collection</option>
-                    <option value="both">All Options</option>
+                  <select id="shippingMethod" name="shippingMethod" class="axiom-select" disabled>
+                    <option value="standard" selected>Safe Ship Elite (Automated)</option>
                   </select>
                 </div>
                 <div class="axiom-group">
-                  <label for="shippingCost" class="axiom-label">Shipping Cost (RS)</label>
-                  <input type="number" id="shippingCost" name="shippingCost" class="axiom-input" placeholder="0.00" step="0.01" min="0">
+                  <label class="axiom-label">Shipping Cost</label>
+                  <div class="axiom-input" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-magic" style="color: #4f46e5;"></i>
+                    <span>Automated (5% of Total)</span>
+                  </div>
+                  <div class="axiom-hint" style="color: #4f46e5; font-weight: 600;">Managed by SafeTrade Hub Logistics</div>
                 </div>
               </div>
 
               <div class="axiom-group">
                 <label for="returnPolicy" class="axiom-label">Return Policy</label>
-                <textarea id="returnPolicy" name="returnPolicy" class="axiom-textarea" rows="4" placeholder="Detail your return policies here..."></textarea>
+                <textarea id="returnPolicy" name="returnPolicy" class="axiom-textarea" rows="4"
+                  placeholder="Detail your return policies here..."></textarea>
               </div>
 
-              <div class="axiom-group" style="background: rgba(79, 70, 229, 0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(79, 70, 229, 0.1); margin-top: 30px;">
+              <div class="axiom-group"
+                style="background: rgba(79, 70, 229, 0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(79, 70, 229, 0.1); margin-top: 30px;">
                 <label class="axiom-label" style="margin-bottom: 15px;">Safety & Agreements</label>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                   <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.9rem;">
                     <input type="checkbox" id="agreeTerms" name="agreeTerms" required style="margin-top: 3px;">
-                    <span>I agree to the <b>Terms of Service</b> and Seller Agreement.</span>
+                    <span>I agree to the <b style="color: #4f46e5; text-decoration: underline;" onclick="showTermsModal()">Terms of Service</b>.</span>
                   </label>
                   <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.9rem;">
-                    <input type="checkbox" id="confirmAccuracy" name="confirmAccuracy" required style="margin-top: 3px;">
+                    <input type="checkbox" id="confirmAccuracy" name="confirmAccuracy" required
+                      style="margin-top: 3px;">
                     <span>I confirm all information is <b>accurate</b> and reflects the true condition.</span>
                   </label>
                   <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.9rem;">
-                    <input type="checkbox" id="confirmOwnership" name="confirmOwnership" required style="margin-top: 3px;">
+                    <input type="checkbox" id="confirmOwnership" name="confirmOwnership" required
+                      style="margin-top: 3px;">
                     <span>I confirm that I <b>own</b> this product and have the right to sell it.</span>
                   </label>
                 </div>
@@ -368,8 +397,11 @@
   <!-- Loading Overlay -->
   <div id="loadingOverlay" class="loading-glass-overlay">
     <div style="text-align: center;">
-      <div class="loading-spinner" style="border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-      <p id="loadingText" style="font-family: 'Outfit', sans-serif; font-weight: 600; color: #1e293b;">Broadcasting listing...</p>
+      <div class="loading-spinner"
+        style="border: 4px solid #f1f5f9; border-top: 4px solid #4f46e5; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px;">
+      </div>
+      <p id="loadingText" style="font-family: 'Outfit', sans-serif; font-weight: 600; color: #1e293b;">
+        Uploading your listing...</p>
     </div>
   </div>
 
@@ -380,11 +412,14 @@
         <i class="fas fa-check-circle" style="font-size: 2.5rem;"></i>
       </div>
       <h3>Listed Successfully!</h3>
-      <p style="color: #64748b; margin-bottom: 10px;">Your product is now undergoing automated AI review.</p>
-      <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">It will appear live once verified by our quality control engine.</p>
+      <p style="color: #64748b; margin-bottom: 10px;">Your product is now undergoing review.</p>
+      <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">It will appear live once verified by our product
+        verification team.</p>
       <div style="display: flex; gap: 12px; margin-top: 25px;">
-        <a href="product-management.html" class="btn-axiom btn-axiom-primary" style="flex: 1; justify-content: center; text-decoration: none;">Manage</a>
-        <a href="dashboard.html" class="btn-axiom btn-axiom-ghost" style="flex: 1; justify-content: center; text-decoration: none;">Dashboard</a>
+        <a href="product-management.html" class="btn-axiom btn-axiom-primary"
+          style="flex: 1; justify-content: center; text-decoration: none;">Manage</a>
+        <a href="dashboard.html" class="btn-axiom btn-axiom-ghost"
+          style="flex: 1; justify-content: center; text-decoration: none;">Dashboard</a>
       </div>
     </div>
   </div>
@@ -396,29 +431,109 @@
         <i class="fas fa-shield-alt" style="font-size: 2.5rem;"></i>
       </div>
       <h3>Unsafe Content Detected</h3>
-      <div id="unsafeItemsList" style="text-align: left; margin: 20px 0; padding: 15px; background: #f8fafc; border-radius: 12px; border-left: 4px solid #ef4444; color: #ef4444; font-weight: 700; font-size: 0.9rem;">
+      <div id="unsafeItemsList"
+        style="text-align: left; margin: 20px 0; padding: 15px; background: #f8fafc; border-radius: 12px; border-left: 4px solid #ef4444; color: #ef4444; font-weight: 700; font-size: 0.9rem;">
         <!-- Items will be injected here -->
       </div>
       <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.6;">
         Please remove the flagged images to proceed with your listing.
       </p>
-      <button type="button" class="btn-axiom btn-axiom-primary" style="width: 100%; margin-top: 20px; justify-content: center;" onclick="closeUnsafeModal()">
+      <button type="button" class="btn-axiom btn-axiom-primary"
+        style="width: 100%; margin-top: 20px; justify-content: center;" onclick="closeUnsafeModal()">
         I Understand
       </button>
     </div>
   </div>
 
   <style>
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid #e2e8f0; }
-    .image-thumb.unsafe-item { border: 2px solid #ef4444 !important; }
-    .verification-badge { position: absolute; bottom: 0; left: 0; width: 100%; padding: 6px 4px; font-size: 0.7rem; font-weight: 800; color: white; text-align: center; z-index: 2; backdrop-filter: blur(8px); text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 32px; }
-    .verification-badge.safe { background: rgba(16, 185, 129, 0.9); }
-    .verification-badge.unsafe { background: rgba(239, 68, 68, 0.9); }
-    .verification-badge.verifying { background: rgba(100, 116, 139, 0.9); }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .tag {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid #e2e8f0;
+    }
+
+    .image-thumb.unsafe-item {
+      border: 2px solid #ef4444 !important;
+    }
+
+    .verification-badge {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      padding: 6px 4px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: white;
+      text-align: center;
+      z-index: 2;
+      backdrop-filter: blur(8px);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-height: 32px;
+    }
+
+    .verification-badge.safe {
+      background: rgba(16, 185, 129, 0.9);
+    }
+
+    .verification-badge.unsafe {
+      background: rgba(239, 68, 68, 0.9);
+    }
+
+    .verification-badge.verifying {
+      background: rgba(100, 116, 139, 0.9);
+    }
   </style>
+
+  <!-- Terms of Service Modal -->
+  <div id="termsModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <header class="modal-header" style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; color: #1e293b;">Terms of Service</h3>
+        <span class="close" onclick="closeTermsModal()" style="font-size: 24px; color: #94a3b8; cursor: pointer;">&times;</span>
+      </header>
+      <div class="modal-body" style="padding: 20px; max-height: 400px; overflow-y: auto; text-align: left; line-height: 1.6; color: #475569;">
+        <h4 style="color: #1e293b;">1. Introduction</h4>
+        <p>Welcome to SafeTradeHub. By listing products on our platform, you agree to abide by our rules and regulations designed to ensure a safe and transparent marketplace for everyone.</p>
+        
+        <h4 style="color: #1e293b;">2. Listing Accuracy</h4>
+        <p>Sellers must provide accurate information about their products, including condition, specifications, and potential flaws. Misleading listings are strictly prohibited.</p>
+        
+        <h4 style="color: #1e293b;">3. Prohibited Items</h4>
+        <p>Illegal items, weapons, hazardous materials, and counterfeit goods are strictly forbidden. Our AI-driven verification system scans all listings for restricted content.</p>
+        
+        <h4 style="color: #1e293b;">4. Transactions & Escrow</h4>
+        <p>All transactions must go through the SafeTradeHub escrow system. This protects both buyers and sellers by holding funds until the item is received and verified.</p>
+        
+        <h4 style="color: #1e293b;">5. Dispute Resolution</h4>
+        <p>In case of any disagreement, SafeTradeHub provides a dedicated dispute resolution service. Staff members will review the case and make a final decision based on evidence provided.</p>
+      </div>
+      <footer class="modal-footer" style="padding: 20px; border-top: 1px solid #f1f5f9; text-align: right;">
+        <button type="button" class="btn-axiom btn-axiom-primary" onclick="closeTermsModal()" style="width: 100%; justify-content: center;">Close</button>
+      </footer>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="/static/js/product-upload.js"></script>
 </body>
+
 </html>

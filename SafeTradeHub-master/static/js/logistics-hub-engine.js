@@ -333,8 +333,8 @@ function renderHubActivity(logs) {
                 <td><span style="color: #64748b; font-size: 0.8rem;">${time}</span></td>
                 <td><strong style="color: #2563eb;">#${(log.entityId || '').substring(0, 8)}</strong></td>
                 <td><span style="font-weight: 500;">Network Update</span></td>
-                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${formatOrderStatus(log.newValues.status)}</span></td>
-                <td><small style="color: #64748b;">${log.newValues.location || 'Central Station'}</small></td>
+                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${log.newValues ? formatOrderStatus(log.newValues.status) : 'Update'}</span></td>
+                <td><small style="color: #64748b;">${(log.newValues && log.newValues.location) || 'Central Station'}</small></td>
             </tr>
         `;
     }).join('');

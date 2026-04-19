@@ -235,7 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user) {
                 const nameEl = document.getElementById('userName');
                 const roleEl = document.getElementById('userRole');
-                if (nameEl) nameEl.textContent = user.name || 'User';
+                const name = user.displayName || user.fullName || user.name || 'User';
+                if (nameEl) nameEl.textContent = name;
                 if (roleEl) roleEl.textContent = user.role || 'Buyer';
             }
         });

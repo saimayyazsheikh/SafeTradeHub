@@ -28,6 +28,15 @@ function addToCart(product, qty = 1) {
         return false;
     }
 
+    // Role-based restriction
+    if (window.AuthManager) {
+        const user = window.AuthManager.getCurrentUser();
+        if (user && (user.role || '').toLowerCase() === 'seller') {
+            showToast('Sellers are not allowed to purchase products.', 'error');
+            return false;
+        }
+    }
+
     const cart = getCart();
     const i = cart.findIndex(x => x.id === product.id);
     if (i > -1) cart[i].qty += qty;
@@ -137,9 +146,11 @@ function startGlobalTimerEngine() {
 // PRODUCT RENDERING
 // ========================================
 
-// Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    
+    // WAIT for AuthManager to be ready before doing anything else
+    if (window.AuthManager) {
+        await window.AuthManager.waitForInit();
+    }
 
     // Update cart count immediately
     updateCartCount();
@@ -208,7 +219,7 @@ function render(list) {
 
     grid.innerHTML = list.map(p => {
         // Handle image array or single image string
-        let imgUrl = 'images/placeholder.jpg';
+        let imgUrl = '/static/images/placeholder.jpg';
         if (Array.isArray(p.images) && p.images.length > 0) {
             imgUrl = p.images.find(img => img.isMain)?.url || p.images[0].url;
         } else if (typeof p.images === 'string') {
@@ -233,16 +244,20 @@ function render(list) {
  * FIXED PRICE CARD — Standard Blue Theme (unchanged logic)
  */
 function renderFixedCard(p, imgUrl) {
+    const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+    const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+    
     return `
       <article class="card card-fixed" data-product-id="${p.id}">
         <div class="card-img">
-          <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='images/placeholder.jpg'">
+          <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='/static/images/placeholder.jpg'">
         </div>
         <div class="card-content">
           <h3 class="card-title">${p.name}</h3>
           <p class="card-description">${p.description || p.desc || 'No description available.'}</p>
           <div class="card-price">RS ${parseFloat(p.price).toFixed(2)}</div>
           <div class="card-actions">
+            ${!isSeller ? `
             <button class="card-btn card-btn-primary" data-add-to-cart 
               data-id="${p.id}" 
               data-name="${p.name}" 
@@ -253,8 +268,8 @@ function renderFixedCard(p, imgUrl) {
               data-seller-id="${p.sellerId || ''}"
               data-seller-name="${p.sellerName || ''}">
               Add to Cart
-            </button>
-            <button class="card-btn card-btn-secondary" onclick="openDetail('${p.id}')">
+            </button>` : ''}
+            <button class="card-btn card-btn-secondary" onclick="openDetail('${p.id}')" style="${isSeller ? 'width: 100%;' : ''}">
               View Details
             </button>
           </div>
@@ -267,11 +282,13 @@ function renderFixedCard(p, imgUrl) {
  * AUCTION CARD — Indigo Elite Theme with LIVE ribbon & countdown
  */
 function renderAuctionCard(p, imgUrl, auction) {
+    const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+    const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+    
     const currentBid = auction.currentHighestBid || auction.startingPrice || p.price || 0;
     const bidCount = auction.bidCount || 0;
 
     // Calculate auction end time
-    // auction.updatedAt is when the auction was configured. Duration is in days.
     const auctionStartStr = auction.updatedAt || p.updatedAt || p.createdAt;
     const auctionStart = auctionStartStr ? new Date(auctionStartStr).getTime() : Date.now();
     const durationMs = (auction.duration || 7) * 24 * 60 * 60 * 1000;
@@ -284,14 +301,12 @@ function renderAuctionCard(p, imgUrl, auction) {
     return `
       <article class="card card-auction ${isEnded ? 'auction-ended-card' : ''}" data-product-id="${p.id}">
         <div class="card-img">
-          <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='images/placeholder.jpg'">
+          <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='/static/images/placeholder.jpg'">
           
-          <!-- Diagonal LIVE Ribbon -->
           <div class="auction-ribbon-wrapper">
             <div class="${ribbonClass}">${ribbonText}</div>
           </div>
 
-          <!-- Countdown Bar -->
           <div class="countdown-bar" data-auction-end="${auctionEndTime}">
             <i class="fas fa-clock"></i> ${isEnded ? 'AUCTION ENDED' : 'Calculating...'}
           </div>
@@ -305,12 +320,13 @@ function renderAuctionCard(p, imgUrl, auction) {
             <span style="font-size:0.75rem; color:#94a3b8; margin-left:8px;">(${bidCount} bid${bidCount !== 1 ? 's' : ''})</span>
           </div>
           <div class="card-actions">
+            ${!isSeller ? `
             <button class="card-btn auction-btn btn-pulse" 
               onclick="event.stopPropagation(); openDetail('${p.id}')"
               ${isEnded ? 'disabled style="opacity:0.5"' : ''}>
               <i class="fas fa-gavel"></i> ${isEnded ? 'Ended' : 'Place Bid'}
-            </button>
-            <button class="card-btn card-btn-secondary" onclick="openDetail('${p.id}')">
+            </button>` : ''}
+            <button class="card-btn card-btn-secondary" onclick="openDetail('${p.id}')" style="${isSeller ? 'width: 100%;' : ''}">
               Details
             </button>
           </div>
@@ -489,16 +505,6 @@ window.openDetail = async function (id) {
     const p = allProducts.find(x => x.id === id);
     if (!p) return;
 
-    // Increment View Count in Firebase
-    try {
-        const productRef = firebase.database().ref('products/' + id);
-        productRef.child('views').transaction((currentViews) => {
-            return (currentViews || 0) + 1;
-        });
-    } catch (error) {
-        console.error('Error incrementing view count:', error);
-    }
-
     // Handle image
     let imgUrl = 'images/placeholder.jpg';
     if (Array.isArray(p.images) && p.images.length > 0) {
@@ -526,15 +532,18 @@ window.openDetail = async function (id) {
     let sellerHtml = '';
     if (p.sellerId) {
         try {
-            const sellerSnap = await firebase.database().ref('users/' + p.sellerId).once('value');
-            let sellerName = p.sellerName || 'Unknown Seller';
-            let sellerPic = 'images/avatar-placeholder.png';
+            const db = firebase.database();
+            // Fetch public fields individually to respect security rules
+            const [nameSnap, fullNameSnap, userSnap, picSnap, profSnap] = await Promise.all([
+                db.ref(`users/${p.sellerId}/displayName`).once('value'),
+                db.ref(`users/${p.sellerId}/fullName`).once('value'),
+                db.ref(`users/${p.sellerId}/username`).once('value'),
+                db.ref(`users/${p.sellerId}/profilePic`).once('value'),
+                db.ref(`users/${p.sellerId}/profile/avatar`).once('value')
+            ]);
 
-            if (sellerSnap.exists()) {
-                const seller = sellerSnap.val();
-                sellerName = seller.name || seller.fullName || seller.displayName || seller.username || sellerName;
-                sellerPic = seller.profile?.avatar || seller.profilePic || seller.avatar || sellerPic;
-            }
+            let sellerName = p.sellerName || nameSnap.val() || fullNameSnap.val() || userSnap.val() || 'Unknown Seller';
+            let sellerPic = picSnap.val() || profSnap.val() || 'images/avatar-placeholder.png';
 
             sellerHtml = `
                 <div class="product-seller-info" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; display: flex; align-items: center; gap: 1rem;">
@@ -578,9 +587,12 @@ window.openDetail = async function (id) {
  * FIXED PRICE MODAL — Standard (no changes from original)
  */
 function renderFixedModal(p, imgUrl, specsHtml, sellerHtml) {
+    const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+    const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+
     modalContent.innerHTML = `
     <div class="product-detail-grid">
-      <img class="product-image-large" src="${imgUrl}" alt="${p.name}" onerror="this.src='images/placeholder.jpg'">
+      <img class="product-image-large" src="${imgUrl}" alt="${p.name}" onerror="this.src='/static/images/placeholder.jpg'">
       <div class="product-info">
         <h2>${p.name}</h2>
         <div class="product-price-large">RS ${parseFloat(p.price).toFixed(2)}</div>
@@ -601,6 +613,7 @@ function renderFixedModal(p, imgUrl, specsHtml, sellerHtml) {
         ${sellerHtml}
 
         <div class="product-actions">
+          ${!isSeller ? `
           <button class="product-btn product-btn-primary" data-add-to-cart 
             data-id="${p.id}" 
             data-name="${p.name}" 
@@ -611,7 +624,7 @@ function renderFixedModal(p, imgUrl, specsHtml, sellerHtml) {
             data-seller-id="${p.sellerId || ''}"
             data-seller-name="${p.sellerName || ''}">
             Add to Cart
-          </button>
+          </button>` : ''}
           
           ${p.sellerId ? `
           <button class="product-btn product-btn-chat" onclick="window.SellerChatApp.openChat('${p.sellerId}', '${p.id}', '${p.name.replace(/'/g, "\\'")}')">
@@ -619,7 +632,7 @@ function renderFixedModal(p, imgUrl, specsHtml, sellerHtml) {
           </button>
           ` : ''}
 
-          <button class="product-btn product-btn-secondary" onclick="document.getElementById('productModal').classList.remove('show')">
+          <button class="product-btn product-btn-secondary" onclick="document.getElementById('productModal').classList.remove('show')" style="${isSeller ? 'width: 100%;' : ''}">
             Close
           </button>
         </div>
@@ -632,6 +645,9 @@ function renderFixedModal(p, imgUrl, specsHtml, sellerHtml) {
  * Real-time bid updates via Firebase .on('value')
  */
 function renderAuctionModal(p, imgUrl, auction, specsHtml, sellerHtml) {
+    const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+    const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+
     const currentBid = auction.currentHighestBid || auction.startingPrice || p.price || 0;
     const minIncrement = auction.minIncrement || 100;
     const bidCount = auction.bidCount || 0;
@@ -647,7 +663,7 @@ function renderAuctionModal(p, imgUrl, auction, specsHtml, sellerHtml) {
     modalContent.innerHTML = `
     <div class="product-detail-grid">
       <div style="position: relative;">
-        <img class="product-image-large" src="${imgUrl}" alt="${p.name}" onerror="this.src='images/placeholder.jpg'">
+        <img class="product-image-large" src="${imgUrl}" alt="${p.name}" onerror="this.src='/static/images/placeholder.jpg'">
         ${!isEnded ? `<div class="countdown-bar" data-auction-end="${auctionEndTime}" style="border-radius:0 0 12px 12px;"><i class="fas fa-clock"></i> Calculating...</div>` : ''}
       </div>
       <div class="product-info">
@@ -683,7 +699,19 @@ function renderAuctionModal(p, imgUrl, auction, specsHtml, sellerHtml) {
         ${sellerHtml}
 
         <!-- BIDDING WIDGET -->
-        ${!isEnded ? `
+        ${isEnded ? `
+        <div class="bidding-widget" style="text-align:center; background:#f1f5f9;">
+          <i class="fas fa-flag-checkered" style="font-size:2rem; color:#64748b; margin-bottom:8px;"></i>
+          <h3 style="color:#64748b; margin:0;">Auction Has Ended</h3>
+          <p style="color:#94a3b8; margin-top:4px;">This auction is no longer accepting bids.</p>
+        </div>
+        ` : (isSeller ? `
+        <div class="bidding-widget" style="text-align:center; background:#fff1f2; border: 1px solid #fecaca;">
+          <i class="fas fa-info-circle" style="font-size:1.5rem; color:#991b1b; margin-bottom:8px;"></i>
+          <h3 style="color:#991b1b; margin:0;">Shopping Restricted</h3>
+          <p style="color:#b91c1c; margin-top:4px; font-size: 0.9rem;">Sellers are restricted from bidding or purchasing. Please use a Buyer account for shopping.</p>
+        </div>
+        ` : `
         <div class="bidding-widget">
           <h3 style="margin:0 0 4px; font-size:1rem; font-weight:800; color:#1e293b;"><i class="fas fa-gavel" style="color:#4F46E5; margin-right:6px;"></i> Place Your Bid</h3>
           <div class="bid-hint" id="bidMinHint">
@@ -700,13 +728,7 @@ function renderAuctionModal(p, imgUrl, auction, specsHtml, sellerHtml) {
           </div>
           <div id="bidFeedback" style="margin-top:10px; font-size:0.85rem; font-weight:600;"></div>
         </div>
-        ` : `
-        <div class="bidding-widget" style="text-align:center; background:#f1f5f9;">
-          <i class="fas fa-flag-checkered" style="font-size:2rem; color:#64748b; margin-bottom:8px;"></i>
-          <h3 style="color:#64748b; margin:0;">Auction Has Ended</h3>
-          <p style="color:#94a3b8; margin-top:4px;">This auction is no longer accepting bids.</p>
-        </div>
-        `}
+        `)}
 
         <!-- Recent Bids -->
         <div class="recent-bidders" id="recentBiddersSection">
