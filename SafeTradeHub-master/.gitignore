@@ -110,3 +110,5 @@ jspm_packages/
 # Temporary files
 tmp/
 temp/
+service-account.json
+*service-account*.json
