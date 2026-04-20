@@ -11,22 +11,36 @@ function cartCount() { return getCart().reduce((a, i) => a + (i.qty || 1), 0); }
 function updateCartCount() { const b = document.getElementById('cartCount'); if (b) b.textContent = cartCount(); }
 
 function addToCart(product, qty = 1) {
-  // Enhanced authentication check with logging
-  
-
   if (!isUserAuthenticated()) {
-    console.warn('❌ Cart: User not authenticated, showing login prompt');
     showLoginPrompt();
     return false;
   }
 
-  
   const cart = getCart();
   const i = cart.findIndex(x => x.id === product.id);
-  if (i > -1) cart[i].qty += qty; else cart.push({ ...product, qty });
+  
+  // Ensure we have seller info
+  const cartItem = {
+    ...product,
+    qty: (i > -1) ? (cart[i].qty + qty) : qty,
+    sellerId: product.sellerId || product.seller_id || 'admin',
+    sellerName: product.sellerName || 'SafeTradeHub'
+  };
+
+  if (i > -1) {
+    cart[i] = cartItem;
+  } else {
+    cart.push(cartItem);
+  }
+
   saveCart(cart);
   updateCartCount();
-  alert('✅ Added to cart: ' + product.title);
+  
+  if (window.NotificationManager) {
+    window.NotificationManager.showToast('Cart Updated', `Added ${product.title || product.name} to cart!`, 'success');
+  } else {
+    alert('✅ Added to cart: ' + (product.title || product.name));
+  }
   return true;
 }
 
@@ -98,51 +112,25 @@ function showLoginPrompt() {
   }
 }
 
-/* Event delegation so it works for any future cards, too */
+/* Event delegation for cart buttons */
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-add-to-cart]');
   if (!btn) return;
 
-  
-
-  // WAIT for authentication to be properly initialized
   if (window.AuthManager) {
-    try {
-      await window.AuthManager.waitForInit();
-      
-    } catch (error) {
-      console.warn('⚠️ Cart: AuthManager wait error:', error);
-    }
+    await window.AuthManager.waitForInit();
   }
 
-  // Check authentication with MULTIPLE attempts
-  let authenticated = false;
-  let attempts = 0;
-
-  while (!authenticated && attempts < 3) {
-    authenticated = isUserAuthenticated();
-    if (!authenticated) {
-      console.warn(`⚠️ Cart: Auth check failed, attempt ${attempts + 1}/3`);
-      await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms
-      attempts++;
-    } else {
-      
-      break;
-    }
-  }
-
-  if (!authenticated) {
+  if (!isUserAuthenticated()) {
     e.preventDefault();
-    console.error('❌ Cart: Not authenticated after multiple attempts');
     showLoginPrompt();
     return;
   }
 
-  
-
   const product = {
     id: btn.dataset.id,
-    title: btn.dataset.name,
+    title: btn.dataset.name || btn.dataset.title,
+    name: btn.dataset.name || btn.dataset.title,
     price: parseFloat(btn.dataset.price || '0'),
     shippingCost: parseFloat(btn.dataset.shippingCost || '0'),
     img: btn.dataset.img,
@@ -150,7 +138,6 @@ document.addEventListener('click', async (e) => {
     sellerName: btn.dataset.sellerName || 'SafeTradeHub'
   };
 
-  
   addToCart(product, 1);
 });
 

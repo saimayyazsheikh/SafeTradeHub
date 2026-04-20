@@ -78,28 +78,30 @@ async function loadProduct(id) {
             }
             product.id = id;
             currentProduct = product;
+            // 1. Render UI
             renderProduct(product);
 
-            // Increment View Count (Organic Analytics Only)
+            // 2. Increment View Count (Organic Analytics Only - Once per session)
             const sId = product.sellerId || product.seller_id || product.seller?.id;
-            const isSeller = currentUser && sId === currentUser.uid;
             const alreadyTrackedInSession = sessionStorage.getItem(`viewed_${id}`);
 
-            if (!isSeller && !alreadyTrackedInSession) {
+            if (!alreadyTrackedInSession && currentUser && sId !== currentUser.uid) {
                 const viewRef = db.ref(`products/${id}/views`);
-                viewRef.transaction((currentViews) => {
-                    return (parseInt(currentViews) || 0) + 1;
-                });
+                viewRef.transaction((currentViews) => (parseInt(currentViews) || 0) + 1);
                 sessionStorage.setItem(`viewed_${id}`, 'true');
-                window._viewTracked = id; // Backup flag
             }
 
-            // Robust Seller ID Detection
-            if (sId) {
+            // 3. Setup Secondary Listeners (Once only to avoid memory leaks)
+            if (sId && window._pdLastSellerId !== sId) {
+                window._pdLastSellerId = sId;
                 loadSellerInfo(sId);
                 listenToSellerReputation(sId);
             }
-            fetchProductReviews(id);
+
+            if (window._pdLastProductId !== id) {
+                window._pdLastProductId = id;
+                fetchProductReviews(id);
+            }
         });
 
     } catch (error) {
@@ -242,7 +244,7 @@ function renderFixedPriceView(product) {
         addToCartBtn.style.display = 'none';
     } else {
         addToCartBtn.style.display = 'flex';
-        addToCartBtn.onclick = () => addToCart(product);
+        addToCartBtn.onclick = () => addToCartLocal();
     }
 
     // Chat setup
@@ -564,7 +566,9 @@ async function loadSellerInfo(sellerId) {
 }
 
 function listenToSellerReputation(sellerId) {
-    firebase.database().ref(`users/${sellerId}/reputation`).on('value', (snap) => {
+    if (window._pdReputationRef) window._pdReputationRef.off();
+    window._pdReputationRef = firebase.database().ref(`users/${sellerId}/reputation`);
+    window._pdReputationRef.on('value', (snap) => {
         const rep = snap.val();
         const repDiv = document.getElementById('sellerReputation');
         const avgSpan = document.getElementById('sellerAvgRating');
@@ -625,7 +629,9 @@ function setupChatButton(product) {
 // ========================================
 // ADD TO CART
 // ========================================
-function addToCart(product) {
+function addToCartLocal() {
+    if (!currentProduct) return;
+    
     if (!currentUser) {
         window.location.href = `auth.html?mode=signin&redirect=${encodeURIComponent(window.location.href)}`;
         return;
@@ -636,35 +642,33 @@ function addToCart(product) {
         return;
     }
 
-    const sId = product.sellerId || product.seller_id;
+    const sId = currentProduct.sellerId || currentProduct.seller_id;
     const cartItem = {
-        id: product.id,
-        title: product.name,
-        price: parseFloat(product.price),
-        shippingCost: parseFloat(product.price) * 0.05,
-        escrowFee: parseFloat(product.price) * 0.02,
-        img: (product.images && product.images.length > 0) ? (product.images[0].url || product.images[0]) : '',
+        id: currentProduct.id,
+        title: currentProduct.name,
+        name: currentProduct.name,
+        price: parseFloat(currentProduct.price),
+        shippingCost: parseFloat(currentProduct.price) * 0.05,
+        escrowFee: parseFloat(currentProduct.price) * 0.02,
+        img: (currentProduct.images && currentProduct.images.length > 0) ? (currentProduct.images[0].url || currentProduct.images[0]) : '',
         sellerId: sId,
-        sellerName: product.sellerName,
+        sellerName: currentProduct.sellerName || 'SafeTradeHub',
         qty: 1
     };
 
-    const CART_KEY = 'sthub_cart';
-    let cart = [];
-    try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { cart = []; }
-
-    const existing = cart.find(x => x.id === cartItem.id);
-    if (existing) existing.qty += 1;
-    else cart.push(cartItem);
-
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
-
-    if (window.updateCartCount) window.updateCartCount();
-
-    if (window.NotificationManager) {
-        window.NotificationManager.showToast('Cart Updated', `Added ${product.name} to cart!`, 'success');
+    if (window.addToCart) {
+        window.addToCart(cartItem, 1);
     } else {
-        alert(`Added ${product.name} to cart!`);
+        // Fallback if cart.js is not loaded
+        const CART_KEY = 'sthub_cart';
+        let cart = [];
+        try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { cart = []; }
+        const existing = cart.find(x => x.id === cartItem.id);
+        if (existing) existing.qty += 1;
+        else cart.push(cartItem);
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+        if (window.updateCartCount) window.updateCartCount();
+        alert(`Added ${currentProduct.name} to cart!`);
     }
 }
 
@@ -675,7 +679,9 @@ function fetchProductReviews(id) {
     const reviewsList = document.getElementById('reviewsList');
     const badge = document.getElementById('reviewCountBadge');
 
-    firebase.database().ref('reviews').orderByChild('productId').equalTo(id).on('value', async (snap) => {
+    if (window._pdReviewsRef) window._pdReviewsRef.off();
+    window._pdReviewsRef = firebase.database().ref('reviews').orderByChild('productId').equalTo(id);
+    window._pdReviewsRef.on('value', async (snap) => {
         const reviews = snap.val();
         if (!reviews) {
             badge.textContent = '0';

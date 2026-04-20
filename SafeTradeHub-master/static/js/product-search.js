@@ -279,15 +279,8 @@ class ProductSearchManager {
 
         const actionBtn = isAuction
             ? `<button class="card-btn card-btn-primary" onclick="window.location.href='product-detail.html?id=${product.id}'" style="width: 100%;">Place Bid</button>`
-            : `<button class="card-btn card-btn-secondary" data-add-to-cart data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-img="${imageUrl}">Add to Cart</button>`;
+            : `<button class="card-btn card-btn-secondary" data-add-to-cart data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-img="${imageUrl}" data-seller-id="${product.sellerId || 'admin'}" data-seller-name="${product.sellerName || 'SafeTradeHub'}">Add to Cart</button>`;
 
-        let imageUrl = '/static/images/mobile.jpg';
-        if (product.images && product.images.length > 0) {
-          imageUrl = product.images[0].url || product.images[0];
-        } else if (product.img) {
-          imageUrl = product.img;
-        }
-    
         article.innerHTML = `
           <div class="card-img">
             <img src="${imageUrl}" alt="${product.name || 'Product'}" loading="lazy" onerror="this.src='/static/images/mobile.jpg'">
@@ -312,7 +305,16 @@ class ProductSearchManager {
         if (addToCartBtn && typeof window.addToCart === 'function') {
             addToCartBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                window.addToCart(product.id, product.name, product.price, imageUrl, product.description, product.sellerId, product.sellerName);
+                window.addToCart({
+                    id: product.id,
+                    title: product.name,
+                    name: product.name,
+                    price: product.price,
+                    img: imageUrl,
+                    description: product.description,
+                    sellerId: product.sellerId,
+                    sellerName: product.sellerName
+                }, 1);
             });
         }
 

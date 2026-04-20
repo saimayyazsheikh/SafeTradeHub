@@ -39,13 +39,26 @@ function addToCart(product, qty = 1) {
 
     const cart = getCart();
     const i = cart.findIndex(x => x.id === product.id);
-    if (i > -1) cart[i].qty += qty;
-    else cart.push({ ...product, qty });
+    
+    // Ensure we have seller info
+    const cartItem = {
+        ...product,
+        qty: (i > -1) ? (cart[i].qty + qty) : qty,
+        sellerId: product.sellerId || 'admin',
+        sellerName: product.sellerName || 'SafeTradeHub'
+    };
+
+    if (i > -1) {
+        cart[i] = cartItem;
+    } else {
+        cart.push(cartItem);
+    }
+    
     saveCart(cart);
     updateCartCount();
 
     // Show toast instead of alert
-    showToast(`Added to cart: ${product.title}`, 'success');
+    showToast(`Added to cart: ${product.title || product.name}`, 'success');
     return true;
 }
 
@@ -471,10 +484,13 @@ function setupEventListeners() {
             const product = {
                 id: btn.dataset.id,
                 title: btn.dataset.name,
+                name: btn.dataset.name,
                 price: parseFloat(btn.dataset.price),
                 shippingCost: parseFloat(btn.dataset.shippingCost || 0),
                 img: btn.dataset.img,
-                desc: btn.dataset.desc
+                desc: btn.dataset.desc,
+                sellerId: btn.dataset.sellerId,
+                sellerName: btn.dataset.sellerName
             };
             addToCart(product);
         }
@@ -546,7 +562,7 @@ window.openDetail = async function (id) {
             let sellerPic = picSnap.val() || profSnap.val() || 'images/avatar-placeholder.png';
 
             sellerHtml = `
-                <div class="product-seller-info" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; display: flex; align-items: center; gap: 1rem;">
+                <div class="product-seller-info" style="margin-top: 1.5rem; margin-bottom: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; display: flex; align-items: center; gap: 1rem;">
                     <img src="${sellerPic}" alt="${sellerName}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <div>
                         <div style="font-weight: bold; color: #333; margin-bottom: 2px;">${sellerName}</div>
@@ -558,7 +574,7 @@ window.openDetail = async function (id) {
             console.error('Error fetching seller', e);
             if (p.sellerName) {
                 sellerHtml = `
-                    <div class="product-seller-info" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; display: flex; align-items: center; gap: 1rem;">
+                    <div class="product-seller-info" style="margin-top: 1.5rem; margin-bottom: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; display: flex; align-items: center; gap: 1rem;">
                         <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(p.sellerName)}&background=random" alt="${p.sellerName}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <div>
                             <div style="font-weight: bold; color: #333; margin-bottom: 2px;">${p.sellerName}</div>

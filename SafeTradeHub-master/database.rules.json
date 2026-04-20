@@ -16,6 +16,10 @@
                 "fullName": { ".read": "auth != null" },
                 "username": { ".read": "auth != null" },
                 "profilePic": { ".read": "auth != null" },
+                "email": { ".read": "auth != null" },
+                "businessEmail": { ".read": "auth != null" },
+                "phone": { ".read": "auth != null" },
+                "address": { ".read": "auth != null" },
                 "createdAt": { ".read": "auth != null" },
                 "profile": {
                     "avatar": { ".read": "auth != null" }

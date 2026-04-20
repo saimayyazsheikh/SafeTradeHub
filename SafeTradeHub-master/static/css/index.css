@@ -1,0 +1,767 @@
+/* 
+ * INDEX-REDESIGN.CSS - Axiom Protocol Enhanced UI for Home Page
+ * Premium, glassmorphic, and intuitive interface
+ */
+
+:root {
+  --axiom-bg: #f8fafc;
+  --axiom-card-bg: rgba(255, 255, 255, 0.72);
+  --axiom-glass-border: rgba(226, 232, 240, 0.8);
+  --axiom-primary: #4f46e5;
+  --axiom-primary-hover: #4338ca;
+  --axiom-text: #1e293b;
+  --axiom-text-muted: #64748b;
+  --axiom-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+  --axiom-radius: 24px;
+}
+
+body {
+  background-color: var(--axiom-bg);
+  color: var(--axiom-text);
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, .logo {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Hero Section - Vibrant Gradient & Glass Search */
+.hero-axiom {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  padding: 60px 0 100px;
+  position: relative;
+  text-align: center;
+  color: white;
+}
+
+.hero-axiom h1 {
+  color: white !important;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 800;
+  margin-bottom: 40px;
+  letter-spacing: -0.02em;
+}
+
+.search-filter-axiom {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 32px;
+  padding: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.axiom-search-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.axiom-main-search {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 16px;
+  padding: 0 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.axiom-main-search i {
+  color: var(--axiom-text-muted);
+  font-size: 1.2rem;
+}
+
+.axiom-main-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 18px 15px;
+  font-size: 1.1rem;
+  color: var(--axiom-text);
+  outline: none;
+}
+
+.axiom-search-btn-large {
+  background: white;
+  color: var(--axiom-primary);
+  border: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.axiom-search-btn-large:hover {
+  transform: scale(1.05);
+  background: #f8fafc;
+}
+
+.axiom-filter-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: 12px;
+}
+
+.axiom-filter-item {
+  position: relative;
+}
+
+.axiom-select-field, .axiom-input-field {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-size: 0.9rem;
+  color: var(--axiom-text);
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.axiom-select-field:focus, .axiom-input-field:focus {
+  background: white;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
+}
+
+.axiom-apply-btn {
+  background: var(--axiom-primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0 30px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.axiom-apply-btn:hover {
+  background: var(--axiom-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+/* Wave Divider */
+.wave-divider {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  line-height: 0;
+}
+
+.wave-divider svg {
+  display: block;
+  width: 100%;
+  height: 80px;
+}
+
+.wave-fill {
+  fill: var(--axiom-bg);
+}
+
+/* Track Shipment Card */
+.track-shipment-section {
+  padding: 0 20px;
+  margin-top: -60px;
+  position: relative;
+  z-index: 10;
+}
+
+.track-axiom-card {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.track-axiom-info h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.track-axiom-info p {
+  color: var(--axiom-text-muted);
+  font-size: 1rem;
+}
+
+.track-axiom-form {
+  flex: 1;
+  max-width: 500px;
+  display: flex;
+  gap: 12px;
+}
+
+.track-axiom-input {
+  flex: 1;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 15px 20px;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.track-axiom-input:focus {
+  border-color: var(--axiom-primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.track-axiom-btn {
+  background: var(--axiom-primary);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 0 30px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.track-axiom-btn:hover {
+  background: var(--axiom-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(79, 70, 229, 0.2);
+}
+
+/* Category Grid Redesign - Vibrant Tiles */
+.categories-axiom {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 20px;
+  padding: 30px 0 60px;
+}
+
+@media (max-width: 1024px) {
+  .categories-axiom {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .categories-axiom {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cat-axiom-card {
+  background: white;
+  border-radius: 28px;
+  padding: 24px 16px;
+  text-align: center;
+  border: 1px solid #f1f5f9;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.cat-axiom-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+  border-color: rgba(79, 70, 229, 0.1);
+}
+
+.cat-axiom-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+  transition: all 0.3s;
+}
+
+.cat-axiom-icon i {
+  font-size: 1.5rem;
+  color: white;
+}
+
+/* Category Specific Colors */
+.cat-mobile .cat-axiom-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.cat-camera .cat-axiom-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.cat-service .cat-axiom-icon { background: linear-gradient(135deg, #10b981, #059669); }
+.cat-furniture .cat-axiom-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.cat-fashion .cat-axiom-icon { background: linear-gradient(135deg, #ec4899, #db2777); }
+.cat-beauty .cat-axiom-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.cat-book .cat-axiom-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+.cat-sports .cat-axiom-icon { background: linear-gradient(135deg, #f97316, #ea580c); }
+.cat-gym .cat-axiom-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.cat-pets .cat-axiom-icon { background: linear-gradient(135deg, #84cc16, #65a30d); }
+.cat-laptop .cat-axiom-icon { background: linear-gradient(135deg, #64748b, #475569); }
+.cat-home .cat-axiom-icon { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+
+.cat-axiom-card:hover .cat-axiom-icon {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+}
+
+.cat-axiom-title {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.cat-axiom-sub {
+  font-size: 0.75rem;
+  color: var(--axiom-text-muted);
+  font-weight: 500;
+}
+
+/* Section Headers */
+.axiom-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.axiom-section-header h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* Recommended Products Container */
+.recs-axiom-container {
+  background: white;
+  border-radius: 40px;
+  padding: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  min-height: 350px;
+  box-shadow: inset 0 2px 15px rgba(0, 0, 0, 0.02), 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Styled Empty State */
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.no-results::before {
+  content: '\f07a';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  font-size: 4rem;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+}
+
+.no-results p {
+  color: #94a3b8;
+  font-size: 1.2rem;
+  font-weight: 600;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* Recommended Section Header Enhancements */
+.axiom-section-header h2 {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.recs-ctrl .arrow {
+  width: 44px;
+  height: 44px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e293b;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.recs-ctrl .arrow:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--axiom-primary);
+  transform: translateX(4px);
+}
+
+/* Why Choose Us Redesign - Glass Elite */
+.why-axiom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  padding: 40px 0 80px;
+}
+
+.why-axiom-card {
+  background: white;
+  border-radius: 32px;
+  padding: 50px 40px;
+  text-align: left;
+  border: 1px solid #f1f5f9;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.why-axiom-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.why-axiom-card:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.1);
+  border-color: rgba(79, 70, 229, 0.1);
+}
+
+.why-axiom-card:hover::before {
+  opacity: 1;
+}
+
+.why-axiom-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e0e7ff 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30px;
+  transition: all 0.3s;
+}
+
+.why-axiom-card:hover .why-axiom-icon-wrapper {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  transform: rotate(-5deg);
+}
+
+.why-axiom-icon-wrapper i {
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: all 0.3s;
+}
+
+.why-axiom-card:hover .why-axiom-icon-wrapper i {
+  -webkit-text-fill-color: white;
+}
+
+.why-axiom-card h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 15px;
+  letter-spacing: -0.01em;
+}
+
+.why-axiom-card p {
+  color: var(--axiom-text-muted);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+/* Trade Pro Banner */
+.pro-axiom-banner {
+  background: linear-gradient(135deg, #4f46e5 0%, #1e1b4b 100%);
+  border-radius: 24px;
+  padding: 40px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 40px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-axiom-content h3 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 25px;
+}
+
+.pro-axiom-list {
+  list-style: none;
+  display: flex;
+  gap: 30px;
+}
+
+.pro-axiom-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 20px;
+  border-radius: 50px;
+  backdrop-filter: blur(8px);
+}
+
+.pro-axiom-list li i {
+  color: #10b981;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .axiom-filter-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .track-axiom-card {
+    flex-direction: column;
+    padding: 30px;
+    text-align: center;
+  }
+  
+  .why-axiom-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .pro-axiom-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .pro-axiom-list {
+    flex-direction: column;
+    gap: 15px;
+  }
+}
+
+@media (max-width: 640px) {
+  .axiom-search-row {
+    flex-direction: column;
+  }
+  
+  .axiom-search-btn-large {
+    width: 100%;
+  }
+  
+  .axiom-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+/* Footer Redesign - Professional Axiom Footer */
+.footer-axiom {
+  background: #0f172a;
+  color: #94a3b8;
+  padding: 80px 0 40px;
+  margin-top: 40px;
+  font-size: 0.95rem;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 60px;
+  margin-bottom: 60px;
+}
+
+.footer-col h3 {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 25px;
+  position: relative;
+}
+
+.footer-col h3::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 30px;
+  height: 2px;
+  background: var(--axiom-primary);
+}
+
+.footer-about p {
+  line-height: 1.8;
+  margin-bottom: 25px;
+}
+
+.footer-socials {
+  display: flex;
+  gap: 15px;
+}
+
+.social-link {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.social-link:hover {
+  background: var(--axiom-primary);
+  transform: translateY(-5px);
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-links li {
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  color: #94a3b8;
+  text-decoration: none;
+  transition: color 0.2s;
+  display: inline-block;
+}
+
+.footer-links a:hover {
+  color: white;
+  transform: translateX(5px);
+}
+
+.footer-newsletter p {
+  margin-bottom: 20px;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 10px;
+}
+
+.newsletter-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 15px;
+  border-radius: 10px;
+  color: white;
+  outline: none;
+}
+
+.newsletter-btn {
+  background: var(--axiom-primary);
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.newsletter-btn:hover {
+  background: var(--axiom-primary-hover);
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-legal {
+  display: flex;
+  gap: 25px;
+}
+
+.footer-legal a {
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.footer-legal a:hover {
+  color: white;
+}
+
+@media (max-width: 992px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .footer-legal {
+    justify-content: center;
+  }
+}

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safe Trade Hub – Home</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=1.3" />
+  <link rel="stylesheet" href="/static/css/index-redesign.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0RraIZr7Z3rjKIYw6dE2g_9Waqll5JvI",
+      authDomain: "safetradehub-def1d.firebaseapp.com",
+      databaseURL: "https://safetradehub-def1d-default-rtdb.firebaseio.com",
+      projectId: "safetradehub-def1d",
+      storageBucket: "safetradehub-def1d.firebasestorage.app",
+      messagingSenderId: "633146502278",
+      appId: "1:633146502278:web:6c82d4a0768daebdd7b507",
+      measurementId: "G-1857Q7JPKZ"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+
+  <!-- Load authentication system -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/user-auth-guard.js"></script>
+
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="logo" aria-label="Safe Trade Hub Home">SafeTradeHub</a>
+      <nav class="header-actions" aria-label="Top actions">
+        <!-- Chatbot Container (Hidden by Default) -->
+        <div id="chatbot-container" class="chatbot-container">
+          <!-- Chatbot UI will be injected here by js/chatbot.js -->
+        </div>
+
+        <!-- FAQ Button -->
+        <button class="faq-btn" onclick="toggleChat()">
+          <span class="faq-icon">?</span>
+          <span class="faq-text">FAQ's</span>
+        </button>
+
+        <!-- Navigation will be updated by HeaderManager -->
+      </nav>
+    </div>
+  </header>
+
+  <!-- Redesigned Hero Section -->
+  <section class="hero-axiom">
+    <div class="container">
+      <h1>Find Your Best Product</h1>
+
+      <!-- Axiom Search & Filter Module -->
+      <div class="search-filter-axiom">
+        <!-- Main Search Bar -->
+        <div class="axiom-search-row">
+          <div class="axiom-main-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search for products, services, and more..."
+              aria-label="Search products">
+          </div>
+          <button id="searchBtn" class="axiom-search-btn-large" aria-label="Search">
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+
+        <!-- Advanced Filters Row -->
+        <div class="axiom-filter-row">
+          <div class="axiom-filter-item">
+            <select id="categoryFilter" class="axiom-select-field">
+              <option value="">All Categories</option>
+              <option value="Mobile">Mobile</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Services">Services</option>
+              <option value="Furniture">Furniture</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Beauty">Beauty</option>
+              <option value="Book">Book</option>
+              <option value="Sports">Sports</option>
+              <option value="Gym">Gym</option>
+              <option value="Animal & Pets">Animal & Pets</option>
+              <option value="Computers">Computers</option>
+              <option value="Home">Home</option>
+            </select>
+          </div>
+
+          <div class="axiom-filter-item">
+            <input type="text" id="locationFilter" placeholder="Location (e.g., Karachi)" class="axiom-input-field">
+          </div>
+
+          <div class="axiom-filter-item">
+            <select id="sortFilter" class="axiom-select-field">
+              <option value="recent">Recent Listings</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="rating">Highest Rating</option>
+            </select>
+          </div>
+
+          <button id="applyFilters" class="axiom-apply-btn">
+            <i class="fas fa-sliders-h"></i>
+            Apply Filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wave Divider -->
+    <div class="wave-divider">
+      <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+        <path
+          d="M1200 120L0 120 0 0C161.45 27.2 329.13 42 491.4 42 679.5 42 863 15.65 1060.5 15.65 1106.6 15.65 1153.21 17.5 1200 21.19V120z"
+          class="wave-fill"></path>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Redesigned Track My Order Section -->
+  <section class="track-shipment-section">
+    <div class="container">
+      <div class="track-axiom-card">
+        <div class="track-axiom-info">
+          <h2><i class="fas fa-truck-fast"></i> Track Your Shipment</h2>
+          <p>Enter your Order ID to see real-time Safe Ship tracking.</p>
+        </div>
+        <div class="track-axiom-form">
+          <input type="text" id="quickTrackInput" placeholder="Order ID (e.g. -On9...)" class="track-axiom-input">
+          <button onclick="handleQuickTrack()" class="track-axiom-btn">
+            Track Now
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Redesigned Categories -->
+  <section class="section">
+    <div class="container">
+      <div class="axiom-section-header">
+        <h2>Browse by Category</h2>
+      </div>
+      
+      <div class="categories categories-axiom">
+        <!-- Row 1 -->
+        <div class="cat cat-axiom-card cat-mobile">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-mobile-alt"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Mobile</span>
+            <p class="cat-sub cat-axiom-sub">Smartphones</p>
+          </div>
+        </div>
+        
+        <div class="cat cat-axiom-card cat-camera">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-camera"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Camera</span>
+            <p class="cat-sub cat-axiom-sub">Photography</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-service">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-tools"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Service</span>
+            <p class="cat-sub cat-axiom-sub">Professional</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-furniture">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-couch"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Chair</span>
+            <p class="cat-sub cat-axiom-sub">Furniture</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-fashion">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-tshirt"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Dress</span>
+            <p class="cat-sub cat-axiom-sub">Fashion</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-beauty">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-magic"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Makeup</span>
+            <p class="cat-sub cat-axiom-sub">Beauty</p>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="cat cat-axiom-card cat-book">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Book</span>
+            <p class="cat-sub cat-axiom-sub">Education</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-sports">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-baseball-bat-ball"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Bat</span>
+            <p class="cat-sub cat-axiom-sub">Sports</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-gym">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-dumbbell"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Dumbbell</span>
+            <p class="cat-sub cat-axiom-sub">Fitness</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-pets">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-paw"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Pet Care</span>
+            <p class="cat-sub cat-axiom-sub">Animal & Pets</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-laptop">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-laptop"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Laptop</span>
+            <p class="cat-sub cat-axiom-sub">Computers</p>
+          </div>
+        </div>
+
+        <div class="cat cat-axiom-card cat-home">
+          <div class="cat-axiom-icon">
+            <i class="fas fa-home"></i>
+          </div>
+          <div class="cat-axiom-content">
+            <span class="cat-title cat-axiom-title">Appliance</span>
+            <p class="cat-sub cat-axiom-sub">Home</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Redesigned Recommended -->
+  <section class="section">
+    <div class="container">
+      <div class="axiom-section-header">
+        <h2>Recommended for You</h2>
+        <div class="recs-ctrl">
+          <button class="icon-btn arrow" id="recsNext" aria-label="View more">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="recs-axiom-container">
+        <div class="recs" id="recs">
+          <!-- Products injected by home-products.js -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Redesigned Why Choose Us -->
+  <section class="section">
+    <div class="container">
+      <div class="axiom-section-header" style="justify-content: center; text-align: center;">
+        <h2>Why Choose SafeTradeHub?</h2>
+      </div>
+      
+      <div class="why-axiom-grid">
+        <div class="why-axiom-card">
+          <div class="why-axiom-icon-wrapper">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h3>Secure Payments</h3>
+          <p>Every transaction is protected by multi-layered encryption and our robust escrow system.</p>
+        </div>
+
+        <div class="why-axiom-card">
+          <div class="why-axiom-icon-wrapper">
+            <i class="fas fa-headset"></i>
+          </div>
+          <h3>24/7 Support</h3>
+          <p>Our dedicated expert team is available around the clock to ensure your safety and success.</p>
+        </div>
+
+        <div class="why-axiom-card">
+          <div class="why-axiom-icon-wrapper">
+            <i class="fas fa-check-double"></i>
+          </div>
+          <h3>Trusted Sellers</h3>
+          <p>We strictly verify every single seller to maintain the highest standards of our marketplace.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Redesigned Professional Footer -->
+  <footer class="footer-axiom">
+    <div class="container">
+      <div class="footer-grid">
+        <!-- About Col -->
+        <div class="footer-col footer-about">
+          <h3 class="logo" style="color: white; font-size: 1.5rem; margin-bottom: 20px;">SafeTradeHub</h3>
+          <p>The world's most secure and intuitive marketplace. We specialize in escrow-protected trades and verified seller networks to ensure your safety every step of the way.</p>
+          <div class="footer-socials">
+            <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+          </div>
+        </div>
+
+        <!-- Marketplace Col -->
+        <div class="footer-col">
+          <h3>Marketplace</h3>
+          <ul class="footer-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="#">Categories</a></li>
+            <li><a href="#">New Listings</a></li>
+            <li><a href="#">Auctions</a></li>
+            <li><a href="#">Safe Trade Pro</a></li>
+          </ul>
+        </div>
+
+        <!-- Support Col -->
+        <div class="footer-col">
+          <h3>Support</h3>
+          <ul class="footer-links">
+            <li><a href="#">Help Center</a></li>
+            <li><a href="#">Track Shipment</a></li>
+            <li><a href="#">Return Policy</a></li>
+            <li><a href="#">Safety Rules</a></li>
+            <li><a href="#">FAQ's</a></li>
+          </ul>
+        </div>
+
+        <!-- Newsletter Col -->
+        <div class="footer-col footer-newsletter">
+          <h3>Newsletter</h3>
+          <p>Subscribe to get the latest updates on new products and safety tips.</p>
+          <form class="newsletter-form">
+            <input type="email" placeholder="Email Address" class="newsletter-input">
+            <button type="submit" class="newsletter-btn">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 SafeTradeHub. All Rights Reserved.</p>
+        <div class="footer-legal">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Cookie Settings</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+
+
+  <!-- Essential JavaScript Functions -->
+  <script>
+    function handleQuickTrack() {
+      const orderId = document.getElementById('quickTrackInput').value.trim();
+      if (!orderId) {
+        alert('Please enter a valid Order ID');
+        return;
+      }
+      window.location.href = `orderstatus.html?orderId=${encodeURIComponent(orderId)}`;
+    }
+    
+    // Allow enter key
+    document.getElementById('quickTrackInput')?.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') handleQuickTrack();
+    });
+
+    // Toggle chatbot visibility
+    function toggleChat() {
+      const chatContainer = document.getElementById('chatbot-container');
+      chatContainer.classList.toggle('show');
+    }
+
+    // Request notification permission and show notification
+    function requestNotificationPermission() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(function (permission) {
+          if (permission === 'granted') {
+            new Notification('SafeTradeHub Notifications', {
+              body: 'You will now receive notifications about your transactions!',
+              icon: '/favicon.ico'
+            });
+          } else {
+            alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+          }
+        });
+      } else {
+        alert('Notifications enabled! You\'ll receive updates about your orders and transactions.');
+      }
+    }
+
+    // Enhanced search functionality
+    function performSearch(query) {
+      if (!query || query.trim() === '') return;
+
+      // Store search query
+      localStorage.setItem('searchQuery', query.trim());
+
+      // Redirect to search results
+      window.location.href = `search-results.html?q=${encodeURIComponent(query.trim())}`;
+    }
+
+    // Initialize application on page load
+    document.addEventListener('DOMContentLoaded', async function () {
+      
+
+      try {
+        // WAIT for AuthManager to be completely ready
+        let authReady = false;
+        let attempts = 0;
+        while (!authReady && attempts < 50) {
+          if (window.AuthManager) {
+            try {
+              await window.AuthManager.waitForInit();
+              authReady = true;
+              
+            } catch (error) {
+              console.warn('⚠️ AuthManager not ready, attempt', attempts, error);
+            }
+          }
+          if (!authReady) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+        }
+
+        // Force authentication check and header update
+        if (window.AuthManager) {
+          const isAuth = window.AuthManager.isAuthenticated();
+          const user = window.AuthManager.getCurrentUser();
+          
+
+          // Force header update
+          if (window.HeaderManager) {
+            window.HeaderManager.updateHeaderState();
+          }
+        }
+
+        // Update cart count if function exists
+        if (typeof setBadge === 'function') {
+          setBadge();
+        }
+
+        // Update cart count from cart.js
+        if (typeof updateCartCount === 'function') {
+          updateCartCount();
+        }
+
+        
+      } catch (error) {
+        console.error('❌ SafeTradeHub: Initialization error:', error);
+      }
+
+      // Handle search form submission
+      const searchForm = document.querySelector('.axiom-search-row');
+      if (searchForm) {
+        searchForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          const searchInput = this.querySelector('input');
+          if (searchInput) {
+            performSearch(searchInput.value);
+          }
+        });
+      }
+
+      // Close chatbot when clicking outside
+      document.addEventListener('click', function (e) {
+        const chatContainer = document.getElementById('chatbot-container');
+        const chatButton = e.target.closest('button[onclick="toggleChat()"]');
+
+        if (!chatButton && !chatContainer.contains(e.target) && chatContainer.classList.contains('show')) {
+          chatContainer.classList.remove('show');
+        }
+      });
+
+      // Show welcome notification for new users
+      if (!localStorage.getItem('welcomeShown')) {
+        setTimeout(() => {
+          if (typeof showNotification === 'function') {
+            showNotification('Welcome to SafeTradeHub! 🎉 Your secure marketplace with escrow protection.', 'success');
+          }
+          localStorage.setItem('welcomeShown', 'true');
+        }, 2000);
+      }
+    });
+
+    // Global notification system
+    function showNotification(message, type = 'info') {
+      // Remove existing notifications
+      const existingNotifications = document.querySelectorAll('.notification');
+      existingNotifications.forEach(notification => notification.remove());
+
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.innerHTML = `
+        <div class="notification-content">
+          <span class="notification-message">${message}</span>
+          <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+
+      // Add to page
+      document.body.appendChild(notification);
+
+      // Show notification
+      setTimeout(() => notification.classList.add('show'), 100);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // Make functions globally available
+    window.showNotification = showNotification;
+    window.performSearch = performSearch;
+  </script>
+
+  <!-- Include JavaScript modules -->
+  <script src="/static/js/app-state.js"></script>
+  <script src="/static/js/cart.js"></script>
+  <script src="/static/js/navigation.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/product-search.js"></script>
+  <script src="/static/js/home-products.js"></script>
+  <script src="/static/js/chatbot.js"></script>
+  <script src="/static/js/seller-chat.js"></script>
+
+</body>
+
+</html>

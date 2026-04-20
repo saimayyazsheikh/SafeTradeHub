@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders - SafeTradeHub</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/orders-redesign.css">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <script src="/static/js/firebase-config.js"></script>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-logo">
+                <i class="fas fa-shield-alt"></i> SafeTradeHub
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="orders.html" class="nav-item active">
+                <i class="fas fa-box"></i> Orders
+            </a>
+            <a href="product-management.html" class="nav-item" id="navProducts" style="display: none;">
+                <i class="fas fa-tags"></i> Products
+            </a>
+            <a href="verification.html" class="nav-item">
+                <i class="fas fa-check-circle"></i> Verification
+            </a>
+            <a href="wallet.html" class="nav-item">
+                <i class="fas fa-wallet"></i> Wallet
+            </a>
+            <a href="messages.html" class="nav-item">
+                <i class="fas fa-envelope"></i> Messages
+            </a>
+            <a href="profile.html" class="nav-item">
+                <i class="fas fa-user"></i> Profile
+            </a>
+            <a href="dashboard.html#insights" class="nav-item" id="navInsights" style="display: none;">
+                <i class="fas fa-chart-line"></i> Insights
+            </a>
+            <a href="settings.html" class="nav-item">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-mini-profile">
+                <img src="/static/images/mobile.jpg" alt="User" class="user-avatar-small" id="userAvatar">
+                <div class="user-info-mini">
+                    <h4 id="userName">Loading...</h4>
+                    <span id="userRole">...</span>
+                </div>
+            </div>
+            <a href="#" onclick="logout()" class="nav-item" style="color: var(--danger);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <script>
+        // Immediate check to prevent flicker
+        (function () {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    if (user.role === 'Seller') {
+                        const navProducts = document.getElementById('navProducts');
+                        if (navProducts) navProducts.style.display = 'flex';
+                        const navInsights = document.getElementById('navInsights');
+                        if (navInsights) navInsights.style.display = 'flex';
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data for sidebar:', e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="dashboard-topbar">
+            <div class="page-title">
+                <h1>Orders</h1>
+                <p>Manage and track your orders</p>
+            </div>
+            <div class="topbar-actions" style="display:flex; align-items:center; gap:15px;">
+                <button class="icon-btn" id="notificationBtn" aria-label="Notifications" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; color:#64748b; padding:8px; border-radius:50%; transition:all 0.2s;">
+                    <i class="fas fa-bell"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="ordersContent">
+            <!-- Filter Strip -->
+            <div class="orders-filter-strip">
+                <button class="filter-tab active" data-filter="all" onclick="filterOrders('all')">All Orders</button>
+                <button class="filter-tab" data-filter="pending" onclick="filterOrders('pending')">Active</button>
+                <button class="filter-tab" data-filter="shipped" onclick="filterOrders('shipped')">In Transit</button>
+                <button class="filter-tab" data-filter="completed" onclick="filterOrders('completed')">Completed</button>
+                <button class="filter-tab" data-filter="cancelled" onclick="filterOrders('cancelled')">Cancelled</button>
+                <button class="filter-tab" data-filter="disputed" onclick="filterOrders('disputed')">Disputed</button>
+            </div>
+
+            <div id="ordersContainer" class="order-cards-container">
+                <!-- Loading State -->
+                <div class="card-loading-placeholder" style="text-align: center; padding: 60px;">
+                    <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: #474bff; margin-bottom: 15px; display: block;"></i>
+                    <p style="font-weight: 600; color: #64748b;">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Details Modal -->
+        <div id="orderDetailsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Order Details</h2>
+                    <span class="close-modal" onclick="closeOrderModal()">&times;</span>
+                </div>
+                <div class="modal-body" id="orderModalBody">
+                    <!-- Details injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Modal -->
+        <div id="reviewModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2>Submit Review</h2>
+                    <span class="close-modal" onclick="closeReviewModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <p style="color: #64748b; margin-bottom: 15px;">Rate your experience with this transaction</p>
+                        <div class="rating-stars" id="starRating">
+                            <i class="fas fa-star star-btn" data-value="1" onclick="setRating(1)"></i>
+                            <i class="fas fa-star star-btn" data-value="2" onclick="setRating(2)"></i>
+                            <i class="fas fa-star star-btn" data-value="3" onclick="setRating(3)"></i>
+                            <i class="fas fa-star star-btn" data-value="4" onclick="setRating(4)"></i>
+                            <i class="fas fa-star star-btn" data-value="5" onclick="setRating(5)"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewComment" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Your Comments</label>
+                        <textarea id="reviewComment" class="form-control" rows="4" placeholder="Share your experience (max 500 chars)..." maxlength="500" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: none;"></textarea>
+                    </div>
+
+                    <div style="margin-top: 25px;">
+                        <button id="submitReviewBtn" class="btn btn-primary full-width" style="width: 100%; transition: transform 0.2s;" onclick="submitReview()">Submit Elite Review</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dispute Modal -->
+        <div id="disputeModal" class="modal">
+            <div class="modal-content" style="max-width: 500px; border-top: 4px solid #ef4444;">
+                <div class="modal-header">
+                    <h2 style="font-size: 1.5rem; font-weight: 800; color: #1e293b;"><i class="fas fa-gavel" style="color: #ef4444; margin-right: 8px;"></i> Raise a Dispute</h2>
+                    <span class="close-modal" onclick="closeDisputeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p style="color: #64748b; margin-bottom: 20px; font-size: 0.9rem;">Please provide details about the issue. Our team will investigate and reach a decision.</p>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Dispute Reason</label>
+                        <select id="disputeReason" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; box-sizing: border-box;">
+                            <option value="Item not as described">Item not as described</option>
+                            <option value="Damaged on arrival">Damaged on arrival</option>
+                            <option value="Incorrect item received">Incorrect item received</option>
+                            <option value="Missing components">Missing components</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Description</label>
+                        <textarea id="disputeDescription" rows="4" placeholder="Explain the problem in detail..." style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: none; box-sizing: border-box;"></textarea>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Evidence / Pictures (Max 3)</label>
+                        <div id="disputeImagePreview" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;"></div>
+                        <label for="disputeImages" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 2px dashed #e2e8f0; border-radius: 12px; cursor: pointer; color: #64748b; font-size: 0.9rem; transition: all 0.2s; box-sizing: border-box;">
+                            <i class="fas fa-camera" style="color: #ef4444;"></i> Select Evidence Images
+                        </label>
+                        <input type="file" id="disputeImages" multiple accept="image/*" style="display: none;" onchange="handleDisputeFileSelect(this)">
+                    </div>
+
+                    <button id="submitDisputeBtn" onclick="submitDispute()" class="btn btn-primary" style="width: 100%; background: #ef4444; border: none; padding: 14px; font-weight: 800; border-radius: 12px; color: white; cursor: pointer; box-sizing: border-box;">Submit Dispute</button>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            /* Elite Modal Styles */
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(15, 23, 42, 0.6); /* Modern dark backdrop */
+                backdrop-filter: blur(4px);
+                align-items: center;
+                justify-content: center;
+            }
+
+            .modal-content {
+                background-color: var(--axiom-surface);
+                margin: 2vh auto;
+                padding: 0;
+                border: 0;
+                width: 95%;
+                max-width: 600px;
+                border-radius: 24px;
+                position: relative;
+                max-height: 96vh;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                border: 1px solid var(--axiom-border);
+                backdrop-filter: blur(20px);
+            }
+
+            .modal-header {
+                padding: 20px 25px;
+                background: linear-gradient(to right, #f8fafc, #ffffff);
+                border-bottom: 1px solid #f1f5f9;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-shrink: 0;
+            }
+
+            .modal-header h2 {
+                margin: 0;
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: #1e293b;
+            }
+
+            .modal-body {
+                padding: 25px;
+                overflow-y: auto;
+                flex-grow: 1;
+                background: #fff;
+            }
+
+            .close-modal {
+                font-size: 24px;
+                color: #94a3b8;
+                cursor: pointer;
+                transition: color 0.2s;
+            }
+
+            .close-modal:hover { color: #1e293b; }
+
+            /* Elite Table Styles */
+            .dashboard-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0 8px;
+            }
+
+            .dashboard-table th {
+                padding: 12px 15px;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #64748b;
+                font-weight: 600;
+                border: none;
+            }
+
+            .dashboard-table tr {
+                background: #fff;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+
+            .dashboard-table tbody tr:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            }
+
+            .dashboard-table td {
+                padding: 16px 15px;
+                vertical-align: middle;
+                border-top: 1px solid #f1f5f9;
+                border-bottom: 1px solid #f1f5f9;
+            }
+
+            .dashboard-table td:first-child {
+                border-left: 1px solid #f1f5f9;
+                border-top-left-radius: 12px;
+                border-bottom-left-radius: 12px;
+            }
+
+            .dashboard-table td:last-child {
+                border-right: 1px solid #f1f5f9;
+                border-top-right-radius: 12px;
+                border-bottom-right-radius: 12px;
+            }
+
+
+            .action-btn-group {
+                display: flex;
+                gap: 10px;
+            }
+
+            .btn-track {
+                background: #3b82f6;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: background 0.2s;
+            }
+
+            .btn-track:hover { background: #2563eb; }
+
+            .btn-details {
+                background: #f1f5f9;
+                color: #475569;
+                padding: 8px;
+                border-radius: 8px;
+                border: none;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .btn-details:hover { background: #e2e8f0; }
+
+            .item-row { display: flex; gap: 15px; align-items: center; background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 8px;}
+            .item-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+            .participant-link { 
+                color: var(--axiom-primary); 
+                text-decoration: none; 
+                font-weight: 700; 
+                transition: opacity 0.2s;
+            }
+            .participant-link:hover { opacity: 0.8; text-decoration: underline; }
+            .badge-price { background: #f1f5f9; color: #1e293b; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.9rem; }
+
+            /* Star Rating Styles */
+            .rating-stars {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                font-size: 2rem;
+            }
+            .star-btn {
+                cursor: pointer;
+                color: #e2e8f0; /* Default slate */
+                transition: transform 0.1s ease, color 0.1s ease;
+            }
+            .star-btn.active {
+                color: #fbbf24; /* Axiom Gold */
+            }
+            .star-btn:hover {
+                transform: scale(1.1);
+            }
+
+            .btn-review {
+                background: #f8fafc;
+                color: #1e293b;
+                border: 1px solid #e2e8f0;
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .btn-review:hover {
+                background: #f1f5f9;
+                border-color: #cbd5e1;
+            }
+        </style>
+    </main>
+
+    <script>
+        // Orders Page Logic
+        document.addEventListener('DOMContentLoaded', async () => {
+            const auth = firebase.auth();
+            const db = firebase.database();
+
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = 'auth.html?mode=signin';
+                    return;
+                }
+
+                // Load User Data
+                const userSnap = await db.ref('users/' + user.uid).once('value');
+                const userData = userSnap.val();
+
+                updateUserProfile(userData);
+
+                // Show Products link if Seller
+                if (userData.role === 'Seller') {
+                    const navProducts = document.getElementById('navProducts');
+                    if (navProducts) navProducts.style.display = 'flex';
+                }
+
+                loadOrders(user.uid, userData.role);
+            });
+        });
+
+        // --- STATUS HELPERS (Synced across ecosystem) ---
+        function formatOrderStatus(status) {
+            const mapping = {
+                'pending': 'Order Placed',
+                'received_at_seller_hub': 'Received at Origin Hub',
+                'sent_to_hub': 'Received at Origin Hub',
+                'verified': 'Verified & Sealed',
+                'in_transit': 'In Transit',
+                'arrived_at_dest_hub': 'Arrived at Destination Hub',
+                'out_for_delivery': 'Out for Delivery',
+                'delivered': 'Delivered',
+                'cancelled': 'Cancelled',
+                'disputed': 'Disputed'
+            };
+            return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Order Placed');
+        }
+
+        function updateUserProfile(user) {
+            if (!user) return; // Silent skip if no DB profile yet
+            
+            const name = user.displayName || user.fullName || user.name || 'Elite User';
+            const role = user.role || 'Buyer';
+            
+            document.getElementById('userName').textContent = name;
+            document.getElementById('userRole').textContent = role;
+            
+            const avatar = document.getElementById('userAvatar');
+            if (avatar) {
+                if (user.profilePic || user.profile?.avatar) {
+                    avatar.src = user.profilePic || user.profile?.avatar;
+                } else {
+                    avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+                }
+            }
+        }
+
+        async function loadOrders(uid, role) {
+            const db = firebase.database();
+            const container = document.getElementById('ordersContainer');
+            if (!container) return;
+
+            // Use .on('value') for real-time synchronization
+            db.ref('orders').on('value', async (snap) => {
+                try {
+                    let orders = [];
+                    const allOrders = snap.val();
+                    if (!allOrders) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
+                                <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
+                                <h3 style="color: #64748b;">No Orders Yet</h3>
+                                <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Convert and Filter
+                    Object.keys(allOrders).forEach(key => {
+                        const o = allOrders[key];
+                        o.id = key;
+                        
+                        if (role === 'Seller') {
+                            if (o.sellerId === uid) {
+                                orders.push(o);
+                            } else if (o.items && Array.isArray(o.items) && o.items.some(i => i && i.sellerId === uid)) {
+                                orders.push(o);
+                            }
+                        } else {
+                            if (o.buyerId === uid || (o.buyer && o.buyer.id === uid)) {
+                                orders.push(o);
+                            }
+                        }
+                    });
+
+                    if (orders.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 100px 20px; background: white; border-radius: 20px;">
+                                <i class="fas fa-ghost" style="font-size: 3rem; color: #e2e8f0; margin-bottom: 20px; display: block;"></i>
+                                <h3 style="color: #64748b;">No Orders Yet</h3>
+                                <p style="color: #94a3b8; font-size: 0.9rem;">Start exploring the marketplace to find elite products.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Sort by date desc
+                    orders.sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return dateB - dateA;
+                    });
+                    
+                    window.allOrdersRaw = orders; // store for filtering
+                    
+                    // Maintain active filter
+                    const activeTab = document.querySelector('.filter-tab.active');
+                    const activeFilter = activeTab ? activeTab.getAttribute('data-filter') : 'all';
+                    
+                    if (activeFilter === 'all') {
+                        await renderOrderCards(orders, role);
+                    } else {
+                        filterOrders(activeFilter);
+                    }
+
+                } catch (error) {
+                    console.error('CRITICAL: Error processing orders:', error);
+                }
+            }, (error) => {
+                console.error('Firebase permission/read error:', error);
+                container.innerHTML = `<div style="text-align:center; color:#ef4444; padding:40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>Failed to synchronize order engine.</p>
+                    <small>${error.message}</small>
+                </div>`;
+            });
+        }
+
+        async function renderOrderCards(orders, role) {
+            const container = document.getElementById('ordersContainer');
+            if (!container) return;
+            
+            const db = firebase.database();
+            window.currentOrders = {}; // for modals
+
+            const cardPromises = orders.map(async (o) => {
+                if (!o || !o.id) return '';
+                
+                try {
+                    window.currentOrders[o.id] = o;
+                    
+                    // participant data resolving - PRIORITIZE EMBEDDED DATA
+                    const embeddedBuyerName = o.buyer && (o.buyer.name || o.buyer.displayName);
+                    const embeddedSellerName = o.sellerName || (o.items && o.items[0]?.sellerName);
+                    
+                    const otherId = role === 'Seller' ? (o.buyerId || (o.buyer && o.buyer.id)) : (o.sellerId || (o.items && o.items[0]?.sellerId));
+                    
+                    let otherName = role === 'Seller' ? (embeddedBuyerName || 'Buyer Participant') : (embeddedSellerName || 'SafeTrade Merchant');
+                    let otherLink = '#';
+
+                    if (otherId) {
+                        try {
+                            otherLink = `seller-profile.html?id=${otherId}`;
+                            
+                            // If we don't have an embedded name, or if it's a generic placeholder, try fetching fresh
+                            if (!otherName || otherName.includes('Participant') || otherName.includes('Merchant')) {
+                                const uSnap = await db.ref('users/' + otherId).once('value');
+                                if (uSnap.exists()) {
+                                    const u = uSnap.val();
+                                    otherName = u.displayName || u.fullName || u.name || otherName;
+                                } else if (role === 'Buyer' && o.items && o.items[0]?.id) {
+                                    const pSnap = await db.ref(`products/${o.items[0].id}`).once('value');
+                                    if (pSnap.exists()) {
+                                        const p = pSnap.val();
+                                        otherName = p.sellerName || otherName;
+                                        otherLink = `seller-profile.html?id=${p.sellerId}`;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Participant lookup failed for order:', o.id, e);
+                        }
+                    }
+
+                    const displayStatus = (o.status || 'pending').replace(/_/g, ' ');
+                    const statusClass = (o.status || 'pending').toLowerCase();
+                    const totalAmount = (o.total || 0).toFixed(0);
+                    
+                    let orderDate = 'Unknown Date';
+                    if (o.createdAt) {
+                        try {
+                            orderDate = new Date(o.createdAt).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' });
+                        } catch(e) {}
+                    }
+                    
+                    const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/mobile.jpg') : '/static/images/mobile.jpg';
+                    const itemCount = o.items ? o.items.length : 0;
+                    const showReview = (statusClass === 'delivered' || statusClass === 'completed');
+                    const showDispute = (statusClass === 'delivered' || statusClass === 'arrived_at_dest_hub' || statusClass === 'out_for_delivery') && o.status !== 'under_review' && o.status !== 'disputed' && !o.disputeId;
+
+                    return `
+                        <div class="premium-order-card" onclick="openOrderModal('${o.id}')">
+                            <div class="order-media">
+                                <img src="${mainImg}" alt="Product Preview">
+                            </div>
+                            <div class="order-info">
+                                <span class="order-id">#${String(o.id).substring(1, 8).toUpperCase()}</span>
+                                <div class="order-participant">${otherName}</div>
+                                <div class="order-meta">
+                                    <span><i class="far fa-calendar-alt"></i> ${orderDate}</span>
+                                    <span>•</span>
+                                    <span>${itemCount} ${itemCount === 1 ? 'item' : 'items'}</span>
+                                </div>
+                            </div>
+                            <div class="order-pricing">
+                                <span class="total-amount">RS ${totalAmount}</span>
+                                <div class="item-count">Net Settlement</div>
+                            </div>
+                            <div class="order-status-section" onclick="event.stopPropagation()">
+                                <span class="axiom-status-badge badge-${statusClass}">${formatOrderStatus(o.status)}</span>
+                                <div class="action-strip">
+                                    ${showReview ? `
+                                        <button onclick="openReviewModal('${o.id}')" class="axiom-mini-btn" title="Leave Review">
+                                            <i class="fas fa-star" style="color: #fbbf24;"></i>
+                                        </button>
+                                    ` : ''}
+
+                                    ${showDispute ? `
+                                        <button onclick="openDisputeModal('${o.id}')" class="axiom-mini-btn" title="Raise Dispute">
+                                            <i class="fas fa-gavel" style="color: #ef4444;"></i>
+                                        </button>
+                                    ` : ''}
+                                    <a href="orderstatus.html?orderId=${o.id}" class="axiom-mini-btn" title="Track Logistics">
+                                        <i class="fas fa-satellite-dish"></i>
+                                    </a>
+                                    <button onclick="openOrderModal('${o.id}')" class="axiom-mini-btn" title="View Details">
+                                        <i class="fas fa-list-ul"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (cardError) {
+                    console.error('Error rendering card for order:', o.id, cardError);
+                    return ''; // Skip malformed card
+                }
+            });
+
+            const cards = await Promise.all(cardPromises);
+            container.innerHTML = cards.filter(c => c !== '').join('');
+        }
+
+        function filterOrders(status) {
+            const tabs = document.querySelectorAll('.filter-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelector(`.filter-tab[data-filter="${status}"]`).classList.add('active');
+
+            if (!window.allOrdersRaw) return;
+
+            let filtered = [];
+            if (status === 'all') {
+                filtered = window.allOrdersRaw;
+            } else if (status === 'pending') {
+                // Active/Pending includes everything up to "Arrived at Dest Hub"
+                const activeStates = ['pending', 'received_at_seller_hub', 'sent_to_hub', 'verified', 'in_transit'];
+                filtered = window.allOrdersRaw.filter(o => activeStates.includes((o.status || 'pending').toLowerCase()));
+            } else if (status === 'shipped') {
+                // In Transit specifically
+                const transitStates = ['in_transit', 'arrived_at_dest_hub', 'out_for_delivery'];
+                filtered = window.allOrdersRaw.filter(o => transitStates.includes((o.status || '').toLowerCase()));
+            } else if (status === 'disputed') {
+                // Disputed specifically
+                filtered = window.allOrdersRaw.filter(o => o.disputeId || (o.status || '').toLowerCase() === 'under_review' || (o.status || '').toLowerCase() === 'disputed');
+            } else {
+                filtered = window.allOrdersRaw.filter(o => (o.status || '').toLowerCase() === status);
+            }
+
+            renderOrderCards(filtered, document.getElementById('userRole').textContent);
+        }
+
+        function openOrderModal(orderId) {
+            const order = window.currentOrders[orderId];
+            if (!order) return;
+
+            const modal = document.getElementById('orderDetailsModal');
+            const body = document.getElementById('orderModalBody');
+
+            // Handle different data structures (shippingAddress vs buyer object)
+            const shipping = order.shippingAddress || order.buyer || {};
+            const items = order.items || [];
+            const status = (order.status || 'pending').toLowerCase();
+            const role = document.getElementById('userRole').textContent;
+
+            // Map fields carefully
+            const name = shipping.fullName || shipping.name || 'N/A';
+            const phone = shipping.phone || 'N/A';
+            const address = shipping.address || shipping.street || '';
+            const city = shipping.city || '';
+            const fullAddress = (address + (city ? ', ' + city : '')) || 'N/A';
+
+            const STATUS_JOURNEY = ['pending', 'received_at_seller_hub', 'verified', 'in_transit', 'arrived_at_dest_hub', 'out_for_delivery', 'delivered'];
+            const currentRank = STATUS_JOURNEY.indexOf(status);
+            const isDisputed = order.disputeId || status === 'under_review' || status === 'disputed';
+
+            let trackingHeader = '';
+            if (isDisputed) {
+                trackingHeader = `
+                    <div style="background: #fef2f2; border: 1px solid #f87171; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 15px;">
+                        <div style="background: #ef4444; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                            <i class="fas fa-gavel"></i>
+                        </div>
+                        <div>
+                            <h3 style="color: #991b1b; margin: 0 0 4px 0; font-size: 1.1rem; font-weight: 800;">Order Under Dispute</h3>
+                            <p style="color: #b91c1c; margin: 0; font-size: 0.85rem;">This transaction is currently frozen. Our arbitration team is reviewing the submitted evidence.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                trackingHeader = `
+                    <div class="tracking-stepper">
+                        <div class="step ${currentRank >= 0 ? (currentRank > 0 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">1</div>
+                            <span class="step-label">Placed</span>
+                        </div>
+                        <div class="step ${currentRank >= 2 ? (currentRank > 2 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">2</div>
+                            <span class="step-label">Verified</span>
+                        </div>
+                        <div class="step ${currentRank >= 3 ? (currentRank > 3 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">3</div>
+                            <span class="step-label">Transit</span>
+                        </div>
+                        <div class="step ${currentRank >= 6 ? (currentRank > 6 ? 'completed' : 'active') : ''}">
+                            <div class="step-icon">4</div>
+                            <span class="step-label">Arrived</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            body.innerHTML = `
+                ${trackingHeader}
+
+                <div class="modal-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <!-- Card 1: Logistics -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-truck"></i> Logistics
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>No:</strong> #${order.id.substring(1, 10).toUpperCase()}</p>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
+                        <p style="font-size:0.85rem;"><strong>Tracking:</strong> ${order.trackingNumber || 'Processing'}</p>
+                    </div>
+
+                    <!-- Card 2: Recipient/Buyer -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-user-tag"></i> ${role === 'Seller' ? 'Buyer' : 'Receiver'}
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px; color:var(--axiom-primary); font-weight:700;">${name}</p>
+                        <p style="font-size:0.8rem; margin-bottom:4px;"><i class="fas fa-phone-alt"></i> ${phone}</p>
+                        <p style="font-size:0.8rem; color:#64748b; line-height:1.4;">${fullAddress}</p>
+                    </div>
+
+                    <!-- Card 3: Seller Info -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-store"></i> Merchant
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px; font-weight:700;" id="merchantName_${order.id}">${order.sellerName || 'SafeTradeHub Official'}</p>
+                        <p style="font-size:0.8rem; color:#64748b;">Verification: <span style="color:#10b981;"><i class="fas fa-check-circle"></i> Axiom Certified</span></p>
+                    </div>
+
+                    <!-- Card 4: Payment Info -->
+                    <div class="info-card" style="background:#f8fafc; padding:15px; border-radius:12px; border: 1px solid #e2e8f0;">
+                        <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-shield-alt"></i> Settlement
+                        </h4>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><i class="fas fa-wallet"></i> ${String(order.paymentMethod || 'Wallet').replace(/_/g, ' ').toUpperCase()}</p>
+                        <p style="font-size:0.8rem; color:#64748b;">Escrow ID: ${String(order.escrowId || 'STH-ESC-N/A').toUpperCase()}</p>
+                    </div>
+                </div>
+
+                <div class="order-section" style="margin-top:20px;">
+                    <h4 style="font-size:0.8rem; text-transform:uppercase; color:#94a3b8; margin-bottom:12px;">Order Manifest</h4>
+                    <div style="max-height: 180px; overflow-y: auto; padding-right: 5px;">
+                        ${items.map(item => `
+                            <div class="item-row">
+                                <img src="${item.img || item.image || '/static/images/mobile.jpg'}" class="item-img" alt="${item.name}">
+                                <div style="flex:1;">
+                                    <p style="font-size:0.9rem; font-weight:700; margin-bottom:2px;">${item.name || item.title || 'Product'}</p>
+                                    <p style="font-size:0.8rem; color:#64748b;">Quantity: ${(item.quantity || item.qty || 1)} x RS ${(item.price || 0)}</p>
+                                </div>
+                                <span class="badge-price">RS ${((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(0)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top:20px; background: #f1f5f9; padding: 15px; border-radius: 16px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem; color:#64748b;">
+                            <span>Subtotal</span>
+                            <span>RS ${(order.subtotal || order.total || 0).toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem; color:#64748b;">
+                            <span>Shipping</span>
+                            <span>RS ${(order.shippingTotal || 0).toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.85rem; color:#64748b;">
+                            <span>Axiom Escrow Fee (2%)</span>
+                            <span>RS ${(order.escrowFee || 0).toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top: 1px solid #cbd5e1;">
+                            <span style="font-weight:700; color:var(--axiom-secondary);">Total Settlement</span>
+                            <span style="font-size:1.3rem; font-weight:800; color:var(--axiom-primary);">RS ${(order.totalAmount || order.total || 0).toFixed(0)}</span>
+                        </div>
+                    </div>
+                </div>
+
+            `;
+
+            // Dynamically fetch actual seller name
+            if (order.sellerId) {
+                firebase.database().ref('users/' + order.sellerId).once('value').then(snap => {
+                    const sellerData = snap.val();
+                    if (sellerData) {
+                        const actualName = sellerData.displayName || sellerData.name || sellerData.fullName || sellerData.username || order.sellerName || 'SafeTradeHub Official';
+                        const merchantEl = document.getElementById('merchantName_' + order.id);
+                        if (merchantEl) merchantEl.textContent = actualName;
+                    }
+                }).catch(e => console.error("Error fetching merchant name:", e));
+            }
+
+            modal.style.display = 'block';
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderDetailsModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('orderDetailsModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => window.location.href = 'index.html');
+        }
+
+        /* --- Review System Logic --- */
+        let activeRating = 0;
+        let activeReviewOrderId = null;
+
+        function openReviewModal(orderId) {
+            activeReviewOrderId = orderId;
+            activeRating = 0;
+            updateStarUI();
+            document.getElementById('reviewComment').value = '';
+            document.getElementById('reviewModal').style.display = 'flex';
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').style.display = 'none';
+        }
+
+        function setRating(val) {
+            activeRating = val;
+            updateStarUI();
+        }
+
+        function updateStarUI() {
+            const stars = document.querySelectorAll('#starRating .star-btn');
+            stars.forEach((s, idx) => {
+                if (idx < activeRating) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+        }
+
+        async function submitReview() {
+            if (activeRating === 0) {
+                alert('Please select a star rating.');
+                return;
+            }
+
+            const order = window.currentOrders[activeReviewOrderId];
+            if (!order) return;
+
+            const btn = document.getElementById('submitReviewBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+
+            const role = (document.getElementById('userRole').textContent || 'Buyer').trim();
+            const isSeller = role.toLowerCase() === 'seller';
+            
+            // Robust Target ID Detection
+            const targetId = isSeller 
+                ? (order.buyerId || (order.buyer && order.buyer.id)) 
+                : (order.sellerId || (order.items && order.items[0] && order.items[0].sellerId));
+
+            if (!targetId) {
+                console.error('Target identification failed for order:', order);
+                if (window.NotificationManager) {
+                    window.NotificationManager.showToast('Error', 'Could not identify the target user for this review.', 'error');
+                } else {
+                    alert('Error: Could not identify the target user for this review.');
+                }
+                btn.disabled = false;
+                btn.innerText = originalText;
+                return;
+            }
+
+            try {
+                const idToken = await firebase.auth().currentUser.getIdToken();
+                const response = await fetch('/api/v1/reviews/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        orderId: activeReviewOrderId,
+                        rating: activeRating,
+                        comment: document.getElementById('reviewComment').value.trim(),
+                        reviewerId: firebase.auth().currentUser.uid,
+                        targetId: targetId,
+                        productId: order.items?.[0]?.id || 'unknown',
+                        type: isSeller ? 'Seller-to-Buyer' : 'Buyer-to-Seller'
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    if (window.NotificationManager) {
+                        window.NotificationManager.showToast('Review Submitted', 'Thank you for your feedback!', 'success');
+                    } else {
+                        alert('Review submitted successfully!');
+                    }
+                    closeReviewModal();
+                    // Optionally refresh the row to hide the review button
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    if (window.NotificationManager) {
+                        window.NotificationManager.showToast('Error', result.error, 'error');
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            } catch (err) {
+                console.error('Submit review error:', err);
+                if (window.NotificationManager) {
+                    window.NotificationManager.showToast('Error', 'Failed to submit review.', 'error');
+                } else {
+                    alert('Failed to submit review.');
+                }
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        /* --- Dispute System Logic --- */
+        let activeDisputeOrderId = null;
+
+        function openDisputeModal(orderId) {
+            activeDisputeOrderId = orderId;
+            document.getElementById('disputeReason').value = 'Item not as described';
+            document.getElementById('disputeDescription').value = '';
+            document.getElementById('disputeModal').style.display = 'flex';
+        }
+
+        function closeDisputeModal() {
+            document.getElementById('disputeModal').style.display = 'none';
+            selectedDisputeFiles = [];
+            document.getElementById('disputeImagePreview').innerHTML = '';
+        }
+
+        let selectedDisputeFiles = [];
+        function handleDisputeFileSelect(input) {
+            const container = document.getElementById('disputeImagePreview');
+            const files = Array.from(input.files);
+            
+            if (selectedDisputeFiles.length + files.length > 3) {
+                alert('Maximum 3 images allowed for evidence.');
+                return;
+            }
+
+            files.forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                selectedDisputeFiles.push(file);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'width: 80px; height: 80px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #e2e8f0;';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div onclick="removeDisputeFile(this)" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer;">&times;</div>
+                    `;
+                    div.dataset.fileName = file.name;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+            input.value = ''; // clear input to allow re-selection
+        }
+
+        function removeDisputeFile(el) {
+            const parent = el.parentElement;
+            const fileName = parent.dataset.fileName;
+            selectedDisputeFiles = selectedDisputeFiles.filter(f => f.name !== fileName);
+            parent.remove();
+        }
+
+        async function submitDispute() {
+            const comment = document.getElementById('disputeDescription').value.trim();
+            const reason = document.getElementById('disputeReason').value;
+
+            if (!comment) {
+                alert('Please provide a description of the issue.');
+                return;
+            }
+
+            const order = window.currentOrders[activeDisputeOrderId];
+            if (!order) return;
+
+            const btn = document.getElementById('submitDisputeBtn');
+            btn.disabled = true;
+            btn.innerText = 'Uploading Evidence...';
+
+            try {
+                const user = firebase.auth().currentUser;
+                const db = firebase.database();
+                const storage = firebase.storage();
+                const disputeId = 'DISP-' + Date.now();
+
+                // Upload Images
+                const evidenceLinks = [];
+                for (const file of selectedDisputeFiles) {
+                    const path = `disputes/${disputeId}/${Date.now()}_${file.name}`;
+                    const ref = storage.ref().child(path);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    evidenceLinks.push(url);
+                }
+
+                btn.innerText = 'Submitting Claim...';
+
+                const disputeData = {
+                    id: disputeId,
+                    orderId: activeDisputeOrderId,
+                    buyerId: user.uid,
+                    sellerId: order.sellerId || 'unknown',
+                    sellerName: order.sellerName || 'Seller',
+                    complainantName: user.displayName || user.email,
+                    issue: reason,
+                    reason: reason,
+                    description: comment,
+                    priority: 'High',
+                    status: 'open',
+                    evidenceImages: evidenceLinks,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                const updates = {};
+                updates[`/disputes/${disputeId}`] = disputeData;
+                updates[`/orders/${activeDisputeOrderId}/status`] = 'under_review';
+                updates[`/orders/${activeDisputeOrderId}/disputeId`] = disputeId;
+
+                // Push Notification to Buyer
+                const buyerNotifId = db.ref(`users/${user.uid}/notifications`).push().key;
+                updates[`/users/${user.uid}/notifications/${buyerNotifId}`] = {
+                    title: 'Dispute Filed',
+                    message: `Your dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} has been securely recorded.`,
+                    type: 'info',
+                    read: false,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                // Push Notification to Seller
+                const sellerId = order.sellerId;
+                if (sellerId && sellerId !== 'unknown') {
+                    const sellerNotifId = db.ref(`users/${sellerId}/notifications`).push().key;
+                    updates[`/users/${sellerId}/notifications/${sellerNotifId}`] = {
+                        title: 'Dispute Raised Against Order',
+                        message: `The buyer has initiated an arbitration dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()}.`,
+                        type: 'warning',
+                        read: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    };
+                }
+
+                // Push Global Alert for Admins / Staff
+                const adminAlertId = db.ref('global_notifications/admin_alerts').push().key;
+                updates[`/global_notifications/admin_alerts/${adminAlertId}`] = {
+                    title: 'New Active Dispute',
+                    message: `Dispute (${disputeId}) raised on order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} by ${user.displayName || 'a Buyer'}.`,
+                    type: 'alert',
+                    userId: user.uid,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                await db.ref().update(updates);
+
+                if (window.NotificationManager) {
+                    window.NotificationManager.showToast('Dispute Submitted', 'Your claim and evidence have been sent to our arbitration team.', 'success');
+                } else {
+                    alert('Dispute raised successfully with evidence. Our team will investigate.');
+                }
+                
+                closeDisputeModal();
+                setTimeout(() => location.reload(), 2500);
+
+            } catch (error) {
+                console.error('Error raising dispute:', error);
+                alert('Failed to raise dispute: ' + error.message);
+                btn.disabled = false;
+                btn.innerText = 'Submit Dispute';
+            }
+        }
+
+        // Export functions to global scope for HTML inline handlers
+        window.openOrderModal = openOrderModal;
+        window.closeOrderModal = closeOrderModal;
+        window.openReviewModal = openReviewModal;
+        window.closeReviewModal = closeReviewModal;
+        window.setRating = setRating;
+        window.submitReview = submitReview;
+        window.openDisputeModal = openDisputeModal;
+        window.closeDisputeModal = closeDisputeModal;
+        window.handleDisputeFileSelect = handleDisputeFileSelect;
+        window.removeDisputeFile = removeDisputeFile;
+        window.submitDispute = submitDispute;
+        
+    </script>
+    <script src="/static/js/notification-manager.js"></script>
+</body>
+
+</html>

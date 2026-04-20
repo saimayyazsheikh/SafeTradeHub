@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seller Profile - SafeTradeHub</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/seller-profile.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+
+<body class="seller-profile-page">
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">SafeTradeHub</a>
+      <nav class="header-actions">
+        <a class="icon-btn" href="cart.html" style="position:relative">
+          <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.75"/><circle cx="18" cy="20" r="1.75"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Axiom Header Section -->
+    <section class="sp-header-section">
+      <div class="container">
+        <div class="sp-breadcrumb-glass">
+          <a href="index.html">Home</a>
+          <span>/</span>
+          <span class="current">User Profile</span>
+        </div>
+        <h1 id="sellerNameHeader">User Profile</h1>
+      </div>
+
+      <!-- Wave Divider -->
+      <div class="sp-wave-divider">
+        <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path d="M1200 120L0 120 0 0C161.45 27.2 329.13 42 491.4 42 679.5 42 863 15.65 1060.5 15.65 1106.6 15.65 1153.21 17.5 1200 21.19V120z" class="sp-wave-fill"></path>
+        </svg>
+      </div>
+    </section>
+
+    <div class="sp-layout-container">
+      <!-- Profile Card (Glassmorphic) -->
+      <div class="sp-main-card">
+        <div class="sp-profile-grid">
+          <div class="sp-avatar-column">
+            <div class="sp-avatar-wrapper">
+              <img src="/static/images/avatar-placeholder.png" alt="User" id="sellerAvatar" class="sp-avatar">
+              <div id="sellerStatusBadge"></div>
+            </div>
+          </div>
+
+          <div class="sp-info-column">
+            <h1 id="sellerName">Loading...</h1>
+            <div class="sp-rating-row" id="sellerRatingContainer">
+              <div class="sp-stars" id="sellerStars"></div>
+              <span class="sp-rating-text" id="sellerRatingCount">0.0 (0 reviews)</span>
+              <div class="sp-trust-badge" id="trustScoreBadge" style="display: none;">
+                <i class="fas fa-shield-check"></i> Trust: <span id="trustScoreValue">100</span>
+              </div>
+            </div>
+
+            <div class="sp-meta-grid">
+              <div class="sp-meta-item">
+                <i class="far fa-calendar-alt"></i>
+                <span id="sellerJoinDate">Joined: ...</span>
+              </div>
+              <div class="sp-meta-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="sellerLocation">Location: ...</span>
+              </div>
+              <div class="sp-meta-item">
+                <i class="far fa-envelope"></i>
+                <span id="sellerEmail">...</span>
+              </div>
+              <div class="sp-meta-item" id="sellerPhoneContainer" style="display:none;">
+                <i class="fas fa-phone"></i>
+                <span id="sellerPhone">...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-actions-column">
+            <button id="chatWithSellerBtn" class="sp-btn sp-btn-primary">
+              <i class="fas fa-comments"></i> Chat with Seller
+            </button>
+            <button id="reportSellerBtn" class="sp-btn sp-btn-report">
+              <i class="fas fa-flag"></i> Report User
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sections Grid -->
+      <div class="sp-sections-grid">
+        <!-- Products Section -->
+        <div class="sp-section-card" id="sellerProductsSection">
+          <div class="sp-section-header">
+            <h2><i class="fas fa-shopping-bag"></i> Active Listings</h2>
+            <span class="sp-badge" id="productCount">0 products</span>
+          </div>
+          <div class="recs" id="sellerProductsGrid">
+            <!-- Dynamic Products -->
+          </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="sp-section-card" id="reviewsSection">
+          <div class="sp-section-header">
+            <h2><i class="fas fa-star"></i> Reviews & Feedback</h2>
+            <span class="sp-badge" id="reviewCount">0 reviews</span>
+          </div>
+          <div id="reviewsList" class="sp-reviews-list">
+            <div class="sp-empty-state">
+              <i class="fas fa-comment-slash"></i>
+              <p>No reviews yet for this user.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2025 SafeTradeHub. All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/static/js/firebase-config.js"></script>
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/header-manager.js"></script>
+  <script src="/static/js/notification-manager.js"></script>
+  <script src="/static/js/seller-profile.js"></script>
+  <script src="/static/js/seller-chat.js"></script>
+
+  <!-- ═══ REPORT MODAL ═══ -->
+  <div id="reportModal" class="sp-modal-overlay" style="display:none;">
+      <div class="sp-modal-content">
+          <div class="sp-modal-header">
+              <div class="sp-modal-title">
+                  <i class="fas fa-flag"></i>
+                  <h2>Report User: <span id="reportModalTitleLabel"></span></h2>
+              </div>
+              <button type="button" class="sp-modal-close" id="closeReportModalBtn">&times;</button>
+          </div>
+          <div class="sp-modal-body">
+              <form id="reportForm">
+                  <div class="sp-form-group">
+                      <label for="reportReason">Reason for Reporting <span class="text-danger">*</span></label>
+                      <div class="sp-select-wrapper">
+                          <i class="fas fa-exclamation-triangle sp-input-icon"></i>
+                          <select id="reportReason" class="sp-form-control sp-select" required>
+                              <option value="" disabled selected>Select a primary reason</option>
+                              <option value="Fraudulent Activity">Fraudulent Activity</option>
+                              <option value="Harassment">Harassment</option>
+                              <option value="Suspicious Profile">Suspicious Profile</option>
+                              <option value="Scam Attempt">Scam Attempt</option>
+                              <option value="Prohibited Behavior">Prohibited Behavior</option>
+                              <option value="Other">Other</option>
+                          </select>
+                      </div>
+                  </div>
+                  
+                  <div class="sp-form-group">
+                      <label for="reportDescription">Details <span class="text-danger">*</span></label>
+                      <textarea id="reportDescription" class="sp-form-control sp-textarea" rows="4" placeholder="Please provide specific details about why you are reporting this user..." required></textarea>
+                  </div>
+
+                  <div class="sp-form-group">
+                      <label>Evidence (Optional)</label>
+                      <div class="sp-file-upload-wrapper" id="evidenceUploadDropzone">
+                          <input type="file" id="reportEvidence" class="sp-file-input" multiple accept="image/png, image/jpeg, image/webp" style="display:none;">
+                          <div class="sp-upload-prompt">
+                              <i class="fas fa-cloud-upload-alt"></i>
+                              <span>Click to upload screenshots</span>
+                              <small>Max 3 files (PNG, JPG, WEBP)</small>
+                          </div>
+                      </div>
+                      <div id="evidencePreviewContainer" class="sp-evidence-previews"></div>
+                  </div>
+              </form>
+          </div>
+          <div class="sp-modal-footer">
+              <button type="button" class="sp-btn sp-btn-secondary" id="cancelReportBtn" style="width: auto;">Cancel</button>
+              <button type="button" class="sp-btn sp-btn-report" id="submitReportBtn" disabled style="width: auto;">
+                  <i class="fas fa-paper-plane"></i> Submit Report
+              </button>
+          </div>
+      </div>
+  </div>
+</body>
+
+</html>

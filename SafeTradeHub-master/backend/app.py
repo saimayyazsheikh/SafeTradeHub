@@ -529,10 +529,10 @@ def submit_review():
         if status not in ['delivered', 'completed']:
             return jsonify({'success': False, 'error': f'Order must be delivered or completed to review (Current status: {status})'}), 400
 
-        # 2. Check for duplicate review
-        review_ref = db.reference(f'reviews/{order_id}')
+        # 2. Check for duplicate review (by this specific reviewer for this order)
+        review_ref = db.reference(f'reviews/{order_id}_{reviewer_id}')
         if review_ref.get():
-             return jsonify({'success': False, 'error': 'Review already exists for this order'}), 400
+             return jsonify({'success': False, 'error': 'You have already submitted a review for this order'}), 400
 
         # 3. Write Review
         review_data = {

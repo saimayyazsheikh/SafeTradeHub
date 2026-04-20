@@ -3,17 +3,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sellerId = urlParams.get('id');
 
     if (!sellerId) {
-        alert('No seller specified.');
+        alert('No user specified.');
         window.location.href = 'index.html';
         return;
     }
 
-    // Initialize Firebase if not already done (handled by firebase-config.js usually, but good to ensure)
-    // Initialize Firebase if not already done (handled by firebase-config.js usually, but good to ensure)
     if (!firebase.apps.length) {
         console.error("Firebase not initialized");
-        document.getElementById('sellerName').textContent = 'Error: System not initialized';
-        document.getElementById('sellerProductsGrid').innerHTML = '<div class="error-message">System configuration error. Please refresh the page.</div>';
         return;
     }
 
@@ -21,183 +17,162 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // UI Elements
     const sellerNameEl = document.getElementById('sellerName');
+    const sellerNameHeader = document.getElementById('sellerNameHeader');
     const sellerAvatarEl = document.getElementById('sellerAvatar');
     const sellerJoinDateEl = document.getElementById('sellerJoinDate');
     const sellerEmailEl = document.getElementById('sellerEmail');
     const sellerPhoneEl = document.getElementById('sellerPhone');
     const sellerPhoneContainer = document.getElementById('sellerPhoneContainer');
     const sellerLocationEl = document.getElementById('sellerLocation');
-    const sellerRatingContainer = document.getElementById('sellerRatingContainer');
-    const sellerStarsEl = document.getElementById('sellerStars');
-    const sellerRatingCountEl = document.getElementById('sellerRatingCount');
     const chatBtn = document.getElementById('chatWithSellerBtn');
     const productCountEl = document.getElementById('productCount');
     const grid = document.getElementById('sellerProductsGrid');
 
-    // 1. Fetch Seller Details
+    // 1. Fetch Seller Details (Granularly to avoid permission errors)
     try {
-        const userSnap = await db.ref('users/' + sellerId).once('value');
-        if (userSnap.exists()) {
-            const user = userSnap.val();
-            // Use displayName as primary, fallback to fullName or username
-            sellerNameEl.textContent = user.displayName || user.fullName || user.username || 'Unknown User';
-            sellerEmailEl.textContent = user.email || 'No email public';
+        const fetchField = (path) => db.ref(path).once('value').then(s => s.val()).catch(() => null);
 
-            // Check Role for Profile Type
-            const isBuyer = user.role === 'Buyer' || user.accountType === 'Buyer';
-            if (isBuyer) {
-                document.title = 'Buyer Profile - SafeTradeHub';
-                // Hide product specific elements
-                document.querySelector('.seller-products-header').style.display = 'none';
-                grid.style.display = 'none';
+        const [sellerDisplayName, sellerFullName, sellerUsername, sellerProfilePic, sellerAvatar, sellerEmail, sellerBusinessEmail, sellerPhone, city, country, createdAt] = await Promise.all([
+            fetchField(`users/${sellerId}/displayName`),
+            fetchField(`users/${sellerId}/fullName`),
+            fetchField(`users/${sellerId}/username`),
+            fetchField(`users/${sellerId}/profilePic`),
+            fetchField(`users/${sellerId}/profile/avatar`),
+            fetchField(`users/${sellerId}/email`),
+            fetchField(`users/${sellerId}/businessEmail`),
+            fetchField(`users/${sellerId}/phone`),
+            fetchField(`users/${sellerId}/address/city`),
+            fetchField(`users/${sellerId}/address/country`),
+            fetchField(`users/${sellerId}/createdAt`)
+        ]);
 
-                // Optional: Update some labels
-                // e.g., maybe show "Buyer" badge instead of Seller
-            }
+        const sellerName = sellerDisplayName || sellerFullName || sellerUsername || 'Unknown User';
+        const finalEmail = sellerEmail || sellerBusinessEmail || 'No public email';
+        const finalPic = sellerProfilePic || sellerAvatar || '/static/images/avatar-placeholder.png';
 
-            if (user.createdAt) {
-                const date = new Date(user.createdAt);
-                sellerJoinDateEl.textContent = `Joined: ${date.toLocaleDateString()}`;
-            } else {
-                sellerJoinDateEl.style.display = 'none';
-            }
+        // Update UI
+        sellerNameEl.textContent = sellerName;
+        if (sellerNameHeader) sellerNameHeader.textContent = sellerName;
+        sellerEmailEl.textContent = finalEmail;
+        sellerAvatarEl.src = finalPic;
 
-            // Phone
-            if (user.phone) {
-                sellerPhoneEl.textContent = user.phone;
-                sellerPhoneContainer.style.display = 'flex';
-            }
-
-            // Location (City/Country from address object)
-            let location = 'Location not specified';
-            if (user.address) {
-                const city = user.address.city || '';
-                const country = user.address.country || '';
-                if (city || country) {
-                    location = [city, country].filter(Boolean).join(', ');
-                }
-            } else if (user.city || user.location) {
-                location = user.city || user.location;
-            }
-            sellerLocationEl.textContent = `Location: ${location}`;
-
-            // Avatar
-            if (user.profile?.avatar || user.profilePic) {
-                sellerAvatarEl.src = user.profile?.avatar || user.profilePic;
-            }
-
-            // Chat Button
-            chatBtn.onclick = () => {
-                // Check if user is logged in
-                const currentUser = firebase.auth().currentUser;
-                if (!currentUser) {
-                    alert('Please login to chat with this user.');
-                    window.location.href = 'auth.html?mode=signin&redirect=' + encodeURIComponent(window.location.href);
-                    return;
-                }
-
-                // If it's the current user, don't chat
-                if (currentUser.uid === sellerId) {
-                    alert("You cannot chat with yourself.");
-                    return;
-                }
-
-                // If seller-chat.js is loaded, use it, otherwise basic alert or redirect
-                if (window.SellerChatApp) {
-                    window.SellerChatApp.openChat(sellerId, null, user.displayName || 'User');
-                } else {
-                    alert('Chat functionality not available on this page.');
-                }
-            };
-
-        } else {
-            sellerNameEl.textContent = 'User Not Found';
+        if (createdAt) {
+            const date = new Date(createdAt);
+            sellerJoinDateEl.textContent = `Joined: ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
         }
 
-        // Start Reputation & Review Engine
+        if (sellerPhone) {
+            sellerPhoneEl.textContent = sellerPhone;
+            sellerPhoneContainer.style.display = 'flex';
+        }
+
+        let location = 'Location not specified';
+        if (city || country) {
+            location = [city, country].filter(Boolean).join(', ');
+        }
+        sellerLocationEl.textContent = location;
+
+        // Chat Button Logic
+        if (chatBtn) {
+            chatBtn.onclick = () => {
+                const currentUser = firebase.auth().currentUser;
+                if (!currentUser) {
+                    window.NotificationManager?.showToast('Login Required', 'Please login to start a chat.', 'info');
+                    setTimeout(() => {
+                        window.location.href = 'auth.html?mode=signin&redirect=' + encodeURIComponent(window.location.href);
+                    }, 1500);
+                    return;
+                }
+
+                if (currentUser.uid === sellerId) {
+                    window.NotificationManager?.showToast('Nice Try', "You can't chat with yourself!", 'info');
+                    return;
+                }
+
+                if (window.SellerChatApp) {
+                    window.SellerChatApp.openChat(sellerId, null, 'General Inquiry');
+                } else {
+                    alert('Chat system is initializing. Please try again in a moment.');
+                }
+            };
+        }
+
+        // 2. Setup Reporting
+        initReporting(sellerId);
+
+        // 3. Start Reputation & Reviews Engine
         listenToUserReputation(sellerId);
         fetchUserReviews(sellerId);
 
-        // Setup User Reporting
-        const reportBtn = document.getElementById('reportSellerBtn');
-        if (reportBtn) {
-            reportBtn.onclick = () => submitUserReport(sellerId);
-        }
+        // 4. Fetch Products
+        fetchSellerProducts(sellerId, db, grid, productCountEl);
 
     } catch (error) {
-        console.error("Error fetching user:", error);
+        console.error("Error fetching user data:", error);
         sellerNameEl.textContent = 'Error loading user';
     }
+});
 
-    // 2. Fetch Seller's Products (Only if not explicitly identified as a pure buyer, 
-    // though the query won't find anything for buyers usually, hiding the UI is cleaner)
+async function fetchSellerProducts(sellerId, db, grid, countEl) {
     try {
-        // We can check the DOM element we hid earlier to decide whether to fetch
-        if (document.querySelector('.seller-products-header').style.display === 'none') {
-            return;
-        }
-
         const productsSnap = await db.ref('products').orderByChild('sellerId').equalTo(sellerId).once('value');
         const products = [];
         productsSnap.forEach(child => {
-            products.push({ id: child.key, ...child.val() });
-        });
+            const p = child.val();
+            const auction = p.auction || {};
+            const isAuction = auction.enabled === true;
+            
+            // Calculate auction end (matching category-manager.js logic)
+            const auctionStartStr = auction.updatedAt || p.updatedAt || p.createdAt;
+            const auctionStart = auctionStartStr ? new Date(auctionStartStr).getTime() : Date.now();
+            const durationMs = (auction.duration || 7) * 24 * 60 * 60 * 1000;
+            const auctionEndTime = auction.endTime || (auctionStart + durationMs);
+            const isAuctionEnded = isAuction && (auction.ended === true || Date.now() >= auctionEndTime);
 
-        productCountEl.textContent = `${products.length} product${products.length !== 1 ? 's' : ''}`;
+            const isSold = p.status === 'sold' || p.sold === true || p.sold === 'true' || (isAuction && auction.winnerId);
+            const isActive = p.isActive !== false && p.status === 'active';
 
-        // Calculate Seller Rating
-        let totalRating = 0;
-        let totalReviews = 0;
-        products.forEach(p => {
-            if (p.averageRating) {
-                totalRating += p.averageRating * (p.totalReviews || 1); // Weighted by reviews if available
-                totalReviews += (p.totalReviews || 1);
+            // Only show active/available products and non-ended/non-sold auctions
+            if (isActive && !isAuctionEnded && !isSold) {
+                products.push({ id: child.key, ...p });
             }
         });
 
-        if (totalReviews > 0) {
-            const avgRating = totalRating / totalReviews;
-            renderStars(avgRating);
-            sellerRatingCountEl.textContent = `(${totalReviews} reviews)`;
-            sellerRatingContainer.style.display = 'flex';
-        } else {
-            // Show new seller badge or similar if needed, or just hide rating
-            sellerRatingContainer.style.display = 'none';
-            document.getElementById('sellerStatusBadge').innerHTML = '<span class="badge-new">New Seller</span>';
-        }
+        if (countEl) countEl.textContent = `${products.length} product${products.length !== 1 ? 's' : ''}`;
 
         if (products.length === 0) {
-            grid.innerHTML = '<div class="no-products">This seller has no active listings.</div>';
+            grid.innerHTML = `
+                <div class="sp-empty-state" style="grid-column: 1/-1;">
+                    <i class="fas fa-box-open"></i>
+                    <p>No active listings from this user.</p>
+                </div>`;
             return;
         }
 
-        // Render Products
         grid.innerHTML = products.map(p => {
-            // Handle image
-            let imgUrl = 'images/placeholder.jpg';
+            let imgUrl = '/static/images/placeholder.jpg';
             if (Array.isArray(p.images) && p.images.length > 0) {
                 imgUrl = p.images.find(img => img.isMain)?.url || p.images[0].url;
             } else if (typeof p.images === 'string') {
                 imgUrl = p.images;
-            } else if (p.img) {
-                imgUrl = p.img;
             }
 
             return `
             <article class="card">
                 <div class="card-img">
-                    <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='images/placeholder.jpg'">
+                    <img src="${imgUrl}" alt="${p.name}" loading="lazy" onerror="this.src='/static/images/placeholder.jpg'">
+                    ${p.auction?.enabled ? '<div class="card-badge">Auction</div>' : ''}
                 </div>
                 <div class="card-content">
                     <h3 class="card-title">${p.name}</h3>
-                    <p class="card-description">${p.description || p.desc || 'No description available.'}</p>
-                    <div class="card-price">RS ${parseFloat(p.price).toFixed(2)}</div>
+                    <p class="card-description">${p.description || 'No description available.'}</p>
+                    <div class="card-price">RS ${parseFloat(p.price).toLocaleString()}</div>
                     <div class="card-actions">
                         <button class="card-btn card-btn-primary" onclick="addToCart('${p.id}', '${p.name}', ${p.price}, '${imgUrl}')">
-                            Add to Cart
+                            <i class="fas fa-cart-plus"></i> Add
                         </button>
-                        <a href="index.html" class="card-btn card-btn-secondary">
-                            View in Store
+                        <a href="category-mobile.html?id=${p.id}" class="card-btn card-btn-secondary">
+                            <i class="fas fa-eye"></i> View
                         </a>
                     </div>
                 </div>
@@ -207,15 +182,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error("Error fetching products:", error);
-        grid.innerHTML = '<div class="no-products">Error loading products.</div>';
+        grid.innerHTML = '<div class="sp-empty-state">Error loading products.</div>';
     }
-});
+}
 
-// Helper for Add to Cart (Integrated with Global State)
 function addToCart(id, name, price, img) {
+    const sellerName = document.getElementById('sellerName')?.textContent || 'SafeTradeHub';
     const urlParams = new URLSearchParams(window.location.search);
     const sellerId = urlParams.get('id');
-    const sellerName = document.getElementById('sellerName')?.textContent || 'SafeTradeHub';
 
     if (window.SafeTradeHub && window.SafeTradeHub.cart) {
         window.SafeTradeHub.cart.add({
@@ -227,37 +201,24 @@ function addToCart(id, name, price, img) {
             sellerName: sellerName
         });
     } else {
-        // Fallback for standalone/legacy
+        // Fallback for legacy
         let cart = JSON.parse(localStorage.getItem('sthub_cart')) || [];
         const existing = cart.find(item => item.id === id);
-
         if (existing) {
             existing.qty = (existing.qty || 1) + 1;
         } else {
-            cart.push({ 
-                id, 
-                title: name, 
-                price, 
-                img, 
-                qty: 1, 
-                sellerId: sellerId, 
-                sellerName: sellerName,
-                addedAt: new Date().toISOString()
-            });
+            cart.push({ id, title: name, price, img, qty: 1, sellerId, sellerName, addedAt: new Date().toISOString() });
         }
         localStorage.setItem('sthub_cart', JSON.stringify(cart));
         window.dispatchEvent(new Event('storage'));
-        
-        if (window.NotificationManager) {
-            window.NotificationManager.showToast('Cart Updated', 'Product added to cart!', 'success');
-        } else {
-            alert('Product added to cart!');
-        }
+        window.NotificationManager?.showToast('Cart Updated', 'Product added to cart!', 'success');
     }
 }
 
 function renderStars(rating) {
     const starsContainer = document.getElementById('sellerStars');
+    if (!starsContainer) return;
+    
     starsContainer.innerHTML = '';
     const rounded = Math.round(rating * 2) / 2;
 
@@ -272,63 +233,73 @@ function renderStars(rating) {
     }
 }
 
-/* --- REPUTATION & REVIEWS ENGINE --- */
-
 function listenToUserReputation(uid) {
-    const db = firebase.database();
-    db.ref(`users/${uid}/reputation`).on('value', (snap) => {
-        const rep = snap.val();
-        if (!rep) return;
-
-        const avg = rep.averageRating || 0;
-        const total = rep.totalReviews || 0;
-        const trust = rep.trustScore || 100;
-
-        renderStars(avg);
-        document.getElementById('sellerRatingCount').textContent = `${parseFloat(avg).toFixed(1)} (${total} reviews)`;
+    firebase.database().ref(`users/${uid}/reputation`).on('value', (snap) => {
+        const rep = snap.val() || { averageRating: 0, totalReviews: 0, trustScore: 100 };
+        renderStars(rep.averageRating || 0);
+        const ratingCountEl = document.getElementById('sellerRatingCount');
+        if (ratingCountEl) {
+            ratingCountEl.textContent = `${parseFloat(rep.averageRating || 0).toFixed(1)} (${rep.totalReviews || 0} reviews)`;
+        }
         
         const trustBadge = document.getElementById('trustScoreBadge');
         const trustVal = document.getElementById('trustScoreValue');
         if (trustBadge && trustVal) {
-            trustVal.textContent = trust;
+            trustVal.textContent = rep.trustScore || 100;
             trustBadge.style.display = 'flex';
         }
     });
 }
 
 function fetchUserReviews(uid) {
+    if (!uid) return;
     const db = firebase.database();
     const list = document.getElementById('reviewsList');
     const badge = document.getElementById('reviewCount');
+    const ratingCountEl = document.getElementById('sellerRatingCount');
 
+    // Real-time listener for reviews targeting this user
     db.ref('reviews').orderByChild('targetId').equalTo(uid).on('value', async (snap) => {
         const reviews = snap.val();
+        
         if (!reviews) {
-            badge.textContent = '0 reviews';
-            list.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #94a3b8;">
-                    <i class="fas fa-comment-slash fa-2x" style="margin-bottom: 10px;"></i>
+            if (badge) badge.textContent = '0 reviews';
+            if (ratingCountEl) ratingCountEl.textContent = '0.0 (0 reviews)';
+            renderStars(0);
+            if (list) list.innerHTML = `
+                <div class="sp-empty-state">
+                    <i class="fas fa-comment-slash"></i>
                     <p>No reviews yet for this user.</p>
                 </div>`;
             return;
         }
 
-        const items = Object.values(reviews);
-        badge.textContent = `${items.length} review${items.length !== 1 ? 's' : ''}`;
+        const items = Object.values(reviews).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        
+        // Calculate dynamic average to ensure sync with header
+        const totalReviews = items.length;
+        const sumRatings = items.reduce((acc, r) => acc + (parseFloat(r.rating) || 0), 0);
+        const averageRating = totalReviews > 0 ? (sumRatings / totalReviews) : 0;
 
-        // Sort by timestamp DESC
-        items.sort((a, b) => b.timestamp - a.timestamp);
+        // Update UI Badge
+        if (badge) badge.textContent = `${totalReviews} review${totalReviews !== 1 ? 's' : ''}`;
+        
+        // Update Header Summary (Sync with reviews list)
+        if (ratingCountEl) {
+            ratingCountEl.textContent = `${averageRating.toFixed(1)} (${totalReviews} review${totalReviews !== 1 ? 's' : ''})`;
+        }
+        renderStars(averageRating);
 
-        // Fetch reviewer names
-        const reviewerPromises = items.map(async (r) => {
-            const nameSnap = await db.ref(`users/${r.reviewerId}/displayName`).once('value');
-            return {
-                ...r,
-                reviewerName: nameSnap.val() || 'Anonymous'
-            };
-        });
-
-        const detailedItems = await Promise.all(reviewerPromises);
+        const detailedItems = await Promise.all(items.map(async (r) => {
+            if (!r.reviewerId) return { ...r, reviewerName: 'Anonymous' };
+            
+            const [nameSnap, fullNameSnap] = await Promise.all([
+                db.ref(`users/${r.reviewerId}/displayName`).once('value'),
+                db.ref(`users/${r.reviewerId}/fullName`).once('value')
+            ]);
+            
+            return { ...r, reviewerName: nameSnap.val() || fullNameSnap.val() || 'Anonymous' };
+        }));
 
         list.innerHTML = detailedItems.map(r => `
             <div class="review-item">
@@ -339,68 +310,169 @@ function fetchUserReviews(uid) {
                     </span>
                 </div>
                 <div class="review-text">${r.comment || 'No comment provided.'}</div>
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 10px;">
-                    ${new Date(r.timestamp).toLocaleDateString()} • ${r.type.replace(/-/g, ' ')}
+                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px; font-weight: 600;">
+                    ${new Date(r.timestamp).toLocaleDateString()} • ${r.type?.replace(/-/g, ' ') || 'General'}
                 </div>
             </div>
         `).join('');
     });
 }
 
-async function submitUserReport(uid) {
-    const auth = firebase.auth();
-    if (!auth.currentUser) {
-        if (window.NotificationManager) {
-            window.NotificationManager.showToast('Auth Required', 'Please login to report users.', 'info');
-        } else {
-            alert('Please login to report users.');
-        }
+// ========================================
+// REPORTING MODAL SYSTEM
+// ========================================
+let reportEvidenceFiles = [];
+let currentReportTarget = null;
+
+function initReporting(sellerId) {
+    const reportBtn = document.getElementById('reportSellerBtn');
+    const closeBtn = document.getElementById('closeReportModalBtn');
+    const cancelBtn = document.getElementById('cancelReportBtn');
+    const submitBtn = document.getElementById('submitReportBtn');
+    const reasonSelect = document.getElementById('reportReason');
+    const descText = document.getElementById('reportDescription');
+    const evidenceInput = document.getElementById('reportEvidence');
+    const dropzone = document.getElementById('evidenceUploadDropzone');
+
+    if (reportBtn) {
+        reportBtn.onclick = () => {
+            const sellerName = document.getElementById('sellerName').textContent;
+            openReportModal({ id: sellerId, name: sellerName });
+        };
+    }
+
+    if (closeBtn) closeBtn.onclick = closeReportModal;
+    if (cancelBtn) cancelBtn.onclick = closeReportModal;
+
+    if (reasonSelect) reasonSelect.addEventListener('change', checkReportValidation);
+    if (descText) descText.addEventListener('input', checkReportValidation);
+
+    if (evidenceInput) {
+        evidenceInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+    }
+
+    if (dropzone) {
+        dropzone.onclick = () => evidenceInput.click();
+    }
+
+    if (submitBtn) {
+        submitBtn.onclick = submitUserReport;
+    }
+}
+
+function openReportModal(target) {
+    if (!firebase.auth().currentUser) {
+        window.NotificationManager?.showToast('Auth Required', 'Please login to report users.', 'info');
         return;
     }
- 
-    const reason = prompt('Reason for reporting this user?');
-    if (!reason) return;
- 
-    const desc = prompt('Detailed description:');
-    if (!desc) return;
- 
+
+    currentReportTarget = target;
+    document.getElementById('reportModalTitleLabel').textContent = target.name || 'This User';
+    document.getElementById('reportModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeReportModal() {
+    document.getElementById('reportModal').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('reportForm').reset();
+    reportEvidenceFiles = [];
+    updateEvidencePreviews();
+    checkReportValidation();
+}
+
+function checkReportValidation() {
+    const reasonValue = document.getElementById('reportReason').value;
+    const descValue = document.getElementById('reportDescription').value;
+    const isValid = reasonValue && descValue.trim().length > 10;
+    document.getElementById('submitReportBtn').disabled = !isValid;
+}
+
+function handleFiles(files) {
+    if (reportEvidenceFiles.length + files.length > 3) {
+        window.NotificationManager?.showToast('Limit Exceeded', 'You can only upload up to 3 evidence files.', 'error');
+        return;
+    }
+    
+    files.forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        if (file.size > 5 * 1024 * 1024) return;
+        reportEvidenceFiles.push(file);
+    });
+    
+    updateEvidencePreviews();
+}
+
+function updateEvidencePreviews() {
+    const container = document.getElementById('evidencePreviewContainer');
+    container.innerHTML = '';
+    
+    reportEvidenceFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        const div = document.createElement('div');
+        div.className = 'sp-evidence-preview-item';
+        div.innerHTML = `
+            <img src="${url}" alt="Evidence">
+            <button type="button" class="sp-evidence-preview-remove" onclick="removeEvidence(${index}, event)">&times;</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+window.removeEvidence = (index, e) => {
+    e.stopPropagation();
+    reportEvidenceFiles.splice(index, 1);
+    updateEvidencePreviews();
+};
+
+async function submitUserReport() {
+    if (!currentReportTarget || !firebase.auth().currentUser) return;
+
+    const reason = document.getElementById('reportReason').value;
+    const desc = document.getElementById('reportDescription').value;
+    const btn = document.getElementById('submitReportBtn');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    
     try {
-        const idToken = await auth.currentUser.getIdToken();
-        const response = await fetch('/api/v1/reports/submit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({
-                reportedById: auth.currentUser.uid,
-                targetId: uid,
-                targetType: 'User',
-                reason: reason,
-                description: desc
-            })
-        });
- 
-        const result = await response.json();
-        if (result.success) {
-            if (window.NotificationManager) {
-                window.NotificationManager.showToast('Report Received', 'Thank you for keeping the hub safe.', 'success');
-            } else {
-                alert('Your report has been received and will be investigated by SafeTradeHub staff.');
-            }
-        } else {
-            if (window.NotificationManager) {
-                window.NotificationManager.showToast('Submission Error', result.error, 'error');
-            } else {
-                alert('Failed: ' + result.error);
+        const reportRef = firebase.database().ref('reports').push();
+        const reportId = reportRef.key;
+        const uploadUrls = [];
+
+        // Upload evidence
+        if (reportEvidenceFiles.length > 0) {
+            for (let i = 0; i < reportEvidenceFiles.length; i++) {
+                const file = reportEvidenceFiles[i];
+                const storageRef = firebase.storage().ref(`reports/${reportId}/evidence_${i}_${Date.now()}.jpg`);
+                await storageRef.put(file);
+                const dlUrl = await storageRef.getDownloadURL();
+                uploadUrls.push(dlUrl);
             }
         }
+
+        // Push report object
+        await reportRef.set({
+            reportedById: firebase.auth().currentUser.uid,
+            targetId: currentReportTarget.id,
+            targetType: 'User',
+            reason: reason,
+            description: desc,
+            evidenceUrls: uploadUrls,
+            status: "Pending",
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        window.NotificationManager?.showToast('Report Submitted', 'Our security team will investigate.', 'success');
+        closeReportModal();
+
     } catch (err) {
         console.error('Report error:', err);
-        if (window.NotificationManager) {
-            window.NotificationManager.showToast('Error', 'An unexpected error occurred.', 'error');
-        } else {
-            alert('An unexpected error occurred.');
-        }
+        window.NotificationManager?.showToast('Error', 'An error occurred while submitting.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Report';
     }
 }

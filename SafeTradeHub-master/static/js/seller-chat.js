@@ -49,22 +49,27 @@ class SellerChat {
         this.sellerId = sellerId;
         this.productId = productId;
 
-        // Fetch seller's name from database
+        // Fetch seller's name from database (granularly to avoid permission errors)
         let sellerName = 'Seller';
         try {
             const db = firebase.database();
-            const sellerSnapshot = await db.ref('users/' + sellerId).once('value');
-            const sellerData = sellerSnapshot.val();
-            if (sellerData) {
-                sellerName = sellerData.name || sellerData.displayName || sellerData.fullName || 'Seller';
-            }
+            const fetchField = (path) => db.ref(path).once('value').then(s => s.val()).catch(() => null);
+            
+            const [displayName, fullName, username] = await Promise.all([
+                fetchField(`users/${sellerId}/displayName`),
+                fetchField(`users/${sellerId}/fullName`),
+                fetchField(`users/${sellerId}/username`)
+            ]);
+            
+            sellerName = displayName || fullName || username || 'Seller';
         } catch (error) {
             console.error('Error fetching seller name:', error);
         }
 
         // Generate a unique chat ID (sorted UIDs to ensure consistency)
         const participants = [this.currentUser.uid, sellerId].sort();
-        this.chatId = `${participants[0]}_${participants[1]}_${productId}`;
+        const pId = productId || 'general';
+        this.chatId = `${participants[0]}_${participants[1]}_${pId}`;
 
         // Create UI if not exists
         if (!document.getElementById('seller-chat-container')) {
@@ -157,11 +162,12 @@ class SellerChat {
 
         // Create chat metadata if not exists
         const chatRef = db.ref('chats/' + this.chatId);
+        const participants = [this.currentUser.uid, this.sellerId].sort();
         chatRef.update({
-            participants: [this.currentUser.uid, this.sellerId],
-            productId: this.productId,
+            participants: participants,
+            productId: this.productId || 'general',
             updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
+        }).catch(err => console.error("Error updating chat metadata:", err));
 
         // Listen to messages
         this.messagesRef = chatRef.child('messages').orderByChild('createdAt');
