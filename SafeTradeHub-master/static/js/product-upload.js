@@ -6,6 +6,7 @@
 let currentUser = null;
 let uploadedImages = []; // Array of { file, url, isMain, verification }
 let specifications = [];
+let formBuilder = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initUploadFlow();
@@ -27,6 +28,16 @@ async function initUploadFlow() {
         setupNavigation();
         setupEventListeners();
         addSpecificationRow(); // Start with one empty spec row
+
+        // Initialize Dynamic Form Builder
+        formBuilder = new window.FormBuilder('dynamicAttributesContainer', 'variantInventoryContainer');
+        await formBuilder.init();
+        
+        // Load initial category schema
+        const initialCategory = document.getElementById('productCategory').value;
+        if (initialCategory) {
+            await formBuilder.loadCategorySchema(initialCategory);
+        }
 
         showLoading(false);
     } catch (error) {
@@ -126,6 +137,14 @@ function setupEventListeners() {
         nameInput.addEventListener('input', debounce((e) => {
             fetchPriceComparison(e.target.value);
         }, 1000));
+    }
+
+    // Category Change Listener for Dynamic Fields
+    const categorySelect = document.getElementById('productCategory');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', async (e) => {
+            await formBuilder.loadCategorySchema(e.target.value);
+        });
     }
 }
 
@@ -246,26 +265,29 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
         return;
     }
 
-    if (!isDraft) {
-        if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
-            window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
-            return;
-        }
+        if (!isDraft) {
+            if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
+                window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
+                return;
+            }
 
-        const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
-        if (unsafeItems.length > 0) {
-            showUnsafeModal(unsafeItems);
-            return;
-        }
+            const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
+            if (unsafeItems.length > 0) {
+                showUnsafeModal(unsafeItems);
+                return;
+            }
 
-        // Agreement checks
-        if (!document.getElementById('agreeTerms').checked || 
-            !document.getElementById('confirmAccuracy').checked || 
-            !document.getElementById('confirmOwnership').checked) {
-            window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
-            return;
+            // Agreement checks
+            if (!document.getElementById('agreeTerms').checked || 
+                !document.getElementById('confirmAccuracy').checked || 
+                !document.getElementById('confirmOwnership').checked) {
+                window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
+                return;
+            }
+
+            // Dynamic Form Validation
+            if (formBuilder && !formBuilder.validate()) return;
         }
-    }
 
     try {
         showLoading(true, 'Broadcasting your listing...');
@@ -286,13 +308,15 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
             }
         }
         
-        // 3. Prepare Specifications
         const specs = {};
         document.querySelectorAll('.spec-row-item').forEach(row => {
             const k = row.querySelector('.spec-key').value.trim();
             const v = row.querySelector('.spec-val').value.trim();
             if (k && v) specs[k] = v;
         });
+
+        const dynamicAttrs = formBuilder ? await formBuilder.collectDynamicData() : {};
+        const variantInventory = formBuilder ? formBuilder.collectVariantInventory() : null;
 
         // 4. Prepare Push Payload
         const productRef = firebase.database().ref('products').push();
@@ -304,11 +328,13 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
             category: document.getElementById('productCategory').value,
             condition: document.getElementById('productCondition').value,
             price: (isAuction ? parseFloat(document.getElementById('auctionStartingPrice').value) : parseFloat(document.getElementById('productPrice').value)) || 0,
-            stock: isAuction ? 1 : (parseInt(document.getElementById('productStock').value) || 0),
+            stock: variantInventory ? variantInventory.total : (isAuction ? 1 : (parseInt(document.getElementById('productStock').value) || 0)),
             location: document.getElementById('productLocation').value || '',
             description: document.getElementById('productDescription').value || '',
             tags: document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t),
             specifications: specs,
+            dynamicAttributes: dynamicAttrs,
+            variantInventory: variantInventory,
             shippingMethod: 'standard',
             shippingCost: 0,
             returnPolicy: document.getElementById('returnPolicy').value || '',

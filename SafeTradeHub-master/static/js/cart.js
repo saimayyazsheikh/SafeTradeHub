@@ -16,6 +16,22 @@ function addToCart(product, qty = 1) {
     return false;
   }
 
+  // Global Seller Restriction
+  const userData = localStorage.getItem('userData');
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      if ((user.role || '').toLowerCase() === 'seller') {
+        if (window.NotificationManager) {
+          window.NotificationManager.showToast('Action Restricted', 'Sellers are not permitted to purchase products. Please use a Buyer account.', 'warning');
+        } else {
+          alert('⚠️ Action Restricted: Sellers cannot purchase products.');
+        }
+        return false;
+      }
+    } catch (e) {}
+  }
+
   const cart = getCart();
   const i = cart.findIndex(x => x.id === product.id);
   

@@ -139,6 +139,13 @@ async function fetchSellerProducts(sellerId, db, grid, countEl) {
         });
 
         if (countEl) countEl.textContent = `${products.length} product${products.length !== 1 ? 's' : ''}`;
+        
+        // Ensure AuthManager is ready
+        if (window.AuthManager && !window.AuthManager.isInitialized) {
+            await window.AuthManager.waitForInit();
+        }
+        const authUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+        const isSeller = authUser && (authUser.role || '').toLowerCase() === 'seller';
 
         if (products.length === 0) {
             grid.innerHTML = `
@@ -168,9 +175,15 @@ async function fetchSellerProducts(sellerId, db, grid, countEl) {
                     <p class="card-description">${p.description || 'No description available.'}</p>
                     <div class="card-price">RS ${parseFloat(p.price).toLocaleString()}</div>
                     <div class="card-actions">
+                        ${isSeller ? `
+                        <button class="card-btn card-btn-primary" disabled title="Sellers cannot purchase products" style="opacity:0.6; cursor:not-allowed; flex:1; background:#64748b;">
+                            <i class="fas fa-ban"></i> Seller Mode
+                        </button>
+                        ` : `
                         <button class="card-btn card-btn-primary" onclick="addToCart('${p.id}', '${p.name}', ${p.price}, '${imgUrl}')">
                             <i class="fas fa-cart-plus"></i> Add
                         </button>
+                        `}
                         <a href="category-mobile.html?id=${p.id}" class="card-btn card-btn-secondary">
                             <i class="fas fa-eye"></i> View
                         </a>
@@ -187,6 +200,11 @@ async function fetchSellerProducts(sellerId, db, grid, countEl) {
 }
 
 function addToCart(id, name, price, img) {
+    // 1. Permission Check
+    if (window.AuthManager && !window.AuthManager.checkPermission('add_to_cart')) {
+        return;
+    }
+
     const sellerName = document.getElementById('sellerName')?.textContent || 'SafeTradeHub';
     const urlParams = new URLSearchParams(window.location.search);
     const sellerId = urlParams.get('id');

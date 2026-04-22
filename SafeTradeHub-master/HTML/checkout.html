@@ -679,6 +679,7 @@
 
       renderSummary();
       loadWalletBalance();
+      updateCheckoutLabelsForServices();
 
       // Add form validation
       initializeFormValidation();
@@ -693,6 +694,27 @@
     function getCurrentUser() {
       // Use global AuthManager
       return window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+    }
+
+    function updateCheckoutLabelsForServices() {
+      const cart = window.SafeTradeHub ? window.SafeTradeHub.cart.get() : JSON.parse(localStorage.getItem('sthub_cart') || '[]');
+      const hasServices = cart.some(item => (item.category || '').toLowerCase() === 'services' || (item.category || '').toLowerCase() === 'professional services');
+      
+      if (hasServices) {
+        const addressLabel = document.querySelector('label[for="address"]') || Array.from(document.querySelectorAll('label')).find(l => l.textContent.includes('Address'));
+        if (addressLabel) {
+          addressLabel.textContent = "Service Booking Details & Contact Info";
+          const addressTextarea = document.getElementById('address');
+          if (addressTextarea) {
+            addressTextarea.placeholder = "Enter your preferred time, location, or any specific requirements for this service...";
+          }
+        }
+
+        const escrowLocationLabel = document.querySelector('label[for="escrowLocation"]') || Array.from(document.querySelectorAll('label')).find(l => l.textContent.includes('Escrow Location'));
+        if (escrowLocationLabel) {
+          escrowLocationLabel.textContent = "Service Fulfillment Region";
+        }
+      }
     }
 
     function loadWalletBalance() {

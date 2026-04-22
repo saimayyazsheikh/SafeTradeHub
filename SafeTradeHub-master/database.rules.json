@@ -102,6 +102,10 @@
                 "status": { ".write": "auth != null" }
             }
         },
+        "category_metadata": {
+            ".read": true,
+            ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        },
         "orders": {
             ".read": "auth != null",
             ".indexOn": [

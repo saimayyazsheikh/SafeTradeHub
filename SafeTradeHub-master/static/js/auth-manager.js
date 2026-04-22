@@ -85,6 +85,13 @@ class AuthManager {
    */
   async initFirebaseAuth() {
     return new Promise((resolve) => {
+      // Check if Firebase is initialized
+      if (!firebase || !firebase.apps || firebase.apps.length === 0) {
+        console.error('❌ AuthManager: Firebase not initialized. initializeApp() must be called before AuthManager.');
+        resolve();
+        return;
+      }
+
       let isFirstCheck = true;
       firebase.auth().onAuthStateChanged(async (firebaseUser) => {
         if (firebaseUser) {

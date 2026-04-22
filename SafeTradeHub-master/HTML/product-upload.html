@@ -14,8 +14,8 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="/static/css/style.css" />
-  <link rel="stylesheet" href="/static/css/product-upload.css" />
+  <link rel="stylesheet" href="../static/css/style.css" />
+  <link rel="stylesheet" href="../static/css/product-upload.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 
   <!-- Firebase -->
@@ -25,12 +25,12 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
   <!-- Firebase Configuration -->
-  <script src="/static/js/firebase-config.js"></script>
+  <script src="../static/js/firebase-config.js"></script>
 
   <!-- Load authentication system -->
-  <script src="/static/js/auth-manager.js"></script>
-  <script src="/static/js/header-manager.js"></script>
-  <script src="/static/js/notification-manager.js"></script>
+  <script src="../static/js/auth-manager.js"></script>
+  <script src="../static/js/header-manager.js"></script>
+  <script src="../static/js/notification-manager.js"></script>
 </head>
 
 <body class="product-upload-page">
@@ -178,6 +178,11 @@
                   <label for="productLocation" class="axiom-label">Location</label>
                   <input type="text" id="productLocation" name="location" class="axiom-input" placeholder="City, State">
                 </div>
+
+                <!-- Dynamic Category Attributes -->
+                <div id="dynamicAttributesContainer"></div>
+
+                <div id="variantInventoryContainer"></div>
               </div>
 
               <!-- Price Comparison Sidebar -->
@@ -533,7 +538,8 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/static/js/product-upload.js"></script>
+  <script src="../static/js/components/form-builder.module.js"></script>
+  <script src="../static/js/product-upload.js"></script>
 </body>
 
 </html>

@@ -157,6 +157,12 @@ function renderProduct(product) {
     // Specs
     renderSpecs(product.specifications);
 
+    // Dynamic Attributes
+    renderDynamicAttributes(product.dynamicAttributes, product.category);
+
+    // Variant Inventory
+    renderVariantInventory(product.variantInventory);
+
     // Auction Detection
     const auction = product.auction || {};
     const isAuction = auction.enabled === true;
@@ -218,6 +224,85 @@ function renderSpecs(specs) {
             <span class="pd-spec-val">${value}</span>
         </div>
     `).join('');
+}
+
+// ========================================
+// DYNAMIC ATTRIBUTES
+// ========================================
+function renderDynamicAttributes(attrs, category) {
+    const container = document.getElementById('dynamicAttributesContainer');
+    const content = document.getElementById('dynamicFieldsContent');
+    if (!attrs || Object.keys(attrs).length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    content.innerHTML = Object.entries(attrs).map(([key, value]) => {
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        
+        // Handle images (e.g., Size Chart)
+        if (typeof value === 'string' && (value.includes('firebasestorage') || value.match(/\.(jpeg|jpg|gif|png)$/) != null)) {
+            return `
+                <div class="pd-spec-row" style="grid-column: 1/-1; flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 15px;">
+                    <span class="pd-spec-key">${label}</span>
+                    <div class="pd-image-preview-container" style="width: 100%; max-width: 250px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; background: #f8fafc; transition: all 0.3s ease;" 
+                         onmouseover="this.style.borderColor='var(--axiom-primary)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'"
+                         onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'"
+                         onclick="window.open('${value}', '_blank')">
+                        <img src="${value}" alt="${label}" style="width: 100%; height: auto; display: block; max-height: 200px; object-fit: contain;">
+                        <div style="padding: 8px; background: white; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--axiom-primary); border-top: 1px solid #e2e8f0;">
+                            <i class="fas fa-search-plus"></i> Preview ${label}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="pd-spec-row" style="grid-column: 1/-1;">
+                <span class="pd-spec-key">${label}</span>
+                <span class="pd-spec-val">${value}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// ========================================
+// VARIANT INVENTORY
+// ========================================
+function renderVariantInventory(inventory) {
+    const container = document.getElementById('variantInventoryContainer');
+    const content = document.getElementById('variantInventoryContent');
+    if (!inventory || !inventory.data || Object.keys(inventory.data).length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    const variantType = inventory.type || 'Size';
+    
+    let html = `
+        <div class="pd-variant-table" style="width:100%; border-collapse:collapse; margin-top:10px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; font-weight:700; color:var(--axiom-text-muted);">
+                <div>${variantType}</div>
+                <div>Availability</div>
+            </div>
+    `;
+
+    html += Object.entries(inventory.data).map(([variant, stock]) => `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; padding: 12px 0; border-bottom: 1px solid #f1f5f9; align-items:center;">
+            <div style="font-weight:600; color:var(--axiom-text);">${variant}</div>
+            <div>
+                ${stock > 0 
+                    ? `<span class="pd-badge green">${stock} in stock</span>` 
+                    : `<span class="pd-badge red">Out of stock</span>`}
+            </div>
+        </div>
+    `).join('');
+
+    html += `</div>`;
+    content.innerHTML = html;
 }
 
 // ========================================
@@ -651,6 +736,7 @@ function addToCartLocal() {
         shippingCost: parseFloat(currentProduct.price) * 0.05,
         escrowFee: parseFloat(currentProduct.price) * 0.02,
         img: (currentProduct.images && currentProduct.images.length > 0) ? (currentProduct.images[0].url || currentProduct.images[0]) : '',
+        category: currentProduct.category,
         sellerId: sId,
         sellerName: currentProduct.sellerName || 'SafeTradeHub',
         qty: 1
