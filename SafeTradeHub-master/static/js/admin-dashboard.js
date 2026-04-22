@@ -4932,11 +4932,49 @@ async function loadAnalyticsData() {
     v2Charts.category = STHAnalytics.Admin.renderCategoryChart('v2-categoryChart', v2GlobalStats.charts.categories, categoryMode);
   };
 
+  const refreshAITrends = async () => {
+    try {
+      console.log('🤖 AI ENGINE: Fetching latest platform trends...');
+      const response = await fetch('/api/v1/analytics/trends');
+      const data = await response.json();
+      
+      console.log('🤖 AI ENGINE DATA:', data);
+
+      if (data.status === 'success') {
+        // 1. Render Bar Chart
+        if (v2Charts.aiTrends) v2Charts.aiTrends.destroy();
+        const keywords = data.trending_keywords || [];
+        
+        if (keywords.length > 0) {
+            v2Charts.aiTrends = STHAnalytics.Admin.renderAITrendChart('v2-aiTrendChart', keywords);
+            
+            // 2. Update Search Cloud (Tags)
+            const cloud = document.getElementById('v2-searchCloud');
+            if (cloud) {
+              cloud.innerHTML = keywords.map(k => `
+                <span class="trend-tag" style="background: #f5f3ff; padding: 8px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; color: #7c3aed; border: 1px solid #ddd6fe; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                  ${k.keyword} <small style="color: #a78bfa; margin-left: 6px;">${k.count}</small>
+                </span>
+              `).join('');
+            }
+        } else {
+            console.warn('🤖 AI ENGINE: No trending keywords found yet.');
+            document.getElementById('v2-searchCloud').innerHTML = '<p style="color: #94a3b8; font-style: italic; padding: 20px;">The AI is still learning! Leave some reviews to see trends appear.</p>';
+        }
+      }
+    } catch (e) {
+      console.error('AI Analytics Fetch Error:', e);
+      // Retry in 5 seconds
+      setTimeout(refreshAITrends, 5000);
+    }
+  };
+
   const refreshAllCharts = () => {
     if (!v2GlobalStats) return;
 
     // Use timeout to ensure DOM layout is complete
     setTimeout(() => {
+      console.log('📊 UI: Refreshing all dashboard visualizations...');
       if (v2Charts.revenue) v2Charts.revenue.destroy();
       v2Charts.revenue = STHAnalytics.Admin.renderRevenueChart('v2-revenueChart', v2GlobalStats.charts.revenueTrend);
 
@@ -4944,6 +4982,7 @@ async function loadAnalyticsData() {
       v2Charts.growth = STHAnalytics.Admin.renderGrowthChart('v2-growthChart', v2GlobalStats.charts.userGrowth);
 
       refreshCategoryChart();
+      refreshAITrends(); // NEW: Call AI Trends
     }, 50);
   };
 

@@ -954,59 +954,81 @@
           </div>
         </div>
 
-        <div class="dashboard-grid">
-          <!-- Row 1: Revenue & Categories -->
-          <div class="content-card" style="border-radius: 20px; padding: 25px;">
-            <div class="card-header" style="border:none; padding: 0 0 20px 0;">
-              <h3 style="font-size: 1.25rem;">Sales Trend</h3>
-            </div>
-            <div style="height: 350px;">
-              <canvas id="v2-revenueChart"></canvas>
-            </div>
-          </div>
-          <div class="content-card" style="border-radius: 20px; padding: 25px;">
-            <div class="card-header"
-              style="border:none; padding: 0 0 20px 0; display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="font-size: 1.25rem;">Categories</h3>
-              <div class="toggle-group" style="display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px;">
-                <button id="catToggleVolume"
-                  style="border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">Volume</button>
-                <button id="catToggleValue"
-                  style="border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;">Value</button>
+        <!-- FORCE VERTICAL STACKING WRAPPER -->
+        <div style="display: block !important; width: 100%;">
+          
+          <!-- ROW 1: SALES & CATEGORIES -->
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px; margin-bottom: 30px; width: 100%;">
+            <div class="content-card" style="border-radius: 20px; padding: 25px;">
+              <div class="card-header" style="border:none; padding: 0 0 20px 0;">
+                <h3 style="font-size: 1.25rem;">Sales Trend</h3>
+              </div>
+              <div style="height: 350px;">
+                <canvas id="v2-revenueChart"></canvas>
               </div>
             </div>
-            <div style="height: 350px;">
-              <canvas id="v2-categoryChart"></canvas>
+            <div class="content-card" style="border-radius: 20px; padding: 25px;">
+              <div class="card-header" style="border:none; padding: 0 0 20px 0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1.25rem;">Categories</h3>
+                <div class="toggle-group" style="display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px;">
+                  <button id="catToggleVolume" style="border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; color: #1e293b;">Volume</button>
+                  <button id="catToggleValue" style="border:none; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;">Value</button>
+                </div>
+              </div>
+              <div style="height: 350px;">
+                <canvas id="v2-categoryChart"></canvas>
+              </div>
             </div>
           </div>
 
-          <!-- Row 2: Growth & Security -->
-          <div class="content-card" style="border-radius: 20px; padding: 25px;">
-            <div class="card-header" style="border:none; padding: 0 0 20px 0;">
-              <h3 style="font-size: 1.25rem;">User Growth</h3>
+          <!-- ROW 2: AI INTELLIGENCE (Priority Row) -->
+          <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 25px; margin-bottom: 30px; width: 100%;">
+            <div class="content-card" style="border-radius: 20px; padding: 25px; border-top: 6px solid #7c3aed; box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.1);">
+              <div class="card-header" style="border:none; padding: 0 0 20px 0;">
+                <h3 style="font-size: 1.3rem; display: flex; align-items: center; color: #7c3aed; font-weight: 800;">
+                  <i class="fas fa-brain" style="margin-right: 15px;"></i>
+                  AI-Analyzed Trends (Positive Sentiment)
+                </h3>
+              </div>
+              <div style="height: 380px;">
+                <canvas id="v2-aiTrendChart"></canvas>
+              </div>
             </div>
-            <div style="height: 250px;">
-              <canvas id="v2-growthChart"></canvas>
-            </div>
-            <div
-              style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 12px; border-radius: 12px;">
-              <span style="font-size: 0.85rem; color: #64748b;">New members (24h)</span>
-              <span id="v2-usersNew24h" style="font-weight: 700; color: #10b981;">0</span>
+            <div class="content-card" style="border-radius: 20px; padding: 25px;">
+              <div class="card-header" style="border:none; padding: 0 0 15px 0;">
+                <h3 style="font-size: 1.25rem; font-weight: 700;">Popular Search Terms</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">Live user search intent tracking</p>
+              </div>
+              <div id="v2-searchCloud" style="height: 310px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; padding: 10px;">
+                <p style="color: #94a3b8; font-style: italic;">Analyzing behavior...</p>
+              </div>
             </div>
           </div>
-          <div class="content-card" style="border-radius: 20px; padding: 25px;">
-            <div class="card-header" style="border:none; padding: 0 0 20px 0;">
-              <h3 style="font-size: 1.25rem;">Order Success Rate</h3>
+
+          <!-- ROW 3: GROWTH & PERFORMANCE -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 40px; width: 100%;">
+            <div class="content-card" style="border-radius: 20px; padding: 25px;">
+              <div class="card-header" style="border:none; padding: 0 0 20px 0;">
+                <h3 style="font-size: 1.25rem;">User Growth</h3>
+              </div>
+              <div style="height: 280px;">
+                <canvas id="v2-growthChart"></canvas>
+              </div>
+              <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 15px; border-radius: 12px;">
+                <span style="font-size: 0.9rem; color: #64748b;">New members (Last 24h)</span>
+                <span id="v2-usersNew24h" style="font-weight: 800; color: #10b981; font-size: 1.1rem;">0</span>
+              </div>
             </div>
-            <div
-              style="height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-              <div id="v2-fulfillmentRate"
-                style="font-size: 3.5rem; font-weight: 900; color: #4f46e5; letter-spacing: -2px;">0%</div>
-              <p style="color: #64748b; margin-top: 10px;">Completed Orders Percentage</p>
-              <div
-                style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 10px; margin-top: 20px; overflow: hidden;">
-                <div id="v2-fulfillmentProgress"
-                  style="width: 0%; height: 100%; background: #4f46e5; transition: width 1s ease;"></div>
+            <div class="content-card" style="border-radius: 20px; padding: 25px;">
+              <div class="card-header" style="border:none; padding: 0 0 20px 0;">
+                <h3 style="font-size: 1.25rem;">Order Success Rate</h3>
+              </div>
+              <div style="height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                <div id="v2-fulfillmentRate" style="font-size: 4rem; font-weight: 900; color: #4f46e5; letter-spacing: -2px;">0%</div>
+                <p style="color: #64748b; margin-top: 10px; font-weight: 500;">Success Percentage</p>
+                <div style="width: 100%; height: 12px; background: #e2e8f0; border-radius: 10px; margin-top: 25px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                  <div id="v2-fulfillmentProgress" style="width: 0%; height: 100%; background: #4f46e5; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                </div>
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import json
 import time
 import imaplib
 import email
+import re
 from email.header import decode_header
 from datetime import datetime, timedelta
 import collections
@@ -22,10 +23,11 @@ from services.price_comparison.matcher import SmartMatcher
 from services.price_comparison.analytics import PriceAnalytics
 from logistics_constants import PAKISTAN_HUBS, LOGISTICS_STATES, STATUS_DISPLAY_NAMES, STATUS_DESCRIPTIONS
 from werkzeug.utils import secure_filename
+from services.nlp_engine import NLPEngine
 
 app = Flask(__name__, 
             static_folder='../static',
-            template_folder='../templates')
+            template_folder='../HTML')
 CORS(app)
 
 # Initialize Firebase
@@ -60,6 +62,7 @@ daraz_scraper = DarazScraper()
 olx_scraper = OLXScraper()
 matcher = SmartMatcher()
 analytics = PriceAnalytics()
+nlp_engine = NLPEngine()
 
 # --- Routes ---
 
@@ -1647,6 +1650,65 @@ def get_admin_email_details(email_id):
 
     except Exception as e:
         print(f"❌ Gmail Detail Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- AI Recommendation & Behavior Tracking ---
+
+@app.route('/api/v1/analytics/trends', methods=['GET'])
+def get_trends():
+    """
+    Returns platform-wide trending keywords and categories based on NLP analysis of reviews.
+    """
+    try:
+        trends = nlp_engine.analyze_trends()
+        return jsonify({
+            'success': True,
+            'trends': trends
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/v1/analytics/track-search', methods=['POST'])
+def track_search():
+    """
+    Logs a user's search query to Firebase for personalization.
+    """
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip().lower()
+        uid = data.get('uid')
+        category = data.get('category')
+
+        if not query and not category:
+            return jsonify({'success': False, 'error': 'No query or category provided'}), 400
+
+        # Log search history (User Specific)
+        if uid:
+            search_ref = db.reference(f'search_history/{uid}')
+            new_search = {
+                'query': query,
+                'category': category,
+                'timestamp': time.time() * 1000
+            }
+            search_ref.push(new_search)
+            
+            # Keep only last 20 searches to prevent bloating
+            history = search_ref.get()
+            if history and len(history) > 20:
+                keys = sorted(history.keys(), key=lambda x: history[x].get('timestamp', 0))
+                for i in range(len(keys) - 20):
+                    search_ref.child(keys[i]).delete()
+
+        # Log global trend (Anonymous)
+        global_trends_ref = db.reference('global_trends/search_terms')
+        if query:
+            # Increment frequency of search term
+            term_ref = global_trends_ref.child(re.sub(r'[\.#\$\/\[\]]', '_', query))
+            term_ref.transaction(lambda current: (current or 0) + 1)
+
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error tracking search: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':

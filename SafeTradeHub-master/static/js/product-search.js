@@ -180,6 +180,36 @@ class ProductSearchManager {
 
         // Display results
         this.displayResults(results, { searchQuery, category, location, sortBy });
+
+        // Track behavior (Async)
+        this.trackSearch(searchQuery, category);
+    }
+
+    /**
+     * Send search behavior to the backend for AI personalization
+     */
+    async trackSearch(query, category) {
+        if (!query && !category) return;
+
+        try {
+            const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+            const uid = currentUser ? currentUser.uid : null;
+
+            // Only track if there's something to track
+            // We use the same backend port (5000)
+            await fetch('/api/v1/analytics/track-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: query,
+                    category: category,
+                    uid: uid
+                })
+            });
+        } catch (error) {
+            // Fail silently to not disrupt the user experience
+            console.warn('Behavior tracking skipped:', error);
+        }
     }
 
     /**

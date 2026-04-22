@@ -361,6 +361,10 @@ h1, h2, h3, .logo {
   font-size: 2rem;
   font-weight: 800;
   color: #0f172a;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
 }
 
 /* Recommended Products Container */
@@ -395,6 +399,7 @@ h1, h2, h3, .logo {
   font-size: 4rem;
   background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 10px;
 }
@@ -408,12 +413,7 @@ h1, h2, h3, .logo {
 }
 
 /* Recommended Section Header Enhancements */
-.axiom-section-header h2 {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 15px;
-}
+
 
 .recs-ctrl .arrow {
   width: 44px;
@@ -499,6 +499,7 @@ h1, h2, h3, .logo {
   font-size: 1.8rem;
   background: linear-gradient(135deg, #4f46e5, #7c3aed);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   transition: all 0.3s;
 }

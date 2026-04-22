@@ -186,6 +186,39 @@ window.STHAnalytics = (function() {
                 }
             });
             return canvas._chartInstance;
+        },
+
+        renderAITrendChart: (canvasId, trendData) => {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas?.getContext('2d');
+            if (!ctx) return null;
+            if (canvas._chartInstance) canvas._chartInstance.destroy();
+
+            const labels = trendData.map(t => t.keyword);
+            const data = trendData.map(t => t.count);
+
+            canvas._chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Mention Frequency',
+                        data: data,
+                        backgroundColor: '#7c3aed', 
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
+            return canvas._chartInstance;
         }
     };
 

@@ -77,7 +77,8 @@
                 "createdAt",
                 "price",
                 "verified",
-                "status"
+                "status",
+                "isActive"
             ],
             "$productId": {
                 ".write": "auth != null",
@@ -261,6 +262,18 @@
             "admin_alerts": {
                 ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('staff_registry').child(auth.uid).exists())",
                 ".indexOn": ["timestamp", "type", "userId"]
+            }
+        },
+        "search_history": {
+            "$uid": {
+                ".read": "auth != null && $uid === auth.uid",
+                ".write": "auth != null && $uid === auth.uid"
+            }
+        },
+        "global_trends": {
+            ".read": true,
+            "search_terms": {
+                ".write": "auth != null"
             }
         }
     }

@@ -18,27 +18,81 @@ class HomeProductsManager {
     async loadRecommendedProducts() {
         try {
             const db = firebase.database();
-            const productsRef = db.ref('products').orderByChild('createdAt').limitToLast(12);
+            const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+            
+            // 1. Fetch Platform Trends from AI Backend
+            let trends = { keywords: [], categories: [] };
+            try {
+                const trendRes = await fetch('/api/v1/analytics/trends');
+                const trendData = await trendRes.json();
+                if (trendData.success) trends = trendData.trends;
+            } catch (e) { console.warn('AI trends unavailable', e); }
 
-            productsRef.once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) {
-                    this.renderEmptyState();
-                    return;
-                }
+            // 2. Fetch User Personal History (if logged in)
+            let userHistory = [];
+            if (currentUser) {
+                const historySnap = await db.ref(`search_history/${currentUser.uid}`).limitToLast(10).once('value');
+                const historyData = historySnap.val();
+                if (historyData) userHistory = Object.values(historyData);
+            }
 
-                // Convert object to array, filter for active products, and reverse to show newest first
-                this.products = Object.entries(data)
-                    .map(([id, product]) => ({ id, ...product }))
-                    .filter(p => p.isActive && p.status === 'active')
-                    .reverse();
+            // 3. Fetch Products
+            const productsRef = db.ref('products').orderByChild('isActive').equalTo(true);
+            const snapshot = await productsRef.once('value');
+            const data = snapshot.val();
 
-                this.renderProducts();
-            });
+            if (!data) {
+                this.renderEmptyState();
+                return;
+            }
+
+            // 4. Scoring Engine
+            const scoredProducts = Object.entries(data)
+                .map(([id, p]) => {
+                    let score = 0;
+                    const pName = (p.name || '').toLowerCase();
+                    const pDesc = (p.description || '').toLowerCase();
+                    const pCat = p.category || '';
+
+                    // A. Personal History Match (High weight)
+                    userHistory.forEach(h => {
+                        if (h.category && h.category === pCat) score += 50;
+                        if (h.query && (pName.includes(h.query) || pDesc.includes(h.query))) score += 30;
+                    });
+
+                    // B. AI Platform Trends Match (Medium weight)
+                    trends.keywords.forEach(tk => {
+                        if (pName.includes(tk.keyword) || pDesc.includes(tk.keyword)) score += 20;
+                    });
+                    trends.categories.forEach(tc => {
+                        if (tc.category === pCat) score += 15;
+                    });
+
+                    // C. Organic Popularity (Low weight)
+                    const views = parseInt(p.views) || 0;
+                    score += views * 0.1;
+
+                    // D. Recency (Tie-breaker)
+                    const createdTime = parseInt(p.createdAt) || 0;
+                    const ageInDays = createdTime > 0 ? (Date.now() - createdTime) / (1000 * 60 * 60 * 24) : 99;
+                    score += Math.max(0, 10 - ageInDays);
+
+                    if (score > 0) {
+                        console.log(`AI Score for ${pName}: ${score.toFixed(1)} (History Match: ${userHistory.length > 0})`);
+                    }
+
+                    return { id, ...p, _score: score };
+                })
+                .filter(p => p.isActive && p.status === 'active')
+                .sort((a, b) => b._score - a._score) // Sort by score descending
+                .slice(0, 12); // Take top 12
+
+            this.products = scoredProducts;
+            this.renderProducts();
 
         } catch (error) {
             console.error('Error loading products:', error);
-            this.productsContainer.innerHTML = '<p class="error-state">Failed to load products. Please try again later.</p>';
+            this.productsContainer.innerHTML = '<p class="error-state">Failed to load smart recommendations.</p>';
         }
     }
 
