@@ -146,6 +146,83 @@ function setupEventListeners() {
             await formBuilder.loadCategorySchema(e.target.value);
         });
     }
+
+    // Fee Engine Listeners
+    const feeInputs = ['shipWeight', 'shipLength', 'shipWidth', 'shipHeight', 'shipFragility', 'productPrice', 'auctionStartingPrice'];
+    feeInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', triggerFeeCalculation);
+            el.addEventListener('change', triggerFeeCalculation);
+        }
+    });
+
+    // Custom Event Listener for UI Updates
+    document.addEventListener('fees:updated', (e) => {
+        const data = e.detail;
+        
+        // Shipping UI
+        const sTier = document.getElementById('calcShippingTier');
+        const sFee = document.getElementById('calcShippingFee');
+        if (sTier && sFee) {
+            if (data.shipping.success) {
+                sTier.textContent = `Tier: ${data.shipping.data.tier}`;
+                sFee.textContent = `RS ${data.shipping.data.fee.toLocaleString()}`;
+                window._currentShippingFee = data.shipping.data.fee;
+                window._currentShippingTier = data.shipping.data.tier;
+            } else {
+                sTier.textContent = 'Pending...';
+                sFee.textContent = 'RS 0';
+                window._currentShippingFee = 0;
+                window._currentShippingTier = 'Unknown';
+            }
+        }
+
+        // Escrow UI
+        const eTier = document.getElementById('calcEscrowTier');
+        const eFee = document.getElementById('calcEscrowFee');
+        if (eTier && eFee) {
+            if (data.escrow.success) {
+                eTier.textContent = `Tier ${data.escrow.data.tier} (${data.escrow.data.percentage}%)`;
+                eFee.textContent = `RS ${data.escrow.data.fee.toLocaleString()}`;
+                window._currentEscrowFee = data.escrow.data.fee;
+                window._currentEscrowTier = data.escrow.data.tier;
+            } else {
+                eTier.textContent = 'Pending...';
+                eFee.textContent = 'RS 0';
+                window._currentEscrowFee = 0;
+                window._currentEscrowTier = 0;
+            }
+        }
+    });
+}
+
+function triggerFeeCalculation() {
+    if (!window.FeeEngine) return;
+
+    // Shipping
+    const w = document.getElementById('shipWeight')?.value || 0;
+    const l = document.getElementById('shipLength')?.value || 0;
+    const wi = document.getElementById('shipWidth')?.value || 0;
+    const h = document.getElementById('shipHeight')?.value || 0;
+    const f = document.getElementById('shipFragility')?.value || 'Standard';
+
+    const shippingResult = window.FeeEngine.calculateShipping(w, l, wi, h, f);
+
+    // Escrow
+    const isAuction = document.getElementById('auctionEnabled')?.checked;
+    const priceStr = isAuction ? document.getElementById('auctionStartingPrice')?.value : document.getElementById('productPrice')?.value;
+    const price = parseFloat(priceStr) || 0;
+    
+    const escrowResult = window.FeeEngine.calculateEscrow(price);
+
+    // Dispatch Event
+    document.dispatchEvent(new CustomEvent('fees:updated', {
+        detail: {
+            shipping: shippingResult,
+            escrow: escrowResult
+        }
+    }));
 }
 
 function addSpecificationRow(key = '', val = '') {
@@ -260,34 +337,62 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
     const isAuction = document.getElementById('auctionEnabled').checked;
 
     // 1. Validation
-    if (!document.getElementById('productName').value.trim()) {
-        window.NotificationManager.showToast('Title Required', 'Please provide at least a product title to save.', 'warning');
+    const name = document.getElementById('productName').value.trim();
+    const price = parseFloat(document.getElementById('productPrice')?.value || 0);
+    const auctionPrice = parseFloat(document.getElementById('auctionStartingPrice')?.value || 0);
+    const stock = parseInt(document.getElementById('productStock')?.value || 0);
+    const category = document.getElementById('productCategory').value;
+    const weight = parseFloat(document.getElementById('shipWeight')?.value || 0);
+
+    if (!name) {
+        window.NotificationManager.showToast('Title Required', 'Please provide a product title.', 'warning');
+        return;
+    }
+    if (!category) {
+        window.NotificationManager.showToast('Category Required', 'Please select a product category.', 'warning');
+        return;
+    }
+    if (!isAuction && price <= 0) {
+        window.NotificationManager.showToast('Price Error', 'Please enter a valid fixed price.', 'warning');
+        return;
+    }
+    if (isAuction && auctionPrice <= 0) {
+        window.NotificationManager.showToast('Auction Error', 'Please enter a starting bid.', 'warning');
+        return;
+    }
+    if (!isAuction && stock <= 0) {
+        window.NotificationManager.showToast('Stock Error', 'Inventory level must be at least 1.', 'warning');
+        return;
+    }
+    if (weight <= 0) {
+        window.NotificationManager.showToast('Logistics Error', 'Please enter the item weight for shipping calculation.', 'warning');
         return;
     }
 
-        if (!isDraft) {
-            if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
-                window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
-                return;
-            }
-
-            const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
-            if (unsafeItems.length > 0) {
-                showUnsafeModal(unsafeItems);
-                return;
-            }
-
-            // Agreement checks
-            if (!document.getElementById('agreeTerms').checked || 
-                !document.getElementById('confirmAccuracy').checked || 
-                !document.getElementById('confirmOwnership').checked) {
-                window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety and ownership checkboxes.', 'warning');
-                return;
-            }
-
-            // Dynamic Form Validation
-            if (formBuilder && !formBuilder.validate()) return;
+    if (!isDraft) {
+        if (uploadedImages.length === 0 || !uploadedImages.some(img => img.isMain)) {
+            window.NotificationManager.showToast('Missing Media', 'Please upload at least a primary product image.', 'error');
+            return;
         }
+
+        const unsafeItems = uploadedImages.filter(img => img.verification && img.verification.isSafe === false);
+        if (unsafeItems.length > 0) {
+            showUnsafeModal(unsafeItems);
+            return;
+        }
+
+        // Agreement checks
+        if (!document.getElementById('agreeTerms').checked || 
+            !document.getElementById('confirmAccuracy').checked || 
+            !document.getElementById('confirmOwnership').checked ||
+            (document.getElementById('agreeDispute') && !document.getElementById('agreeDispute').checked)) {
+            window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety, ownership, and dispute resolution checkboxes.', 'warning');
+            return;
+        }
+
+        // Dynamic Form Validation
+        if (formBuilder && !formBuilder.validate()) return;
+    }
 
     try {
         showLoading(true, 'Broadcasting your listing...');
@@ -335,8 +440,18 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
             specifications: specs,
             dynamicAttributes: dynamicAttrs,
             variantInventory: variantInventory,
+            weight: document.getElementById('shipWeight') ? parseFloat(document.getElementById('shipWeight').value) || 0 : 0,
+            dimensions: {
+                length: document.getElementById('shipLength') ? parseFloat(document.getElementById('shipLength').value) || 0 : 0,
+                width: document.getElementById('shipWidth') ? parseFloat(document.getElementById('shipWidth').value) || 0 : 0,
+                height: document.getElementById('shipHeight') ? parseFloat(document.getElementById('shipHeight').value) || 0 : 0
+            },
+            fragility: document.getElementById('shipFragility') ? document.getElementById('shipFragility').value : 'Standard',
             shippingMethod: 'standard',
-            shippingCost: 0,
+            shippingCost: window._currentShippingFee || 0,
+            shippingTier: window._currentShippingTier || 'Unknown',
+            escrowFee: window._currentEscrowFee || 0,
+            escrowTier: window._currentEscrowTier || 0,
             returnPolicy: document.getElementById('returnPolicy').value || '',
             images: imageUrls,
             sellerId: currentUser.id,
@@ -344,6 +459,7 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
             isActive: false, 
             verified: false,
             status: targetStatus,
+            dispute_agreement: document.getElementById('agreeDispute') ? document.getElementById('agreeDispute').checked : false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             views: 0,

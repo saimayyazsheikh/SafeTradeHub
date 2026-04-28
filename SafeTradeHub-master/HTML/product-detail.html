@@ -130,9 +130,12 @@
                                     <span>Bid Amount</span>
                                     <span id="breakdownBidAmount" style="color:var(--axiom-text); font-weight:600;">RS 0</span>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                                    <span>Safe Ship Fee (5%)</span>
-                                    <span id="breakdownShipping" style="color:var(--axiom-text); font-weight:600;">RS 0</span>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px; flex-direction: column;">
+                                    <div style="display:flex; justify-content:space-between;">
+                                        <span>Estimated Shipping</span>
+                                        <span id="breakdownShipping" style="color:var(--axiom-text); font-weight:600;">RS 0</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;"><i class="fas fa-info-circle"></i> Shipping cost may vary by city. Final amount is calculated at checkout.</div>
                                 </div>
                                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                                     <span>Escrow Fee (2%)</span>
@@ -189,9 +192,12 @@
 
                         <!-- Shipping / Condition / Stock -->
                         <div id="quickSpecs" class="pd-quick-specs">
-                            <div class="pd-quick-spec-row">
-                                <span class="label"><i class="fas fa-truck" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Safe Ship Fee (5%)</span>
-                                <span class="value" id="shippingInfo">—</span>
+                            <div class="pd-quick-spec-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <div style="display: flex; justify-content: space-between; width: 100%;">
+                                    <span class="label"><i class="fas fa-truck" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Estimated Shipping</span>
+                                    <span class="value" id="shippingInfo">—</span>
+                                </div>
+                                <div style="font-size: 0.75rem; color: #64748b; margin-left: 20px;"><i class="fas fa-info-circle"></i> Shipping cost may vary by city. Final amount is calculated at checkout.</div>
                             </div>
                             <div class="pd-quick-spec-row">
                                 <span class="label"><i class="fas fa-shield-halved" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Escrow Fee (2%)</span>
@@ -301,6 +307,7 @@
         </div>
     </div>
 
+    <script src="/static/js/modules/fee-calculator.module.js"></script>
     <script src="/static/js/product-detail.js?v=5"></script>
     <script src="/static/js/seller-chat.js?v=2"></script>
     <script src="/static/js/notification-manager.js?v=2"></script>

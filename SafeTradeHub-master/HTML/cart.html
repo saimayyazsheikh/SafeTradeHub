@@ -71,7 +71,22 @@
         <aside class="cart-card summary" aria-label="Order summary">
           <h3>Summary</h3>
           <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
-          <div class="total-line"><span>Shipping</span><strong id="shippingTotal">Free</strong></div>
+          
+          <div class="total-line" style="margin-bottom: 2px;">
+            <span>Shipping</span>
+            <strong id="shippingTotal">Free</strong>
+          </div>
+          <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 15px; text-align: left;">
+            Shipping cost may vary by city. Final amount is calculated at checkout.
+          </div>
+          
+          <div class="total-line">
+            <span style="display: flex; align-items: center; gap: 5px;">
+              Escrow Fee
+              <i class="fas fa-info-circle" title="Securely holds your funds until you receive the item." style="color: #64748b; cursor: help; font-size: 0.85rem;"></i>
+            </span>
+            <strong id="escrowTotal">—</strong>
+          </div>
           
           <div class="total-line grand-total">
             <span>Total</span>
@@ -101,6 +116,7 @@
       style="border-radius: 26px;"></iframe>
   </div>
 
+  <script src="/static/js/modules/fee-calculator.module.js"></script>
   <script>
     /* ========== Cart logic (single source of truth) ========== */
     const CART_KEY = 'sthub_cart';
@@ -180,10 +196,19 @@
 
       const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
       const shippingTotal = items.reduce((s, i) => s + i.shippingCost, 0);
+      
+      let escrowFee = 0;
+      if (window.FeeEngine) {
+        const escrowResult = window.FeeEngine.calculateEscrow(subtotal);
+        if (escrowResult.success) {
+          escrowFee = escrowResult.data.fee;
+        }
+      }
 
       document.getElementById('subtotal').textContent = money(subtotal);
       document.getElementById('shippingTotal').textContent = money(shippingTotal);
-      document.getElementById('grandTotal').textContent = money(subtotal + shippingTotal);
+      document.getElementById('escrowTotal').textContent = money(escrowFee);
+      document.getElementById('grandTotal').textContent = money(subtotal + shippingTotal + escrowFee);
     }
 
     /* Events */
@@ -256,14 +281,16 @@
           const snap = await db.ref('products/' + item.id).once('value');
           if (snap.exists()) {
             const p = snap.val();
-            // Robust price and shipping extraction
+            // Robust price, shipping, and location extraction
             const shipping = parseFloat(p.shippingCost || p.shipping_cost || 0);
             const price = parseFloat(p.price || 0);
+            const location = p.location || '';
 
-            // Update if different or if shipping was missing
-            if (item.shippingCost !== shipping || item.price !== price || typeof item.shippingCost === 'undefined') {
+            // Update if different or if critical fields were missing
+            if (item.shippingCost !== shipping || item.price !== price || item.location !== location || typeof item.shippingCost === 'undefined') {
               items[idx].shippingCost = shipping;
               items[idx].price = price;
+              items[idx].location = location;
               updated = true;
             }
           }

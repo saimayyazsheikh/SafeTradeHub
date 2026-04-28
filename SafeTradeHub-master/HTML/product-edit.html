@@ -105,7 +105,7 @@
 
       <!-- Content Area -->
       <main class="edit-content-pane">
-        <form id="productEditForm">
+        <form id="productEditForm" novalidate>
           
           <!-- Section: General -->
           <section id="section-general" class="form-section active">
@@ -161,8 +161,19 @@
                 </div>
 
                 <div class="axiom-group" style="margin-bottom: 0;">
-                  <label for="productLocation" class="axiom-label">Item Location</label>
-                  <input type="text" id="productLocation" name="location" class="axiom-input" placeholder="City, Country">
+                  <label for="productLocation" class="axiom-label">Item Location <span style="color: #ef4444;">*</span></label>
+                  <select id="productLocation" name="location" class="axiom-select" required>
+                    <option value="">Select Local City</option>
+                    <option value="F8 Islamabad">F8 Islamabad</option>
+                    <option value="I8 Islamabad">I8 Islamabad</option>
+                    <option value="G9 Islamabad">G9 Islamabad</option>
+                    <option value="DHA Karachi">DHA Karachi</option>
+                    <option value="Gulshan Karachi">Gulshan Karachi</option>
+                    <option value="DHA Lahore">DHA Lahore</option>
+                    <option value="Gulberg Lahore">Gulberg Lahore</option>
+                    <option value="Bosan Road Multan">Bosan Road Multan</option>
+                    <option value="Canal Road Faisalabad">Canal Road Faisalabad</option>
+                  </select>
                 </div>
               </div>
 
@@ -305,18 +316,55 @@
               
               <div class="input-grid">
                 <div class="axiom-group">
-                  <label for="shippingMethod" class="axiom-label">Shipping Profile</label>
-                  <select id="shippingMethod" name="shippingMethod" class="axiom-select" disabled>
-                    <option value="standard" selected>Safe Ship Elite (Automated)</option>
-                  </select>
+                  <label for="shipWeight" class="axiom-label">Weight (kg) <span style="color: #ef4444;">*</span></label>
+                  <input type="number" id="shipWeight" class="axiom-input" placeholder="e.g. 1.5" min="0" step="0.1" required>
                 </div>
                 <div class="axiom-group">
-                  <label class="axiom-label">Shipping Cost</label>
-                  <div class="axiom-input" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-magic" style="color: #4f46e5;"></i>
-                    <span>Automated (5% of Total)</span>
+                  <label for="shipFragility" class="axiom-label">Fragility Level <span style="color: #ef4444;">*</span></label>
+                  <select id="shipFragility" class="axiom-select" required>
+                    <option value="Solid">Solid</option>
+                    <option value="Standard" selected>Standard</option>
+                    <option value="Fragile">Fragile</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-grid" style="margin-top: 20px;">
+                <div class="axiom-group">
+                  <label for="shipLength" class="axiom-label">Length (cm) <span style="color: #ef4444;">*</span></label>
+                  <input type="number" id="shipLength" class="axiom-input" placeholder="0" min="0" required>
+                </div>
+                <div class="axiom-group">
+                  <label for="shipWidth" class="axiom-label">Width (cm) <span style="color: #ef4444;">*</span></label>
+                  <input type="number" id="shipWidth" class="axiom-input" placeholder="0" min="0" required>
+                </div>
+                <div class="axiom-group">
+                  <label for="shipHeight" class="axiom-label">Height (cm) <span style="color: #ef4444;">*</span></label>
+                  <input type="number" id="shipHeight" class="axiom-input" placeholder="0" min="0" required>
+                </div>
+              </div>
+
+              <div class="input-grid" style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                <div class="axiom-group">
+                  <label class="axiom-label">Base Shipping (Local)</label>
+                  <div class="axiom-input" style="background: #f8fafc; color: #1e293b; font-weight: 600; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <i class="fas fa-truck" style="color: #4f46e5;"></i>
+                      <span id="calcShippingTier">Pending...</span>
+                    </div>
+                    <span id="calcShippingFee" style="color: #4f46e5;">RS 0</span>
                   </div>
-                  <div class="axiom-hint" style="color: #4f46e5; font-weight: 600;">Managed by SafeTrade Hub Logistics</div>
+                  <div class="axiom-hint" style="color: #64748b; font-size: 0.8rem; margin-top: 6px;">Calculated based on physical attributes for local delivery.</div>
+                </div>
+                <div class="axiom-group">
+                  <label class="axiom-label">Escrow Fee</label>
+                  <div class="axiom-input" style="background: #f8fafc; color: #1e293b; font-weight: 600; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <i class="fas fa-shield-alt" style="color: #10b981;"></i>
+                      <span id="calcEscrowTier">Pending...</span>
+                    </div>
+                    <span id="calcEscrowFee" style="color: #10b981;">RS 0</span>
+                  </div>
                 </div>
               </div>
 
@@ -388,6 +436,7 @@
     </div>
   </div>
 
+  <script src="/static/js/modules/fee-calculator.module.js"></script>
   <script src="/static/js/product-edit.js"></script>
 </body>
 

@@ -143,8 +143,8 @@ function renderProduct(product) {
 
     // Quick specs
     const basePrice = parseFloat(product.price || 0);
-    const shippingFee = basePrice * 0.05;
-    const escrowFee = basePrice * 0.02;
+    const shippingFee = product.shippingCost !== undefined ? parseFloat(product.shippingCost) : (basePrice * 0.05);
+    const escrowFee = product.escrowFee !== undefined ? parseFloat(product.escrowFee) : (basePrice * 0.02);
 
     document.getElementById('shippingInfo').textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
     document.getElementById('escrowFeeInfo').textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
@@ -359,8 +359,14 @@ function renderAuctionView(product, auction) {
     priceEl.classList.add('indigo');
 
     // Dynamic Fees based on current bid
-    const shippingFee = parseFloat(currentBid) * 0.05;
-    const escrowFee = parseFloat(currentBid) * 0.02;
+    const shippingFee = product.shippingCost !== undefined ? parseFloat(product.shippingCost) : (parseFloat(product.price) * 0.05 || 0);
+    
+    let escrowFee = parseFloat(currentBid) * 0.02;
+    if (window.FeeEngine) {
+        const escrowResult = window.FeeEngine.calculateEscrow(currentBid);
+        if (escrowResult.success) escrowFee = escrowResult.data.fee;
+    }
+
     document.getElementById('shippingInfo').textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
     document.getElementById('escrowFeeInfo').textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
 
@@ -447,8 +453,15 @@ function setupLiveBidSync(pid, minIncrement) {
         if (bidInput) bidInput.min = minNext;
 
         // Update fees in real-time
-        const shippingFee = parseFloat(currentBid) * 0.05;
-        const escrowFee = parseFloat(currentBid) * 0.02;
+        // Shipping fee is fixed from product attributes
+        const shippingFee = currentProduct && currentProduct.shippingCost !== undefined ? parseFloat(currentProduct.shippingCost) : (parseFloat(currentBid) * 0.05);
+        
+        let escrowFee = parseFloat(currentBid) * 0.02;
+        if (window.FeeEngine) {
+            const escrowResult = window.FeeEngine.calculateEscrow(currentBid);
+            if (escrowResult.success) escrowFee = escrowResult.data.fee;
+        }
+
         const shipEl = document.getElementById('shippingInfo');
         const escEl = document.getElementById('escrowFeeInfo');
         if (shipEl) shipEl.textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
@@ -484,8 +497,14 @@ function setupBidInput(pid, initialMinBid, minIncrement) {
         if (!breakdownEl) return;
 
         if (val > 0) {
-            const ship = val * 0.05;
-            const esc = val * 0.02;
+            const ship = currentProduct && currentProduct.shippingCost !== undefined ? parseFloat(currentProduct.shippingCost) : (val * 0.05);
+            
+            let esc = val * 0.02;
+            if (window.FeeEngine) {
+                const escrowResult = window.FeeEngine.calculateEscrow(val);
+                if (escrowResult.success) esc = escrowResult.data.fee;
+            }
+
             const total = val + ship + esc;
 
             document.getElementById('breakdownBidAmount').textContent = `RS ${val.toLocaleString('en-PK')}`;
@@ -733,10 +752,11 @@ function addToCartLocal() {
         title: currentProduct.name,
         name: currentProduct.name,
         price: parseFloat(currentProduct.price),
-        shippingCost: parseFloat(currentProduct.price) * 0.05,
-        escrowFee: parseFloat(currentProduct.price) * 0.02,
+        shippingCost: currentProduct.shippingCost !== undefined ? parseFloat(currentProduct.shippingCost) : (parseFloat(currentProduct.price) * 0.05),
+        escrowFee: currentProduct.escrowFee !== undefined ? parseFloat(currentProduct.escrowFee) : (parseFloat(currentProduct.price) * 0.02),
         img: (currentProduct.images && currentProduct.images.length > 0) ? (currentProduct.images[0].url || currentProduct.images[0]) : '',
         category: currentProduct.category,
+        location: currentProduct.location,
         sellerId: sId,
         sellerName: currentProduct.sellerName || 'SafeTradeHub',
         qty: 1
@@ -754,7 +774,12 @@ function addToCartLocal() {
         else cart.push(cartItem);
         localStorage.setItem(CART_KEY, JSON.stringify(cart));
         if (window.updateCartCount) window.updateCartCount();
-        alert(`Added ${currentProduct.name} to cart!`);
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast('Success', `Added ${currentProduct.name} to cart!`, 'success');
+        } else {
+            // Very last fallback
+            alert(`Added ${currentProduct.name} to cart!`);
+        }
     }
 }
 

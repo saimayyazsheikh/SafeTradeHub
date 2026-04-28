@@ -60,13 +60,21 @@ async function initEditFlow() {
 /* --- UI POPULATION --- */
 
 function populateGeneralInfo() {
+    if (!currentProduct) return;
+
+    // Helper to safely set values and handle falsy but valid values like 0
+    const setVal = (id, val, fallback = '') => {
+        const el = document.getElementById(id);
+        if (el) el.value = (val !== undefined && val !== null) ? val : fallback;
+    };
+
     // Basic Info
-    document.getElementById('productName').value = currentProduct.name || '';
-    document.getElementById('productCategory').value = currentProduct.category || '';
-    document.getElementById('productCondition').value = currentProduct.condition || 'new';
-    document.getElementById('productPrice').value = currentProduct.price || 0;
-    document.getElementById('productStock').value = currentProduct.stock || 1;
-    document.getElementById('productLocation').value = currentProduct.location || '';
+    setVal('productName', currentProduct.name);
+    setVal('productCategory', currentProduct.category);
+    setVal('productCondition', currentProduct.condition, 'new');
+    setVal('productPrice', currentProduct.price, 0);
+    setVal('productStock', currentProduct.stock, 1);
+    setVal('productLocation', currentProduct.location);
     
     // Auction Info
     const auction = currentProduct.auction || {};
@@ -74,10 +82,11 @@ function populateGeneralInfo() {
     const auctionFields = document.getElementById('auctionFields');
     const fixedPriceGroup = document.getElementById('fixedPriceGroup');
 
-    if (auction.enabled) {
+    if (auction.enabled && auctionToggle) {
         auctionToggle.checked = true;
-        auctionFields.style.display = 'grid';
+        if (auctionFields) auctionFields.style.display = 'grid';
         if (fixedPriceGroup) fixedPriceGroup.classList.add('hidden-price');
+        
         const inventoryGroup = document.getElementById('inventoryGroup');
         const productStock = document.getElementById('productStock');
         if (inventoryGroup) {
@@ -86,21 +95,33 @@ function populateGeneralInfo() {
         }
         if (productStock) productStock.value = 1;
 
-        document.getElementById('auctionStartingPrice').value = auction.startingPrice || '';
-        document.getElementById('auctionMinIncrement').value = auction.minIncrement || '';
-        document.getElementById('auctionDuration').value = auction.duration || '7';
+        setVal('auctionStartingPrice', auction.startingPrice);
+        setVal('auctionMinIncrement', auction.minIncrement);
+        setVal('auctionDuration', auction.duration, '7');
     }
     
     // Details
-    document.getElementById('productDescription').value = currentProduct.description || '';
+    setVal('productDescription', currentProduct.description);
     updateCharCount(currentProduct.description || '');
     
-    document.getElementById('productTags').value = (currentProduct.tags || []).join(', ');
-    updateTagPreview((currentProduct.tags || []).join(', '));
+    const tagsStr = (currentProduct.tags || []).join(', ');
+    setVal('productTags', tagsStr);
+    updateTagPreview(tagsStr);
     
-    // Shipping
-    document.getElementById('shippingMethod').value = currentProduct.shippingMethod || 'standard';
-    document.getElementById('returnPolicy').value = currentProduct.returnPolicy || '';
+    // Shipping (Logistics)
+    setVal('shipWeight', currentProduct.weight);
+    setVal('shipFragility', currentProduct.fragility, 'Standard');
+    
+    if (currentProduct.dimensions) {
+        setVal('shipLength', currentProduct.dimensions.length);
+        setVal('shipWidth', currentProduct.dimensions.width);
+        setVal('shipHeight', currentProduct.dimensions.height);
+    }
+    
+    setVal('returnPolicy', currentProduct.returnPolicy);
+
+    // Trigger initial fee calculation
+    setTimeout(triggerFeeCalculation, 500);
 
     // Price Comparison (Initial Load)
     if (currentProduct.name) {
@@ -166,6 +187,55 @@ function setupNavigation() {
 }
 
 function setupEventListeners() {
+    // Fee Engine Custom Event Listener
+    document.addEventListener('fees:updated', (e) => {
+        const data = e.detail;
+        
+        // Shipping UI
+        const sTier = document.getElementById('calcShippingTier');
+        const sFee = document.getElementById('calcShippingFee');
+        if (sTier && sFee) {
+            if (data.shipping.success) {
+                sTier.textContent = `Tier: ${data.shipping.data.tier}`;
+                sFee.textContent = `RS ${data.shipping.data.fee.toLocaleString()}`;
+                window._currentShippingFee = data.shipping.data.fee;
+                window._currentShippingTier = data.shipping.data.tier;
+            } else {
+                sTier.textContent = 'Pending...';
+                sFee.textContent = 'RS 0';
+                window._currentShippingFee = 0;
+                window._currentShippingTier = 'Unknown';
+            }
+        }
+
+        // Escrow UI
+        const eTier = document.getElementById('calcEscrowTier');
+        const eFee = document.getElementById('calcEscrowFee');
+        if (eTier && eFee) {
+            if (data.escrow.success) {
+                eTier.textContent = `Tier ${data.escrow.data.tier} (${data.escrow.data.percentage}%)`;
+                eFee.textContent = `RS ${data.escrow.data.fee.toLocaleString()}`;
+                window._currentEscrowFee = data.escrow.data.fee;
+                window._currentEscrowTier = data.escrow.data.tier;
+            } else {
+                eTier.textContent = 'Pending...';
+                eFee.textContent = 'RS 0';
+                window._currentEscrowFee = 0;
+                window._currentEscrowTier = 0;
+            }
+        }
+    });
+
+    // Fee Engine Listeners
+    const feeInputs = ['shipWeight', 'shipLength', 'shipWidth', 'shipHeight', 'shipFragility', 'productPrice', 'auctionStartingPrice'];
+    feeInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', triggerFeeCalculation);
+            el.addEventListener('change', triggerFeeCalculation);
+        }
+    });
+
     // Description Counter
     document.getElementById('productDescription').addEventListener('input', (e) => updateCharCount(e.target.value));
     
@@ -230,6 +300,36 @@ function setupEventListeners() {
             fetchPriceComparison(e.target.value);
         }, 1000));
     }
+}
+
+function triggerFeeCalculation() {
+    if (!window.FeeEngine) return;
+
+    // 1. Gather Shipping Inputs
+    const w = document.getElementById('shipWeight')?.value;
+    const l = document.getElementById('shipLength')?.value;
+    const wi = document.getElementById('shipWidth')?.value;
+    const h = document.getElementById('shipHeight')?.value;
+    const f = document.getElementById('shipFragility')?.value;
+
+    // 2. Gather Pricing Input (Handle Auction vs Fixed)
+    const isAuction = document.getElementById('auctionEnabled')?.checked;
+    const priceStr = isAuction 
+        ? document.getElementById('auctionStartingPrice')?.value 
+        : document.getElementById('productPrice')?.value;
+    const price = parseFloat(priceStr) || 0;
+
+    // 3. Execute Stateless Logic
+    const shippingResult = window.FeeEngine.calculateShipping(w, l, wi, h, f);
+    const escrowResult = window.FeeEngine.calculateEscrow(price);
+
+    // 4. Dispatch Update Event
+    document.dispatchEvent(new CustomEvent('fees:updated', {
+        detail: {
+            shipping: shippingResult,
+            escrow: escrowResult
+        }
+    }));
 }
 
 function updateCharCount(text) {
@@ -332,8 +432,6 @@ window.removeNewImage = (idx) => {
     renderNewImagesPreview();
 }
 
-/* --- CORE UPDATE LOGIC --- */
-
 async function handleFormSubmit(e, targetStatus = 'pending_verification') {
     if (e) e.preventDefault();
     
@@ -347,11 +445,61 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
     
     if (!confirm) return;
 
-    // AI Safety Gate: Check for unsafe items in new uploads (Only if not a draft)
-    const unsafeItems = newImagesToUpload.filter(img => img.verification && img.verification.isSafe === false);
-    if (!isDraft && unsafeItems.length > 0) {
-        showUnsafeModal(unsafeItems);
+    // 1. Validation
+    const name = document.getElementById('productName').value.trim();
+    const price = parseFloat(document.getElementById('productPrice')?.value || 0);
+    const auctionPrice = parseFloat(document.getElementById('auctionStartingPrice')?.value || 0);
+    const stock = parseInt(document.getElementById('productStock')?.value || 0);
+    const category = document.getElementById('productCategory').value;
+    const weight = parseFloat(document.getElementById('shipWeight')?.value || 0);
+    const isAuction = document.getElementById('auctionEnabled')?.checked;
+
+    if (!name) {
+        window.NotificationManager.showToast('Title Required', 'Please provide a product title.', 'warning');
         return;
+    }
+    if (!category) {
+        window.NotificationManager.showToast('Category Required', 'Please select a product category.', 'warning');
+        return;
+    }
+    if (!isAuction && price <= 0) {
+        window.NotificationManager.showToast('Price Error', 'Please enter a valid fixed price.', 'warning');
+        return;
+    }
+    if (isAuction && auctionPrice <= 0) {
+        window.NotificationManager.showToast('Auction Error', 'Please enter a starting bid.', 'warning');
+        return;
+    }
+    if (!isAuction && stock <= 0) {
+        window.NotificationManager.showToast('Stock Error', 'Inventory level must be at least 1.', 'warning');
+        return;
+    }
+    if (weight <= 0) {
+        window.NotificationManager.showToast('Logistics Error', 'Please enter the item weight for shipping calculation.', 'warning');
+        return;
+    }
+
+    if (!isDraft) {
+        // Agreement checks
+        const agreeTerms = document.getElementById('agreeTerms');
+        const confirmAccuracy = document.getElementById('confirmAccuracy');
+        const confirmOwnership = document.getElementById('confirmOwnership');
+        const agreeDispute = document.getElementById('agreeDispute');
+
+        if ((agreeTerms && !agreeTerms.checked) || 
+            (confirmAccuracy && !confirmAccuracy.checked) || 
+            (confirmOwnership && !confirmOwnership.checked) ||
+            (agreeDispute && !agreeDispute.checked)) {
+            window.NotificationManager.showToast('Agreements Required', 'Please confirm all safety, ownership, and dispute resolution checkboxes.', 'warning');
+            return;
+        }
+
+        // AI Safety Gate: Check for unsafe items in new uploads
+        const unsafeItems = newImagesToUpload.filter(img => img.verification && img.verification.isSafe === false);
+        if (unsafeItems.length > 0) {
+            showUnsafeModal(unsafeItems);
+            return;
+        }
     }
 
     try {
@@ -406,8 +554,18 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
             description: document.getElementById('productDescription').value || '',
             tags: document.getElementById('productTags').value.split(',').map(t => t.trim()).filter(t => t),
             specifications: specs,
+            weight: document.getElementById('shipWeight') ? parseFloat(document.getElementById('shipWeight').value) || 0 : 0,
+            dimensions: {
+                length: document.getElementById('shipLength') ? parseFloat(document.getElementById('shipLength').value) || 0 : 0,
+                width: document.getElementById('shipWidth') ? parseFloat(document.getElementById('shipWidth').value) || 0 : 0,
+                height: document.getElementById('shipHeight') ? parseFloat(document.getElementById('shipHeight').value) || 0 : 0
+            },
+            fragility: document.getElementById('shipFragility') ? document.getElementById('shipFragility').value : 'Standard',
             shippingMethod: 'standard',
-            shippingCost: 0,
+            shippingCost: window._currentShippingFee || 0,
+            shippingTier: window._currentShippingTier || 'Unknown',
+            escrowFee: window._currentEscrowFee || 0,
+            escrowTier: window._currentEscrowTier || 0,
             returnPolicy: document.getElementById('returnPolicy').value || '',
             images: finalImages,
             auction: auctionData,

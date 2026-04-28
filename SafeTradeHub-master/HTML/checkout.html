@@ -562,8 +562,9 @@
               </div>
 
               <div class="form-row">
-                <label>Escrow Location</label>
+                <label>Delivery City</label>
                 <select id="escrowLocation" required>
+                  <option value="">Select Delivery Location</option>
                   <option value="F8 Islamabad">F8 Islamabad</option>
                   <option value="I8 Islamabad">I8 Islamabad</option>
                   <option value="G9 Islamabad">G9 Islamabad</option>
@@ -617,7 +618,7 @@
           <div class="card-content">
             <div id="items"></div>
             <div class="total-line"><span>Subtotal</span><strong id="subtotal">—</strong></div>
-            <div class="total-line"><span>Escrow Protection Fee (2%)</span><span id="escrowFee">—</span></div>
+            <div class="total-line"><span id="escrowLabel">Escrow Protection Fee</span><span id="escrowFee">—</span></div>
             <div class="total-line"><span>Shipping & Handling</span><span id="shippingTotal">Free</span></div>
             <div class="total-line"><span>Total Amount</span><strong id="grand">—</strong></div>
             <button class="btn btn-primary" id="payHoldBtn" style="width:100%; margin-top:1rem">
@@ -643,6 +644,7 @@
 
 
   <script src="/static/js/app-state.js"></script>
+  <script src="/static/js/modules/fee-calculator.module.js"></script>
   <script>
 
     // Enhanced checkout functionality using central state management
@@ -683,6 +685,14 @@
 
       // Add form validation
       initializeFormValidation();
+
+      // Dynamic Checkout Shipping Listener
+      const escrowLocDropdown = document.getElementById('escrowLocation');
+      if (escrowLocDropdown) {
+          escrowLocDropdown.addEventListener('change', () => {
+              renderSummary();
+          });
+      }
 
       // Handle checkout submission
       const payButton = document.getElementById('payHoldBtn');
@@ -815,6 +825,7 @@
             name: i.title || i.name || 'Item',
             price: Number(i.price) || 0,
             shippingCost: Number(i.shippingCost) || 0,
+            location: i.location || '',
             img: i.img || '',
             qty: Number(i.qty) || 1,
             desc: i.desc || i.description || '',
@@ -827,9 +838,26 @@
         }
       }
 
+      const destCity = document.getElementById('escrowLocation') ? document.getElementById('escrowLocation').value : '';
       const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-      const shippingTotal = cart.reduce((total, item) => total + (Number(item.shippingCost) || 0), 0);
-      const escrowFee = subtotal * 0.02; // 2% escrow fee
+      
+      let shippingTotal = 0;
+      cart.forEach(item => {
+        let itemShipping = Number(item.shippingCost) || 0;
+        if (window.FeeEngine && item.location && destCity) {
+            const shipRes = window.FeeEngine.calculateTotalShipping(itemShipping, item.location, destCity);
+            if (shipRes.success) {
+                itemShipping = shipRes.data.total;
+            }
+        }
+        shippingTotal += itemShipping;
+      });
+
+      let escrowFee = 0;
+      if (window.FeeEngine) {
+        const escrowRes = window.FeeEngine.calculateEscrow(subtotal);
+        if (escrowRes.success) escrowFee = escrowRes.data.fee;
+      }
       return subtotal + shippingTotal + escrowFee;
     }
 
@@ -862,86 +890,97 @@
       }
     }
 
-    function renderSummary() {
-      
+     async function renderSummary() {
+      const itemsEl = document.getElementById('items');
+      if (!itemsEl) return;
 
-      // Debug: Check all possible cart storage keys
-      
-      
-      
-      
-
-      // Get cart data with fallback
+      // 1. Get cart data
       let cart = [];
       if (window.SafeTradeHub) {
         cart = window.SafeTradeHub.cart.get();
-        
       } else {
-        // Fallback: Read directly from localStorage using the same method as cart.html
-        
         try {
           const rawCart = JSON.parse(localStorage.getItem('sthub_cart') || '[]');
           cart = Array.isArray(rawCart) ? rawCart.map(i => ({
-            id: i.id,
-            title: i.title || i.name || 'Item',
-            name: i.title || i.name || 'Item',
+            id: i.id, 
+            title: i.title || i.name || 'Item', 
             price: Number(i.price) || 0,
-            img: i.img || '',
-            qty: Number(i.qty) || 1,
+            shippingCost: Number(i.shippingCost) || 0, 
+            location: i.location || '',
+            img: i.img || '', 
+            qty: Number(i.qty) || 1, 
             desc: i.desc || i.description || '',
-            sellerId: i.sellerId || '',
-            sellerName: i.sellerName || ''
+            sellerId: i.sellerId || i.seller_id || '',
+            sellerName: i.sellerName || i.seller_name || ''
           })) : [];
-          
-        } catch (error) {
-          console.error('Error reading cart with fallback:', error);
-          cart = [];
-        }
+        } catch (e) { cart = []; }
       }
 
-      
-
-      const itemsEl = document.getElementById('items');
-
-
       if (!cart.length) {
-        itemsEl.innerHTML = '<p class="muted-note">Your cart is empty. <a href="index.html">Continue Shopping</a></p>';
-        document.getElementById('subtotal').textContent = formatPrice(0);
+        itemsEl.innerHTML = '<p class="muted-note">Your cart is empty.</p>';
         document.getElementById('grand').textContent = formatPrice(0);
         return;
       }
 
+      // 2. Logistics Recovery: Ensure every item has a location
+      const db = firebase.database();
+      await Promise.all(cart.map(async (item, idx) => {
+          if (!item.location || item.location === 'Unknown') {
+              try {
+                  const snap = await db.ref(`products/${item.id}/location`).once('value');
+                  if (snap.exists()) cart[idx].location = snap.val();
+              } catch (err) { console.warn('Location sync failed', err); }
+          }
+      }));
 
+      // 3. Calculation & Rendering
+      const destCity = document.getElementById('escrowLocation')?.value || '';
       let subtotal = 0;
       let shippingTotal = 0;
 
       itemsEl.innerHTML = cart.map(item => {
         const price = Number(item.price) || 0;
-        const shipping = Number(item.shippingCost) || 0;
+        let shipping = Number(item.shippingCost) || 0;
+        let surchargeInfo = '';
+        
+        if (window.FeeEngine && item.location && destCity) {
+            const shipRes = window.FeeEngine.calculateTotalShipping(shipping, item.location, destCity);
+            if (shipRes.success && shipRes.data.surcharge > 0) {
+                shipping = shipRes.data.total;
+                surchargeInfo = ` (Incl. RS ${shipRes.data.surcharge} surcharge)`;
+            }
+        }
+        
         const qty = Number(item.qty) || 1;
         const line = price * qty;
         subtotal += line;
         shippingTotal += shipping;
 
         return `
-      <div class="review-row">
-        <img src="${item.img || 'images/mobile.jpg'}" alt="${item.title || item.name}" 
-             onerror="this.src='images/mobile.jpg'" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
-      <div class="grow">
-
-          <div class="title">${item.title || item.name}</div>
-          <div class="muted">Qty ${qty} × ${formatPrice(price)}</div>
-          ${shipping > 0 ? `<div class="muted" style="font-size: 0.85rem;">Shipping: ${formatPrice(shipping)}</div>` : ''}
-          ${item.desc ? `<div class="muted" style="font-size: 0.85rem;">${item.desc}</div>` : ''}
-        </div>
-        <div class="strong">${formatPrice(line + shipping)}</div>
-      </div>
-
-    `;
+          <div class="review-row">
+            <img src="${item.img || 'images/mobile.jpg'}" alt="${item.title}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+            <div class="grow">
+              <div class="title">${item.title}</div>
+              <div class="muted">Qty ${qty} × ${formatPrice(price)}</div>
+              ${shipping > 0 ? `<div class="muted" style="font-size: 0.85rem;">Shipping: ${formatPrice(shipping)}${surchargeInfo}</div>` : ''}
+            </div>
+            <div class="strong">${formatPrice(line + shipping)}</div>
+          </div>`;
       }).join('');
 
-      const escrowFee = subtotal * 0.02; // 2% escrow fee
-      // Use per-item shipping if set, otherwise apply the 5% platform shipping fee
+      let escrowFee = 0;
+      let escrowPercent = 0;
+      if (window.FeeEngine) {
+        const escrowRes = window.FeeEngine.calculateEscrow(subtotal);
+        if (escrowRes.success) {
+            escrowFee = escrowRes.data.fee;
+            escrowPercent = escrowRes.data.percentage;
+        }
+      }
+      
+      const escrowLabel = document.getElementById('escrowLabel');
+      if (escrowLabel) escrowLabel.textContent = `Escrow Protection Fee (${escrowPercent}%)`;
+      
       if (shippingTotal === 0) shippingTotal = subtotal * 0.05;
       const total = subtotal + shippingTotal + escrowFee;
 
@@ -950,10 +989,13 @@
       document.getElementById('shippingTotal').textContent = formatPrice(shippingTotal);
       document.getElementById('grand').textContent = formatPrice(total);
 
-      // Update wallet display after cart calculation
-      if (walletBalance !== undefined) {
-        updateWalletDisplay();
-      }
+      // Final SSOT Sync
+      window.AdminData = window.AdminData || {};
+      window.AdminData.currentOrder = {
+        items: cart, subtotal, shipping: shippingTotal, escrow: escrowFee, total, destCity
+      };
+
+      if (typeof updateWalletDisplay === 'function') updateWalletDisplay();
     }
 
     function formatPrice(amount) {
@@ -1118,11 +1160,11 @@
       }
       // -----------------------
 
-      // Calculate totals
-      const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-      const escrowFee = subtotal * 0.02; // 2% escrow fee
-      const shippingTotal = subtotal * 0.05; // 5% shipping fee
-      const total = subtotal + shippingTotal + escrowFee;
+      // Get totals from AdminData (SSOT)
+      if (!window.AdminData || !window.AdminData.currentOrder) {
+          throw new Error('Order data sync error. Please refresh the page.');
+      }
+      const { subtotal, shipping: shippingTotal, escrow: escrowFee, total } = window.AdminData.currentOrder;
 
       // Check wallet balance
       if (walletBalance < total) {
