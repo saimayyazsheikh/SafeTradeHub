@@ -161,7 +161,7 @@
         </div>
 
         <!-- Locked Balance -->
-        <div class="stat-card">
+        <div class="stat-card" id="lockedBalanceCard">
           <div class="stat-icon orange">
             <i class="fas fa-lock"></i>
           </div>
@@ -183,8 +183,8 @@
         </div>
       </div>
 
-      <!-- Quick Actions & History -->
-      <div class="content-grid" style="grid-template-columns: 1fr 300px; gap: 1.5rem;">
+      <!-- Transaction History Full Width -->
+      <div class="content-grid" style="grid-template-columns: 1fr; gap: 1.5rem;">
 
         <!-- Transaction History -->
         <div class="dashboard-card">
@@ -213,6 +213,7 @@
                     <th>Type</th>
                     <th>Amount</th>
                     <th>Status</th>
+                    <th>Comments</th>
                   </tr>
                 </thead>
                 <tbody id="transactionsList">
@@ -222,37 +223,6 @@
             </div>
             <div class="pagination-container" style="padding: 1rem; display: flex; justify-content: center;">
               <div class="pagination" id="transactionPagination"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions Side Panel -->
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h3>Quick Actions</h3>
-            </div>
-            <div class="card-body">
-              <div style="display: grid; gap: 1rem;">
-                <button class="action-btn" onclick="openWithdrawModal()" id="sideActionBtn"
-                  style="width: 100%; text-align: left; align-items: flex-start;">
-                  <i class="fas fa-hand-holding-usd"></i>
-                  <span>Withdraw</span>
-                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Request payout</small>
-                </button>
-                <button class="action-btn" onclick="viewEscrowTransactions()"
-                  style="width: 100%; text-align: left; align-items: flex-start;">
-                  <i class="fas fa-shield-alt"></i>
-                  <span>Escrow History</span>
-                  <small style="color: var(--text-secondary); font-size: 0.8rem;">View secure transactions</small>
-                </button>
-                <button class="action-btn" onclick="downloadStatement()"
-                  style="width: 100%; text-align: left; align-items: flex-start;">
-                  <i class="fas fa-download"></i>
-                  <span>Statement</span>
-                  <small style="color: var(--text-secondary); font-size: 0.8rem;">Download PDF report</small>
-                </button>
-              </div>
             </div>
           </div>
         </div>

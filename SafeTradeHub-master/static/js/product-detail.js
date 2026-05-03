@@ -70,6 +70,25 @@ async function loadProduct(id) {
         const db = firebase.database();
         const productRef = db.ref(`products/${id}`);
 
+        // 1. One-Time View Increment (Organic Analytics - One click = One view)
+        // We use a flag to ensure it only runs once per page load lifecycle
+        if (!window._pdViewIncremented) {
+            window._pdViewIncremented = true;
+            productRef.once('value').then(snap => {
+                const p = snap.val();
+                if (!p) return;
+                
+                const sId = p.sellerId || p.seller_id || (p.seller && p.seller.id) || 'admin';
+                const currentUid = currentUser ? currentUser.uid : null;
+                
+                // Exclude sellers from their own view counts
+                if (sId !== currentUid) {
+                    db.ref(`products/${id}/views`).transaction((cv) => (parseInt(cv) || 0) + 1);
+                }
+            }).catch(e => console.warn('View tracking failed:', e));
+        }
+
+        // 2. Real-time UI Listener
         productRef.on('value', (snapshot) => {
             const product = snapshot.val();
             if (!product) {
@@ -78,20 +97,16 @@ async function loadProduct(id) {
             }
             product.id = id;
             currentProduct = product;
-            // 1. Render UI
+            
+            // Render UI
             renderProduct(product);
 
-            // 2. Increment View Count (Organic Analytics Only - Once per session)
-            const sId = product.sellerId || product.seller_id || product.seller?.id;
-            const alreadyTrackedInSession = sessionStorage.getItem(`viewed_${id}`);
+            const sId = product.sellerId || product.seller_id || (product.seller && product.seller.id) || 'admin';
+            const sName = product.sellerName || product.seller_name || (product.seller && product.seller.name) || 'SafeTradeHub';
+            product.sellerId = sId;
+            product.sellerName = sName;
 
-            if (!alreadyTrackedInSession && currentUser && sId !== currentUser.uid) {
-                const viewRef = db.ref(`products/${id}/views`);
-                viewRef.transaction((currentViews) => (parseInt(currentViews) || 0) + 1);
-                sessionStorage.setItem(`viewed_${id}`, 'true');
-            }
-
-            // 3. Setup Secondary Listeners (Once only to avoid memory leaks)
+            // Setup Secondary Listeners (Once only to avoid memory leaks)
             if (sId && window._pdLastSellerId !== sId) {
                 window._pdLastSellerId = sId;
                 loadSellerInfo(sId);
@@ -144,10 +159,24 @@ function renderProduct(product) {
     // Quick specs
     const basePrice = parseFloat(product.price || 0);
     const shippingFee = product.shippingCost !== undefined ? parseFloat(product.shippingCost) : (basePrice * 0.05);
-    const escrowFee = product.escrowFee !== undefined ? parseFloat(product.escrowFee) : (basePrice * 0.02);
+    
+    let escrowFee = basePrice * 0.02;
+    let escrowPercent = 2;
+    
+    if (window.FeeEngine) {
+        const escrowRes = window.FeeEngine.calculateEscrow(basePrice);
+        if (escrowRes.success) {
+            escrowFee = escrowRes.data.fee;
+            escrowPercent = escrowRes.data.percentage;
+        }
+    }
 
     document.getElementById('shippingInfo').textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
     document.getElementById('escrowFeeInfo').textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+    const escrowFeeLabel = document.getElementById('escrowFeeLabel');
+    if (escrowFeeLabel) {
+        escrowFeeLabel.innerHTML = `<i class="fas fa-shield-halved" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Escrow Fee (${escrowPercent}%)`;
+    }
     document.getElementById('conditionInfo').textContent = (product.condition || 'Not specified').charAt(0).toUpperCase() + (product.condition || '').slice(1);
     document.getElementById('stockInfo').textContent = product.stock ? `${product.stock} available` : 'In Stock';
 
@@ -311,7 +340,7 @@ function renderVariantInventory(inventory) {
 function renderFixedPriceView(product) {
     document.getElementById('priceLabel').textContent = 'Price';
     const priceEl = document.getElementById('productPrice');
-    priceEl.textContent = `RS ${parseFloat(product.price).toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+    priceEl.textContent = `RS ${parseFloat(product.price).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     priceEl.classList.remove('indigo');
 
     // Hide auction elements
@@ -324,11 +353,25 @@ function renderFixedPriceView(product) {
     // Show fixed price actions
     const addToCartBtn = document.getElementById('addToCartBtn');
     const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+    const isSoldOut = parseInt(product.stock || 0) <= 0 || product.status === 'sold_out';
     
     if (isSeller) {
         addToCartBtn.style.display = 'none';
+    } else if (isSoldOut) {
+        addToCartBtn.style.display = 'flex';
+        addToCartBtn.classList.add('disabled');
+        addToCartBtn.style.background = '#e2e8f0';
+        addToCartBtn.style.color = '#94a3b8';
+        addToCartBtn.style.cursor = 'not-allowed';
+        addToCartBtn.innerHTML = '<i class="fas fa-box"></i> Sold Out';
+        addToCartBtn.onclick = null;
     } else {
         addToCartBtn.style.display = 'flex';
+        addToCartBtn.classList.remove('disabled');
+        addToCartBtn.style.background = ''; // reset to CSS default
+        addToCartBtn.style.color = '';
+        addToCartBtn.style.cursor = 'pointer';
+        addToCartBtn.innerHTML = '<i class="fas fa-cart-plus"></i> Add to Cart';
         addToCartBtn.onclick = () => addToCartLocal();
     }
 
@@ -355,20 +398,29 @@ function renderAuctionView(product, auction) {
     // Price block
     document.getElementById('priceLabel').textContent = 'Current Bid';
     const priceEl = document.getElementById('productPrice');
-    priceEl.textContent = `RS ${parseFloat(currentBid).toLocaleString('en-PK')}`;
+    priceEl.textContent = `RS ${parseFloat(currentBid).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     priceEl.classList.add('indigo');
 
     // Dynamic Fees based on current bid
     const shippingFee = product.shippingCost !== undefined ? parseFloat(product.shippingCost) : (parseFloat(product.price) * 0.05 || 0);
     
     let escrowFee = parseFloat(currentBid) * 0.02;
+    let escrowPercent = 2;
     if (window.FeeEngine) {
         const escrowResult = window.FeeEngine.calculateEscrow(currentBid);
-        if (escrowResult.success) escrowFee = escrowResult.data.fee;
+        if (escrowResult.success) {
+            escrowFee = escrowResult.data.fee;
+            escrowPercent = escrowResult.data.percentage;
+        }
     }
 
     document.getElementById('shippingInfo').textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
     document.getElementById('escrowFeeInfo').textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+    
+    const escrowFeeLabel = document.getElementById('escrowFeeLabel');
+    if (escrowFeeLabel) {
+        escrowFeeLabel.innerHTML = `<i class="fas fa-shield-halved" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Escrow Fee (${escrowPercent}%)`;
+    }
 
     // LIVE badge
     const liveBadge = document.getElementById('liveBadge');
@@ -384,7 +436,7 @@ function renderAuctionView(product, auction) {
     // Auction meta boxes
     document.getElementById('auctionMeta').style.display = 'grid';
     const startingPrice = auction.startingPrice || product.price || 0;
-    document.getElementById('metaStartingPrice').textContent = `RS ${parseFloat(startingPrice).toLocaleString('en-PK')}`;
+    document.getElementById('metaStartingPrice').textContent = `RS ${parseFloat(startingPrice).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     document.getElementById('metaBidCount').textContent = bidCount;
     const timeLeftEl = document.getElementById('metaTimeLeft');
     timeLeftEl.dataset.auctionEnd = auctionEndTime;
@@ -438,6 +490,11 @@ function setupLiveBidSync(pid, minIncrement) {
         const data = snap.val();
         if (!data) return;
 
+        // Sync local currentProduct for guards
+        if (currentProduct) {
+            currentProduct.auction = data;
+        }
+
         const currentBid = data.currentHighestBid || data.startingPrice || 0;
         const bidCount = data.bidCount || 0;
         const minNext = parseFloat(currentBid) + parseFloat(minIncrement);
@@ -447,7 +504,7 @@ function setupLiveBidSync(pid, minIncrement) {
         const minValEl = document.getElementById('bidMinVal');
         const bidInput = document.getElementById('bidAmountInput');
 
-        if (priceEl) priceEl.textContent = `RS ${parseFloat(currentBid).toLocaleString('en-PK')}`;
+        if (priceEl) priceEl.textContent = `RS ${parseFloat(currentBid).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         if (metaCountEl) metaCountEl.textContent = bidCount;
         if (minValEl) minValEl.textContent = parseFloat(minNext).toLocaleString('en-PK');
         if (bidInput) bidInput.min = minNext;
@@ -457,15 +514,21 @@ function setupLiveBidSync(pid, minIncrement) {
         const shippingFee = currentProduct && currentProduct.shippingCost !== undefined ? parseFloat(currentProduct.shippingCost) : (parseFloat(currentBid) * 0.05);
         
         let escrowFee = parseFloat(currentBid) * 0.02;
+        let escrowPercent = 2;
         if (window.FeeEngine) {
             const escrowResult = window.FeeEngine.calculateEscrow(currentBid);
-            if (escrowResult.success) escrowFee = escrowResult.data.fee;
+            if (escrowResult.success) {
+                escrowFee = escrowResult.data.fee;
+                escrowPercent = escrowResult.data.percentage;
+            }
         }
 
         const shipEl = document.getElementById('shippingInfo');
         const escEl = document.getElementById('escrowFeeInfo');
+        const escLbl = document.getElementById('escrowFeeLabel');
         if (shipEl) shipEl.textContent = `RS ${shippingFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
         if (escEl) escEl.textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+        if (escLbl) escLbl.innerHTML = `<i class="fas fa-shield-halved" style="margin-right:6px;font-size:0.75rem;color:var(--axiom-text-muted);"></i> Escrow Fee (${escrowPercent}%)`;
 
         if (bidInput && parseFloat(bidInput.value) < minNext) {
             bidInput.value = minNext;
@@ -500,16 +563,22 @@ function setupBidInput(pid, initialMinBid, minIncrement) {
             const ship = currentProduct && currentProduct.shippingCost !== undefined ? parseFloat(currentProduct.shippingCost) : (val * 0.05);
             
             let esc = val * 0.02;
+            let escPct = 2;
             if (window.FeeEngine) {
                 const escrowResult = window.FeeEngine.calculateEscrow(val);
-                if (escrowResult.success) esc = escrowResult.data.fee;
+                if (escrowResult.success) {
+                    esc = escrowResult.data.fee;
+                    escPct = escrowResult.data.percentage;
+                }
             }
 
             const total = val + ship + esc;
 
-            document.getElementById('breakdownBidAmount').textContent = `RS ${val.toLocaleString('en-PK')}`;
+            document.getElementById('breakdownBidAmount').textContent = `RS ${val.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById('breakdownShipping').textContent = `RS ${ship.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
             document.getElementById('breakdownEscrow').textContent = `RS ${esc.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+            const breakdownEscrowLabel = document.getElementById('breakdownEscrowLabel');
+            if (breakdownEscrowLabel) breakdownEscrowLabel.textContent = `Escrow Fee (${escPct}%)`;
             document.getElementById('breakdownTotal').textContent = `RS ${total.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
             breakdownEl.style.display = 'block';
         } else {
@@ -521,7 +590,7 @@ function setupBidInput(pid, initialMinBid, minIncrement) {
             feedback.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Valid bid</span>`;
         } else {
             btn.disabled = true;
-            feedback.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> Bid must be at least RS ${currentMin.toLocaleString('en-PK')}</span>`;
+            feedback.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> Bid must be at least RS ${currentMin.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
         }
     };
 
@@ -548,45 +617,179 @@ function setupBidInput(pid, initialMinBid, minIncrement) {
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing...';
-
-        try {
-            const token = await firebase.auth().currentUser.getIdToken();
-            const response = await fetch('/api/v1/bids/place', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    productId: pid,
-                    bidAmount: bidAmount,
-                    maxBid: bidAmount
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                const color = result.outbid ? '#f59e0b' : '#10b981';
-                const icon = result.outbid ? 'exclamation-triangle' : 'check-circle';
-                feedback.innerHTML = `<span style="color:${color};"><i class="fas fa-${icon}"></i> ${result.message}</span>`;
-                if (window.NotificationManager) {
-                    window.NotificationManager.showToast(result.outbid ? 'Outbid!' : 'Success', result.message, result.outbid ? 'warning' : 'success');
-                }
-                loadBidHistory(pid);
-            } else {
-                feedback.innerHTML = `<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ${result.error}</span>`;
+        // HIGHEST BIDDER GUARD
+        const auction = currentProduct.auction || {};
+        if (auction.highestBidderId === currentUser.uid) {
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast('Already Leading', 'You are already the highest bidder for this item.', 'info');
             }
-        } catch (error) {
-            console.error('Bid Error:', error);
-            feedback.innerHTML = `<span style="color:#ef4444;">Network error. Please try again.</span>`;
+            return;
         }
 
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-gavel"></i> Bid';
+        // Open Shipping Details Modal for Auctions
+        openBidModal(bidAmount);
     };
+}
+
+// ========================================
+// AUCTION BID MODAL LOGIC
+// ========================================
+function openBidModal(bidAmount) {
+    const modal = document.getElementById('auctionBidModal');
+    if (!modal) return;
+
+    // Pre-fill user data if available
+    if (currentUser) {
+        document.getElementById('bidBuyerName').value = currentUser.displayName || '';
+        document.getElementById('bidBuyerPhone').value = currentUser.phoneNumber || '';
+        document.getElementById('bidBuyerAddress').value = currentUser.address || '';
+        
+        // If user has a city saved, try to select it
+        if (currentUser.city) {
+            const citySelect = document.getElementById('bidBuyerCity');
+            for (let i = 0; i < citySelect.options.length; i++) {
+                if (citySelect.options[i].value.toLowerCase().includes(currentUser.city.toLowerCase())) {
+                    citySelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    document.getElementById('modalBidAmount').textContent = `RS ${bidAmount.toLocaleString('en-PK')}`;
+    
+    // Initial calculation
+    updateModalBreakdown(bidAmount);
+
+    // Setup events for modal
+    const citySelect = document.getElementById('bidBuyerCity');
+    citySelect.onchange = () => updateModalBreakdown(bidAmount);
+
+    const confirmBtn = document.getElementById('confirmBidBtn');
+    confirmBtn.onclick = () => submitBidWithDetails(bidAmount);
+
+    modal.style.display = 'flex';
+}
+
+function closeBidModal() {
+    const modal = document.getElementById('auctionBidModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function updateModalBreakdown(bidAmount) {
+    if (!window.FeeEngine || !currentProduct) return;
+
+    const destCity = document.getElementById('bidBuyerCity').value;
+    const originCity = currentProduct.location || 'Karachi';
+    
+    // 1. Calculate Base Shipping from attributes
+    const shipCalc = window.FeeEngine.calculateShipping(
+        currentProduct.weight || 1,
+        (currentProduct.dimensions && currentProduct.dimensions.length) || 10,
+        (currentProduct.dimensions && currentProduct.dimensions.width) || 10,
+        (currentProduct.dimensions && currentProduct.dimensions.height) || 10,
+        currentProduct.fragility || 'Standard'
+    );
+
+    let baseFee = shipCalc.success ? shipCalc.data.fee : 250;
+    let totalShipping = baseFee;
+
+    // 2. Add Location Surcharge if city is selected
+    if (destCity) {
+        const totalShipCalc = window.FeeEngine.calculateTotalShipping(baseFee, originCity, destCity);
+        if (totalShipCalc.success) {
+            totalShipping = totalShipCalc.data.total;
+        }
+    }
+
+    // 3. Calculate Escrow
+    const escrowCalc = window.FeeEngine.calculateEscrow(bidAmount);
+    let escrowFee = bidAmount * 0.02;
+    let escrowPct = 2;
+    if (escrowCalc.success) {
+        escrowFee = escrowCalc.data.fee;
+        escrowPct = escrowCalc.data.percentage;
+    }
+
+    const totalToLock = bidAmount + totalShipping + escrowFee;
+
+    document.getElementById('modalShippingFee').textContent = `RS ${totalShipping.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+    document.getElementById('modalEscrowFee').textContent = `RS ${escrowFee.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+    document.getElementById('modalEscrowLabel').textContent = `Escrow Fee (${parseFloat(escrowPct.toFixed(2))}%)`;
+    document.getElementById('modalTotalToLock').textContent = `RS ${totalToLock.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+
+    // Update main page breakdown too if visible
+    const breakdownShipping = document.getElementById('breakdownShipping');
+    if (breakdownShipping) {
+        breakdownShipping.textContent = `RS ${totalShipping.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+        document.getElementById('breakdownTotal').textContent = `RS ${totalToLock.toLocaleString('en-PK', { minimumFractionDigits: 2 })}`;
+        
+        if (destCity) {
+            document.getElementById('breakdownShippingLabel').textContent = 'Exact Shipping';
+            document.getElementById('shippingNote').innerHTML = `<i class="fas fa-check-circle" style="color:var(--axiom-success)"></i> Exact shipping calculated for ${destCity}.`;
+        }
+    }
+}
+
+async function submitBidWithDetails(bidAmount) {
+    const form = document.getElementById('auctionBidForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const confirmBtn = document.getElementById('confirmBidBtn');
+    const feedback = document.getElementById('bidFeedback');
+
+    const shippingDetails = {
+        fullName: document.getElementById('bidBuyerName').value.trim(),
+        phone: document.getElementById('bidBuyerPhone').value.trim(),
+        address: document.getElementById('bidBuyerAddress').value.trim(),
+        city: document.getElementById('bidBuyerCity').value
+    };
+
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    try {
+        const token = await firebase.auth().currentUser.getIdToken();
+        const response = await fetch('/api/v1/bids/place', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                productId: productId,
+                bidAmount: bidAmount,
+                maxBid: bidAmount,
+                shippingDetails: shippingDetails // PASSING SHIPPING DETAILS
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            closeBidModal();
+            const color = result.outbid ? '#f59e0b' : '#10b981';
+            const icon = result.outbid ? 'exclamation-triangle' : 'check-circle';
+            if (feedback) {
+                feedback.innerHTML = `<span style="color:${color};"><i class="fas fa-${icon}"></i> ${result.message}</span>`;
+            }
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast(result.outbid ? 'Outbid!' : 'Success', result.message, result.outbid ? 'warning' : 'success');
+            }
+            loadBidHistory(productId);
+        } else {
+            window.NotificationManager.showToast('Bid Error', result.error || 'Failed to place bid', 'error');
+        }
+    } catch (error) {
+        console.error('Bid Submission Error:', error);
+        window.NotificationManager.showToast('System Error', 'Network error. Please try again.', 'error');
+    }
+
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="fas fa-lock"></i> Confirm & Place Bid';
 }
 
 // ========================================
@@ -696,7 +899,7 @@ function setupChatButton(product) {
     if (!chatBtn) return;
 
     // Robust Seller ID Detection
-    const sId = product.sellerId || product.seller_id;
+    const sId = product.sellerId || product.seller_id || (product.seller && product.seller.id);
 
     if (currentUser && sId === (currentUser.uid || currentUser.id)) {
         chatBtn.style.display = 'none';
@@ -741,12 +944,19 @@ function addToCartLocal() {
         return;
     }
 
-    // Role Restriction Check
-    if (window.AuthManager && !window.AuthManager.checkPermission('add_to_cart')) {
+    // Stock Check
+    const stock = parseInt(currentProduct.stock || 0);
+    if (stock <= 0) {
+        if (window.NotificationManager) {
+            window.NotificationManager.showToast('Out of Stock', 'This item is currently sold out and cannot be added to your cart.', 'warning');
+        } else {
+            alert('⚠️ This item is out of stock.');
+        }
         return;
     }
 
-    const sId = currentProduct.sellerId || currentProduct.seller_id;
+    const sId = currentProduct.sellerId || currentProduct.seller_id || (currentProduct.seller && currentProduct.seller.id) || 'admin';
+    const sName = currentProduct.sellerName || currentProduct.seller_name || (currentProduct.seller && currentProduct.seller.name) || 'SafeTradeHub';
     const cartItem = {
         id: currentProduct.id,
         title: currentProduct.name,
@@ -758,7 +968,7 @@ function addToCartLocal() {
         category: currentProduct.category,
         location: currentProduct.location,
         sellerId: sId,
-        sellerName: currentProduct.sellerName || 'SafeTradeHub',
+        sellerName: sName,
         qty: 1
     };
 

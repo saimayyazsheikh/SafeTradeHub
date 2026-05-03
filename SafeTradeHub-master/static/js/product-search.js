@@ -307,28 +307,43 @@ class ProductSearchManager {
         const rating = product.rating ? `⭐ ${product.rating}` : '';
         const location = product.location ? `📍 ${product.location}` : '';
 
+        const currentUser = window.AuthManager ? window.AuthManager.getCurrentUser() : null;
+        const isSeller = currentUser && (currentUser.role || '').toLowerCase() === 'seller';
+        const sId = product.sellerId || product.seller_id || (product.seller && product.seller.id) || 'admin';
+        const sName = product.sellerName || product.seller_name || (product.seller && product.seller.name) || 'SafeTradeHub';
+
+        const isSoldOut = parseInt(product.stock || 0) <= 0 || product.status === 'sold_out';
+
         const actionBtn = isAuction
             ? `<button class="card-btn card-btn-primary" onclick="window.location.href='product-detail.html?id=${product.id}'" style="width: 100%;">Place Bid</button>`
-            : `<button class="card-btn card-btn-secondary" data-add-to-cart data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-img="${imageUrl}" data-seller-id="${product.sellerId || 'admin'}" data-seller-name="${product.sellerName || 'SafeTradeHub'}">Add to Cart</button>`;
+            : isSoldOut 
+                ? `<button class="card-btn" disabled style="background: #e2e8f0; color: #94a3b8; cursor: not-allowed; width: 100%;">Sold Out</button>`
+                : `<button class="card-btn card-btn-secondary" data-add-to-cart data-id="${product.id}" data-name="${product.name}" data-price="${product.price}" data-img="${imageUrl}" data-seller-id="${sId}" data-seller-name="${sName}">Add to Cart</button>`;
 
         article.innerHTML = `
           <div class="card-img">
             <img src="${imageUrl}" alt="${product.name || 'Product'}" loading="lazy" onerror="this.src='/static/images/mobile.jpg'">
-        ${isAuction ? '<span class="card-badge" style="background: #ef4444; color: white;">Auction</span>' : ''}
-      </div>
-      <div class="card-content">
-        <h3 class="card-title">${product.name || 'Untitled Product'}</h3>
-        ${product.description ? `<p class="card-description">${product.description}</p>` : ''}
-        <p class="card-price">${priceDisplay}</p>
-        ${rating || location ? `<p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 12px;">${rating} ${location}</p>` : ''}
-        <div class="card-actions">
-          <button class="card-btn card-btn-primary" onclick="window.location.href='product-detail.html?id=${product.id}'">
-            View Details
-          </button>
-          ${actionBtn}
-        </div>
-      </div>
-    `;
+            ${isAuction ? '<span class="card-badge" style="background: #ef4444; color: white;">Auction</span>' : ''}
+          </div>
+          <div class="card-content">
+            <h3 class="card-title">${product.name || 'Untitled Product'}</h3>
+            ${product.description ? `<p class="card-description">${product.description}</p>` : ''}
+            <p class="card-price">${priceDisplay}</p>
+            ${rating || location ? `<p style="font-size: 0.85rem; color: var(--muted); margin: 0 0 12px;">${rating} ${location}</p>` : ''}
+            <div class="card-actions">
+              ${isSeller ? `
+              <button class="card-btn card-btn-primary" onclick="window.location.href='product-detail.html?id=${product.id}'" style="width: 100%;">
+                View Details
+              </button>
+              ` : `
+              <button class="card-btn card-btn-primary" onclick="window.location.href='product-detail.html?id=${product.id}'">
+                View Details
+              </button>
+              ${actionBtn}
+              `}
+            </div>
+          </div>
+        `;
 
         // Add cart functionality (only for fixed price items with data-add-to-cart)
         const addToCartBtn = article.querySelector('[data-add-to-cart]');
@@ -342,8 +357,8 @@ class ProductSearchManager {
                     price: product.price,
                     img: imageUrl,
                     description: product.description,
-                    sellerId: product.sellerId,
-                    sellerName: product.sellerName
+                    sellerId: sId,
+                    sellerName: sName
                 }, 1);
             });
         }

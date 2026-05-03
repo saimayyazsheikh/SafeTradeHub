@@ -147,12 +147,12 @@
         <div id="reviewModal" class="modal">
             <div class="modal-content" style="max-width: 500px;">
                 <div class="modal-header">
-                    <h2>Submit Review</h2>
+                    <h2>Rate Your Experience</h2>
                     <span class="close-modal" onclick="closeReviewModal()">&times;</span>
                 </div>
                 <div class="modal-body">
                     <div style="text-align: center; margin-bottom: 25px;">
-                        <p style="color: #64748b; margin-bottom: 15px;">Rate your experience with this transaction</p>
+                        <p style="color: #64748b; margin-bottom: 15px;">How was the product quality and delivery experience?</p>
                         <div class="rating-stars" id="starRating">
                             <i class="fas fa-star star-btn" data-value="1" onclick="setRating(1)"></i>
                             <i class="fas fa-star star-btn" data-value="2" onclick="setRating(2)"></i>
@@ -191,7 +191,18 @@
                             <option value="Damaged on arrival">Damaged on arrival</option>
                             <option value="Incorrect item received">Incorrect item received</option>
                             <option value="Missing components">Missing components</option>
+                            <option value="Buyer Remorse">Product is fine but I don't want it (Buyer Remorse)</option>
                         </select>
+                    </div>
+
+                    <!-- NEW: Buyer Remorse Acceptance -->
+                    <div id="remorseAcceptanceContainer" style="display: none; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <input type="checkbox" id="remorseAcceptance" style="width: 20px; height: 20px; cursor: pointer; margin-top: 2px;">
+                            <label for="remorseAcceptance" style="font-size: 0.85rem; color: #92400e; cursor: pointer; line-height: 1.4;">
+                                I acknowledge that by selecting "Buyer Remorse", a <strong>10% Product Holding Penalty</strong> will be deducted from my refund. I also understand that <strong>Shipping and Escrow fees are non-refundable</strong> as per SafeTradeHub policy.
+                            </label>
+                        </div>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 20px;">
@@ -430,17 +441,21 @@
                 updateUserProfile(userData);
 
                 // Show Products link if Seller
-                if (userData.role === 'Seller') {
+                const userRole = (userData.role || 'Buyer').toLowerCase();
+                if (userRole === 'seller') {
                     const navProducts = document.getElementById('navProducts');
                     if (navProducts) navProducts.style.display = 'flex';
                 }
 
-                loadOrders(user.uid, userData.role);
+                loadOrders(user.uid, userRole);
             });
         });
 
         // --- STATUS HELPERS (Synced across ecosystem) ---
-        function formatOrderStatus(status) {
+        function formatOrderStatus(status, hasDispute = false) {
+            if (hasDispute && (status === 'under_review' || status === 'disputed' || status === 'REFUNDED' || status === 'refunded')) {
+                return 'DISPUTED';
+            }
             const mapping = {
                 'pending': 'Order Placed',
                 'received_at_seller_hub': 'Received at Origin Hub',
@@ -451,7 +466,10 @@
                 'out_for_delivery': 'Out for Delivery',
                 'delivered': 'Delivered',
                 'cancelled': 'Cancelled',
-                'disputed': 'Disputed'
+                'disputed': 'DISPUTED',
+                'under_review': 'DISPUTED',
+                'refunded': 'REFUNDED',
+                'REFUNDED': 'REFUNDED'
             };
             return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Order Placed');
         }
@@ -501,10 +519,11 @@
                         const o = allOrders[key];
                         o.id = key;
                         
-                        if (role === 'Seller') {
-                            if (o.sellerId === uid) {
-                                orders.push(o);
-                            } else if (o.items && Array.isArray(o.items) && o.items.some(i => i && i.sellerId === uid)) {
+                        if (role && role.toLowerCase() === 'seller') {
+                            const isOrderSeller = o.sellerId === uid || o.seller_id === uid || (o.seller && o.seller.id === uid);
+                            const isItemSeller = o.items && Array.isArray(o.items) && o.items.some(i => i && (i.sellerId === uid || i.seller_id === uid || (i.seller && i.seller.id === uid)));
+                            
+                            if (isOrderSeller || isItemSeller) {
                                 orders.push(o);
                             }
                         } else {
@@ -604,7 +623,9 @@
                     }
 
                     const displayStatus = (o.status || 'pending').replace(/_/g, ' ');
-                    const statusClass = (o.status || 'pending').toLowerCase();
+                    const statusClass = (o.disputeId && (o.status === 'under_review' || o.status === 'disputed' || o.status === 'REFUNDED' || o.status === 'refunded')) 
+                        ? 'disputed' 
+                        : (o.status || 'pending').toLowerCase();
                     const totalAmount = (o.total || 0).toFixed(0);
                     
                     let orderDate = 'Unknown Date';
@@ -616,8 +637,8 @@
                     
                     const mainImg = o.items && o.items[0] ? (o.items[0].img || o.items[0].image || '/static/images/mobile.jpg') : '/static/images/mobile.jpg';
                     const itemCount = o.items ? o.items.length : 0;
-                    const showReview = (statusClass === 'delivered' || statusClass === 'completed');
-                    const showDispute = (statusClass === 'delivered' || statusClass === 'arrived_at_dest_hub' || statusClass === 'out_for_delivery') && o.status !== 'under_review' && o.status !== 'disputed' && !o.disputeId;
+                    const showReview = role.toLowerCase() === 'buyer' && (statusClass === 'delivered' || statusClass === 'completed' || statusClass === 'disputed');
+                    const showDispute = role.toLowerCase() === 'buyer' && (statusClass === 'delivered' || statusClass === 'arrived_at_dest_hub' || statusClass === 'out_for_delivery') && o.status !== 'under_review' && o.status !== 'disputed' && !o.disputeId;
 
                     return `
                         <div class="premium-order-card" onclick="openOrderModal('${o.id}')">
@@ -625,7 +646,7 @@
                                 <img src="${mainImg}" alt="Product Preview">
                             </div>
                             <div class="order-info">
-                                <span class="order-id">#${String(o.id).substring(1, 8).toUpperCase()}</span>
+                                <span class="order-id">${o.id}</span>
                                 <div class="order-participant">${otherName}</div>
                                 <div class="order-meta">
                                     <span><i class="far fa-calendar-alt"></i> ${orderDate}</span>
@@ -638,7 +659,7 @@
                                 <div class="item-count">Net Settlement</div>
                             </div>
                             <div class="order-status-section" onclick="event.stopPropagation()">
-                                <span class="axiom-status-badge badge-${statusClass}">${formatOrderStatus(o.status)}</span>
+                                <span class="axiom-status-badge badge-${statusClass}">${formatOrderStatus(o.status, !!o.disputeId)}</span>
                                 <div class="action-strip">
                                     ${showReview ? `
                                         <button onclick="openReviewModal('${o.id}')" class="axiom-mini-btn" title="Leave Review">
@@ -768,7 +789,7 @@
                         <h4 style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-truck"></i> Logistics
                         </h4>
-                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>No:</strong> #${order.id.substring(1, 10).toUpperCase()}</p>
+                        <p style="font-size:0.85rem; margin-bottom:4px;"><strong>No:</strong> ${order.id}</p>
                         <p style="font-size:0.85rem; margin-bottom:4px;"><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
                         <p style="font-size:0.85rem;"><strong>Tracking:</strong> ${order.trackingNumber || 'Processing'}</p>
                     </div>
@@ -789,7 +810,7 @@
                             <i class="fas fa-store"></i> Merchant
                         </h4>
                         <p style="font-size:0.85rem; margin-bottom:4px; font-weight:700;" id="merchantName_${order.id}">${order.sellerName || 'SafeTradeHub Official'}</p>
-                        <p style="font-size:0.8rem; color:#64748b;">Verification: <span style="color:#10b981;"><i class="fas fa-check-circle"></i> Axiom Certified</span></p>
+                        <p style="font-size:0.8rem; color:#64748b;">Verification: <span style="color:#10b981;"><i class="fas fa-check-circle"></i> Verified</span></p>
                     </div>
 
                     <!-- Card 4: Payment Info -->
@@ -827,7 +848,7 @@
                             <span>RS ${(order.shippingTotal || 0).toFixed(0)}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.85rem; color:#64748b;">
-                            <span>Axiom Escrow Fee (2%)</span>
+                            <span>Escrow Fee (${((order.escrowFee || 0) / (order.subtotal || order.total || 1) * 100).toFixed(1)}%)</span>
                             <span>RS ${(order.escrowFee || 0).toFixed(0)}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top: 1px solid #cbd5e1;">
@@ -991,9 +1012,22 @@
 
         function openDisputeModal(orderId) {
             activeDisputeOrderId = orderId;
-            document.getElementById('disputeReason').value = 'Item not as described';
+            const reasonSelect = document.getElementById('disputeReason');
+            reasonSelect.value = 'Item not as described';
             document.getElementById('disputeDescription').value = '';
+            document.getElementById('remorseAcceptanceContainer').style.display = 'none';
+            document.getElementById('remorseAcceptance').checked = false;
             document.getElementById('disputeModal').style.display = 'flex';
+
+            // Add change listener for dynamic visibility
+            reasonSelect.onchange = function() {
+                const remorseBox = document.getElementById('remorseAcceptanceContainer');
+                if (this.value === 'Buyer Remorse') {
+                    remorseBox.style.display = 'block';
+                } else {
+                    remorseBox.style.display = 'none';
+                }
+            };
         }
 
         function closeDisputeModal() {
@@ -1042,6 +1076,11 @@
         async function submitDispute() {
             const comment = document.getElementById('disputeDescription').value.trim();
             const reason = document.getElementById('disputeReason').value;
+
+            if (reason === 'Buyer Remorse' && !document.getElementById('remorseAcceptance').checked) {
+                alert('You must accept the terms of Buyer Remorse to proceed.');
+                return;
+            }
 
             if (!comment) {
                 alert('Please provide a description of the issue.');
@@ -1098,7 +1137,7 @@
                 const buyerNotifId = db.ref(`users/${user.uid}/notifications`).push().key;
                 updates[`/users/${user.uid}/notifications/${buyerNotifId}`] = {
                     title: 'Dispute Filed',
-                    message: `Your dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} has been securely recorded.`,
+                    message: `Your dispute for order ${activeDisputeOrderId} has been securely recorded.`,
                     type: 'info',
                     read: false,
                     timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -1110,24 +1149,30 @@
                     const sellerNotifId = db.ref(`users/${sellerId}/notifications`).push().key;
                     updates[`/users/${sellerId}/notifications/${sellerNotifId}`] = {
                         title: 'Dispute Raised Against Order',
-                        message: `The buyer has initiated an arbitration dispute for order #${activeDisputeOrderId.substring(1, 8).toUpperCase()}.`,
+                        message: `The buyer has initiated an arbitration dispute for order ${activeDisputeOrderId}.`,
                         type: 'warning',
                         read: false,
                         timestamp: firebase.database.ServerValue.TIMESTAMP
                     };
                 }
 
-                // Push Global Alert for Admins / Staff
-                const adminAlertId = db.ref('global_notifications/admin_alerts').push().key;
-                updates[`/global_notifications/admin_alerts/${adminAlertId}`] = {
+                // Push Global Alert for Admins / Staff (Separate to avoid permission denied on atomic update)
+                const adminAlertData = {
                     title: 'New Active Dispute',
-                    message: `Dispute (${disputeId}) raised on order #${activeDisputeOrderId.substring(1, 8).toUpperCase()} by ${user.displayName || 'a Buyer'}.`,
+                    message: `Dispute (${disputeId}) raised on order ${activeDisputeOrderId} by ${user.displayName || 'a Buyer'}.`,
                     type: 'alert',
                     userId: user.uid,
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                 };
 
                 await db.ref().update(updates);
+
+                // Attempt to send global alert (might fail depending on rules, but won't block dispute)
+                try {
+                    await db.ref('global_notifications/admin_alerts').push(adminAlertData);
+                } catch (e) {
+                    console.warn('Could not push admin alert (likely permission restricted):', e);
+                }
 
                 if (window.NotificationManager) {
                     window.NotificationManager.showToast('Dispute Submitted', 'Your claim and evidence have been sent to our arbitration team.', 'success');

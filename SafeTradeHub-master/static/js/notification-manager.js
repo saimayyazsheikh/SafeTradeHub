@@ -60,7 +60,7 @@ class NotificationManager {
 
     this.setupUI();
     this.isInitialized = true;
-    
+
   }
 
   setupUI() {
@@ -408,6 +408,24 @@ class NotificationManager {
         transform: translateY(-1px);
         box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
       }
+      .btn-primary-action {
+        background: #4f46e5;
+        color: white;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+      }
+      .btn-primary-action:hover {
+        background: #4338ca;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 15px rgba(79, 70, 229, 0.3);
+      }
+      .axiom-confirm-icon.type-primary {
+        background: #eef2ff;
+        color: #4f46e5;
+      }
+      .axiom-confirm-icon.type-danger {
+        background: #fee2e2;
+        color: #ef4444;
+      }
     `;
     document.head.appendChild(style);
 
@@ -441,14 +459,14 @@ class NotificationManager {
     confirmOverlay.className = 'axiom-confirm-overlay';
     confirmOverlay.innerHTML = `
         <div class="axiom-confirm-card">
-            <div class="axiom-confirm-icon">
+            <div class="axiom-confirm-icon" id="confirmIcon">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
             </div>
-            <div class="axiom-confirm-title" id="confirmTitle">Delete Item?</div>
-            <div class="axiom-confirm-text" id="confirmText">This action cannot be undone. Are you sure you want to proceed?</div>
+            <div class="axiom-confirm-title" id="confirmTitle">Confirm Action</div>
+            <div class="axiom-confirm-text" id="confirmText">Are you sure you want to proceed?</div>
             <div class="axiom-confirm-actions">
                 <button class="axiom-btn btn-ghost" id="confirmCancel">Cancel</button>
-                <button class="axiom-btn btn-danger-action" id="confirmProceed">Confirm</button>
+                <button class="axiom-btn btn-primary-action" id="confirmProceed">Confirm</button>
             </div>
         </div>
     `;
@@ -456,12 +474,12 @@ class NotificationManager {
 
     // Attach to Bell Button
     this.attachToBell();
-    
+
     // Observer for dynamically added bell buttons
     const observer = new MutationObserver(() => {
-        if (!document.getElementById('notificationBadgeEl')) {
-           this.attachToBell();
-        }
+      if (!document.getElementById('notificationBadgeEl')) {
+        this.attachToBell();
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
@@ -482,7 +500,7 @@ class NotificationManager {
       badge.id = 'notificationBadgeEl';
       badge.className = 'notification-badge-el';
       bellBtn.appendChild(badge);
-      
+
       this.updateUnreadCount();
     }
   }
@@ -516,20 +534,20 @@ class NotificationManager {
 
       // Only process alerts intended for the current user's role
       Object.entries(data).forEach(([id, alert]) => {
-          // If the alert is new (within last 30s) and we haven't seen it, show a toast
-          const now = Date.now();
-          if (alert.timestamp > now - 15000 && !this.seenGlobalAlerts?.has(id)) {
-              if (!this.seenGlobalAlerts) this.seenGlobalAlerts = new Set();
-              this.seenGlobalAlerts.add(id);
-              
-              // Only admins/staff/support should see these alerts
-              const role = (this.userRole || '').toLowerCase();
-              const isAdminStaff = role === 'admin' || role === 'staff' || role === 'system management';
-              
-              if (isAdminStaff) {
-                  this.showToast(alert.title, alert.message, 'info');
-              }
+        // If the alert is new (within last 30s) and we haven't seen it, show a toast
+        const now = Date.now();
+        if (alert.timestamp > now - 15000 && !this.seenGlobalAlerts?.has(id)) {
+          if (!this.seenGlobalAlerts) this.seenGlobalAlerts = new Set();
+          this.seenGlobalAlerts.add(id);
+
+          // Only admins/staff/support should see these alerts
+          const role = (this.userRole || '').toLowerCase();
+          const isAdminStaff = role === 'admin' || role === 'staff' || role === 'system management';
+
+          if (isAdminStaff) {
+            this.showToast(alert.title, alert.message, 'info');
           }
+        }
       });
     });
   }
@@ -564,9 +582,9 @@ class NotificationManager {
       // Legacy Support: map 'payment' to 'shop' if title contains 'Shop'
       let effectiveType = n.type;
       if (effectiveType === 'payment' && (n.title?.includes('Shop') || n.message?.includes('shop'))) {
-          effectiveType = 'shop';
+        effectiveType = 'shop';
       } else if (effectiveType === 'payment' && (n.title?.includes('Identity') || n.title?.includes('Verification'))) {
-          effectiveType = 'verification';
+        effectiveType = 'verification';
       }
 
       const typeClass = this.getTypeClass(effectiveType);
@@ -587,19 +605,19 @@ class NotificationManager {
     `}).join('');
   }
 
-   getTypeClass(type) {
-      const typeMap = {
-          'order': 'type-order',
-          'payment': 'type-payment',
-          'alert': 'type-alert',
-          'dispute': 'type-dispute',
-          'verification': 'type-verification',
-          'shop': 'type-shop'
-      };
-      return typeMap[type] || 'type-default';
+  getTypeClass(type) {
+    const typeMap = {
+      'order': 'type-order',
+      'payment': 'type-payment',
+      'alert': 'type-alert',
+      'dispute': 'type-dispute',
+      'verification': 'type-verification',
+      'shop': 'type-shop'
+    };
+    return typeMap[type] || 'type-default';
   }
 
-   getIconForType(type) {
+  getIconForType(type) {
     const icons = {
       order: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
       message: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -621,9 +639,9 @@ class NotificationManager {
 
     // Relative Time Logic
     if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
-    if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
-    
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+
     // Standard Time
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
@@ -636,13 +654,13 @@ class NotificationManager {
       const rect = btn.getBoundingClientRect();
       // Dropdown anchoring calculated universally safely
       dropdown.style.top = (rect.bottom + 12) + 'px';
-      
+
       const spaceRight = window.innerWidth - rect.right;
       // Keep it inside viewport
       if (spaceRight < 380) {
-          dropdown.style.right = '10px';
+        dropdown.style.right = '10px';
       } else {
-          dropdown.style.right = spaceRight + 'px';
+        dropdown.style.right = spaceRight + 'px';
       }
 
       dropdown.classList.toggle('show');
@@ -653,9 +671,9 @@ class NotificationManager {
     // Mark as read
     if (this.user) {
       try {
-         await firebase.database().ref(`users/${this.user.uid}/notifications/${id}`).update({ read: true });
+        await firebase.database().ref(`users/${this.user.uid}/notifications/${id}`).update({ read: true });
       } catch (err) {
-         console.warn("Could not mark as read", err);
+        console.warn("Could not mark as read", err);
       }
     }
 
@@ -681,27 +699,27 @@ class NotificationManager {
 
     if (Object.keys(updates).length > 0) {
       try {
-          await firebase.database().ref().update(updates);
-      } catch(e) {
-          console.error("Batch update failed:", e);
+        await firebase.database().ref().update(updates);
+      } catch (e) {
+        console.error("Batch update failed:", e);
       }
     }
   }
 
   showToast(title, message, type = 'success') {
-      const container = document.getElementById('axiomToastContainer');
-      if (!container) return;
+    const container = document.getElementById('axiomToastContainer');
+    if (!container) return;
 
-      const toast = document.createElement('div');
-      toast.className = `axiom-toast toast-${type}`;
-      
-      const icons = {
-          success: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>',
-          error: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-          info: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
-      };
+    const toast = document.createElement('div');
+    toast.className = `axiom-toast toast-${type}`;
 
-      toast.innerHTML = `
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>',
+      error: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      info: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+
+    toast.innerHTML = `
         <div class="toast-icon">
             ${icons[type] || icons.info}
         </div>
@@ -714,34 +732,47 @@ class NotificationManager {
         </div>
       `;
 
-      container.appendChild(toast);
-      
-      // Trigger animation
-      setTimeout(() => toast.classList.add('show'), 10);
+    container.appendChild(toast);
 
-      // Auto remove after 5s
-      setTimeout(() => {
-          toast.classList.remove('show');
-          setTimeout(() => toast.remove(), 400);
-      }, 5000);
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Auto remove after 5s
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }, 5000);
   }
 
-  showConfirm(title, message) {
+  showConfirm(title, message, type = 'primary') {
     return new Promise((resolve) => {
       const overlay = document.getElementById('axiomConfirmOverlay');
       const titleEl = document.getElementById('confirmTitle');
       const textEl = document.getElementById('confirmText');
       const proceedBtn = document.getElementById('confirmProceed');
       const cancelBtn = document.getElementById('confirmCancel');
+      const iconContainer = document.getElementById('confirmIcon');
 
       if (!overlay || !titleEl || !textEl || !proceedBtn || !cancelBtn) {
-        // Fallback to native confirm if UI elements missing
         resolve(window.confirm(message));
         return;
       }
 
+      // Update UI based on type
       titleEl.textContent = title;
       textEl.textContent = message;
+
+      // Update Icon and Colors
+      if (type === 'danger' || title.toLowerCase().includes('delete') || title.toLowerCase().includes('remove')) {
+        iconContainer.className = 'axiom-confirm-icon type-danger';
+        iconContainer.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>';
+        proceedBtn.className = 'axiom-btn btn-danger-action';
+      } else {
+        iconContainer.className = 'axiom-confirm-icon type-primary';
+        iconContainer.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        proceedBtn.className = 'axiom-btn btn-primary-action';
+      }
+
       overlay.classList.add('show');
 
       const cleanup = (result) => {
@@ -768,33 +799,33 @@ class NotificationManager {
 
 // Global notification helpers
 async function requestNotificationPermission() {
-    try {
-        const messaging = firebase.messaging();
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            const token = await messaging.getToken({
-                vapidKey: 'BJ13KKFRdr9XHWWFTGBZc1wSE5gRJaBLtUDH9QJxeCKDG2YolMlbnSrBIkEc_Aein7dq6M1-t9GQtJmUDQVice0'
-            });
-            sendTokenToServer(token);
-            if (window.NotificationManager) {
-                window.NotificationManager.showToast('Success', 'Notifications enabled! You\'ll receive updates about your orders.', 'success');
-            } else {
-                alert('Notifications enabled!');
-            }
-        } else {
-            alert('Notifications are disabled. You can enable them later by clicking the bell icon.');
-        }
-    } catch (error) {
-        console.error('Error getting FCM token:', error);
+  try {
+    const messaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      const token = await messaging.getToken({
+        vapidKey: 'BJ13KKFRdr9XHWWFTGBZc1wSE5gRJaBLtUDH9QJxeCKDG2YolMlbnSrBIkEc_Aein7dq6M1-t9GQtJmUDQVice0'
+      });
+      sendTokenToServer(token);
+      if (window.NotificationManager) {
+        window.NotificationManager.showToast('Success', 'Notifications enabled! You\'ll receive updates about your orders.', 'success');
+      } else {
+        alert('Notifications enabled!');
+      }
+    } else {
+      alert('Notifications are disabled. You can enable them later by clicking the bell icon.');
     }
+  } catch (error) {
+    console.error('Error getting FCM token:', error);
+  }
 }
 
 function sendTokenToServer(token) {
-    fetch('/save-fcm-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fcmToken: token })
-    }).catch(error => console.error('Error saving token:', error));
+  fetch('/save-fcm-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fcmToken: token })
+  }).catch(error => console.error('Error saving token:', error));
 }
 
 window.requestNotificationPermission = requestNotificationPermission;

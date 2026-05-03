@@ -24,7 +24,18 @@ async function initUploadFlow() {
             }
         }
 
-        // 2. Setup UI
+        // 2. Wallet Check (Enforcement)
+        if (window.WalletModule) {
+            const isRestricted = await window.WalletModule.checkRestriction(currentUser.id);
+            if (isRestricted) {
+                window.NotificationManager.showToast('Account Restricted', 'Your wallet balance is negative. Please clear your dues to list new items.', 'error');
+                showLoading(false);
+                setTimeout(() => { window.location.href = 'wallet.html'; }, 3000);
+                return;
+            }
+        }
+
+        // 3. Setup UI
         setupNavigation();
         setupEventListeners();
         addSpecificationRow(); // Start with one empty spec row
@@ -143,6 +154,10 @@ function setupEventListeners() {
     const categorySelect = document.getElementById('productCategory');
     if (categorySelect) {
         categorySelect.addEventListener('change', async (e) => {
+            const container = document.getElementById('dynamicAttributesContainer');
+            if (container) {
+                container.innerHTML = '<div class="axiom-loading" style="padding: 20px; text-align: center; color: #6366f1;"><i class="fas fa-spinner fa-spin"></i> Loading category fields...</div>';
+            }
             await formBuilder.loadCategorySchema(e.target.value);
         });
     }
@@ -335,6 +350,15 @@ async function handleFormSubmit(e, targetStatus = 'pending_verification') {
     
     const isDraft = targetStatus === 'draft';
     const isAuction = document.getElementById('auctionEnabled').checked;
+
+    // 0. Wallet Enforcement Check
+    if (window.WalletModule) {
+        const isRestricted = await window.WalletModule.checkRestriction(currentUser.id);
+        if (isRestricted) {
+            window.NotificationManager.showToast('Submission Blocked', 'You cannot list items with a negative wallet balance.', 'error');
+            return;
+        }
+    }
 
     // 1. Validation
     const name = document.getElementById('productName').value.trim();

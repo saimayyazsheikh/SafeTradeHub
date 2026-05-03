@@ -338,9 +338,9 @@ h1, h2, h3, .logo {
 }
 
 .cat-axiom-title {
-  font-weight: 700;
-  color: #1e293b;
-  font-size: 0.95rem;
+  font-weight: 800; /* Increased from 700 to 800 for maximum bold impact */
+  color: #0f172a;
+  font-size: 1.05rem; /* Slightly larger for better readability */
 }
 
 .cat-axiom-sub {

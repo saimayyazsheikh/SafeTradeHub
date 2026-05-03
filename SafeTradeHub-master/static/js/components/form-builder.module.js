@@ -19,23 +19,45 @@ class FormBuilder {
      * Fetches metadata for a specific category and renders the dynamic fields.
      */
     async loadCategorySchema(category) {
-        if (this.currentCategory === category) return;
+        console.log(`[FormBuilder] Loading schema for: ${category}`);
+        if (!category) {
+            this.metadata = null;
+            this.render();
+            return;
+        }
+
+        if (this.currentCategory === category && this.metadata) return;
         this.currentCategory = category;
 
         try {
             const snapshot = await firebase.database().ref(`category_metadata/${category}`).once('value');
             this.metadata = snapshot.val();
+            
+            if (!this.metadata) {
+                console.warn(`[FormBuilder] No metadata found for category: ${category}`);
+            } else {
+                console.log(`[FormBuilder] Schema loaded successfully for ${category}`);
+            }
+
             this.render();
         } catch (error) {
-            console.error("Error loading category schema:", error);
-            this.clear();
+            console.error("[FormBuilder] Error loading category schema:", error);
+            this.metadata = null;
+            this.render();
         }
     }
 
     render() {
         this.clear();
-        if (!this.metadata) return;
+        if (!this.metadata) {
+            // Optional: Show a subtle placeholder if no specific fields
+            if (this.container) {
+                this.container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9rem; font-style: italic;">No specific fields for this category.</p>';
+            }
+            return;
+        }
 
+        console.log("[FormBuilder] Rendering dynamic fields...");
         // 1. Render Dynamic Fields
         if (this.metadata.fields) {
             const fieldsHtml = this.metadata.fields.map(field => this.createFieldHtml(field)).join('');
@@ -73,15 +95,19 @@ class FormBuilder {
 
         switch (field.type) {
             case 'text':
-                inputHtml = `<input type="text" id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-input" placeholder="${field.label}" ${requiredAttr}>`;
+                inputHtml = `<input type="text" id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-input" placeholder="${field.placeholder || field.label}" ${requiredAttr}>`;
+                break;
+            case 'number':
+                inputHtml = `<input type="number" id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-input" placeholder="${field.placeholder || field.label}" min="${field.min || 0}" max="${field.max || ''}" ${requiredAttr}>`;
                 break;
             case 'textarea':
-                inputHtml = `<textarea id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-textarea" rows="4" placeholder="${field.label}" ${requiredAttr}></textarea>`;
+                inputHtml = `<textarea id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-textarea" rows="4" placeholder="${field.placeholder || field.label}" ${requiredAttr}></textarea>`;
                 break;
+            case 'select':
             case 'dropdown':
-                const options = field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                const options = (field.options || []).map(opt => `<option value="${opt}">${opt}</option>`).join('');
                 inputHtml = `
-                    <select id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-select" ${requiredAttr}>
+                    <select id="dynamic_${field.id}" name="dynamic_${field.id}" class="axiom-select" style="display: block !important; visibility: visible !important; opacity: 1 !important; min-height: 45px;" ${requiredAttr}>
                         <option value="">Select ${field.label}</option>
                         ${options}
                     </select>
@@ -115,6 +141,7 @@ class FormBuilder {
         if (productStock) productStock.removeAttribute('required');
 
         const variants = this.metadata.variants || [];
+        const variantType = this.metadata.variantType || 'Size';
         const variantHtml = variants.map(v => `
             <div class="variant-stock-item">
                 <label>${v}</label>
@@ -124,8 +151,8 @@ class FormBuilder {
 
         this.variantContainer.innerHTML = `
             <div class="axiom-card variant-inventory-card" style="margin-top: 24px;">
-                <h2 class="card-title">Variant Inventory (Size-wise Stock)</h2>
-                <p class="card-desc">Specify available quantities for each ${this.metadata.variantType || 'size'}.</p>
+                <h2 class="card-title">Variant Inventory (${variantType}-wise Stock)</h2>
+                <p class="card-desc">Specify available quantities for each ${variantType.toLowerCase()}.</p>
                 <div class="variant-stock-grid">
                     ${variantHtml}
                 </div>

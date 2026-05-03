@@ -294,7 +294,7 @@ class HomeProductsManager {
     }
 
     formatPrice(price) {
-        return new Intl.NumberFormat('en-PK').format(price);
+        return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price);
     }
 
     /**

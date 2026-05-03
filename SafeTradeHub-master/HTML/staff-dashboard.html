@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Staff Dashboard - Safe Trade Hub</title>
   <link rel="stylesheet" href="/static/css/admin-dashboard.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="/static/js/analytics-engine.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></noscript>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 
 <body style="display: none;" class="admin-dashboard-body">
@@ -29,11 +29,7 @@
         <h1>Staff Portal</h1>
       </div>
       <div class="admin-header-actions">
-        <div class="admin-notifications">
-          <button class="notification-btn" id="notificationBtn" aria-label="Notifications">
-            <i class="fas fa-bell"></i>
-          </button>
-        </div>
+        <!-- Notifications Removed -->
         <div class="admin-user-menu">
           <button class="admin-user-btn" id="adminUserBtn">
             <div class="admin-avatar" id="staffAvatarCircle">
@@ -119,6 +115,7 @@
           <a href="#disputes" class="nav-item" data-section="disputes" data-role="Finance Management Staff">
             <i class="fas fa-gavel"></i>
             <span>Dispute Resolution</span>
+            <span class="nav-badge pending" id="disputesCount" style="display: none;">0</span>
           </a>
         </div>
 
@@ -778,6 +775,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
+    // Show body immediately — auth check will redirect if unauthorized
+    document.body.style.display = 'block';
   </script>
 
   <!-- Verification Details Modal -->
@@ -982,43 +981,6 @@
     </div>
   </div>
 
-  <!-- Dispute Modals -->
-  <!-- Dispute View Modal -->
-  <div id="disputeViewModal" class="modal"
-    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-content"
-      style="background-color: #fefefe; margin: 5% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 800px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-        <h2 style="margin: 0; font-size: 1.5rem; color: #1f2937;">Dispute Details - <span
-            id="viewDisputeIdTitle"></span></h2>
-        <span class="close" onclick="closeDisputeViewModal()"
-          style="color: #9ca3af; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-      </div>
-      <div class="dispute-details-grid"
-        style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <div class="detail-panel" style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-          <p><strong>Order ID:</strong> <span id="vDispOrder"></span></p>
-          <p><strong>Status:</strong> <span id="vDispStatus" class="nav-badge pending"
-              style="padding: 4px 8px; border-radius: 12px; font-size: 0.8em;"></span></p>
-          <p><strong>Assigned To:</strong> <span id="vDispAssignee">Unassigned</span></p>
-        </div>
-        <div class="detail-panel" style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-          <p><strong>Raised By:</strong> <span id="vDispRaiser"></span></p>
-          <p><strong>Reason:</strong> <span id="vDispReason"></span></p>
-          <p><strong>Date Generated:</strong> <span id="vDispDate"></span></p>
-        </div>
-      </div>
-      <div id="vDispEvidenceGallery" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-        <!-- Images injected here -->
-      </div>
-
-      <div style="text-align: right; border-top: 1px solid #eee; padding-top: 20px;">
-        <button type="button" class="btn btn-secondary" onclick="closeDisputeViewModal()"
-          style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Close</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Dispute Action Modal (Gavel) -->
   <div id="disputeActionModal" class="modal"
@@ -1091,55 +1053,6 @@
 
 
 
-  <!-- Arbitration Enforcer Modal -->
-  <div id="arbitrationEnforcerModal" class="modal"
-    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-content"
-      style="background-color: #fefefe; margin: 10% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 450px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-top: 5px solid #ef4444;">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-        <h2 style="margin: 0; font-size: 1.4rem; color: #1f2937; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-gavel" style="color: #ef4444;"></i> Arbitration Ruling
-        </h2>
-        <span class="close" onclick="closeArbitrationModal()"
-          style="color: #9ca3af; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-      </div>
-
-      <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">
-        Enforce a final resolution for Dispute <strong id="arbitrationDisputeIdText" style="color: #111827;"></strong>.
-        This action will permanently lock the core system state and command the Escrow engine to release funds based on
-        your selection.
-      </p>
-
-      <div class="form-group" style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Financial Outcome</label>
-        <select id="arbitrationOutcome" class="form-input"
-          style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb;">
-          <option value="refund_buyer">Refund Buyer (Cancel Escrow)</option>
-          <option value="release_seller">Release to Seller (Authorize Escrow)</option>
-          <option value="partial_split">50/50 Split (Distribute Escrow)</option>
-        </select>
-      </div>
-
-      <div class="form-group" style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Official Justification /
-          Notes</label>
-        <textarea id="arbitrationNotes" class="form-input" rows="3"
-          placeholder="Explain the reasoning behind this financial decision. This will be sent to both parties..."
-          style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; resize: none;"></textarea>
-      </div>
-
-      <div
-        style="text-align: right; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeArbitrationModal()"
-          style="padding: 10px 15px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Cancel</button>
-        <button type="button" class="btn btn-danger" onclick="enforceArbitrationRuling()"
-          style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
-          <i class="fas fa-lock"></i> Enforce Ruling
-        </button>
-      </div>
-    </div>
-  </div>
 
 
 
@@ -1470,86 +1383,119 @@
 
   <!-- Withdrawal Approve & Payout Modal -->
   <div id="withdrawalApproveModal" class="modal"
-    style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-content"
-      style="background-color: #fefefe; margin: 5% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-        <h2 style="margin: 0; font-size: 1.5rem; color: #1f2937;">Approve & Payout</h2>
-        <span class="close" onclick="closeWithdrawalApproveModal()"
-          style="color: #9ca3af; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+    style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(15,23,42,0.6); backdrop-filter: blur(6px);">
+    <div class="wallet-modal-card" style="margin: 4% auto; width: 90%; max-width: 560px;">
+      <div class="wallet-modal-header">
+        <div class="wallet-modal-header-left">
+          <div class="wallet-modal-icon approve"><i class="fas fa-paper-plane"></i></div>
+          <div>
+            <div class="wallet-modal-title">Approve &amp; Payout</div>
+            <div class="wallet-modal-subtitle">Review details carefully before releasing funds</div>
+          </div>
+        </div>
+        <button class="wallet-modal-close" onclick="closeWithdrawalApproveModal()"><i class="fas fa-times"></i></button>
       </div>
-      <div id="withdrawalApproveBody">
-        <div class="field mb-3">
-          <label class="field-label">User</label>
-          <div class="field-value" id="approveUserName">-</div>
+      <div class="wallet-modal-summary">
+        <div class="wallet-summary-item">
+          <div class="wallet-summary-label">Seller</div>
+          <div class="wallet-summary-value" id="approveUserName" style="font-size:14px;">—</div>
         </div>
-        <div class="field mb-3">
-          <label class="field-label">Amount</label>
-          <div class="field-value" id="approveAmount">-</div>
+        <div class="wallet-summary-item">
+          <div class="wallet-summary-label">Payout Amount</div>
+          <div class="wallet-summary-value amount" id="approveAmount">—</div>
         </div>
-        <div class="field mb-3">
-          <label class="field-label">Current Balance</label>
-          <div class="field-value" id="approveCurrentBalance">-</div>
-        </div>
-        <div class="field mb-3">
-          <label class="field-label">Bank Details</label>
-          <div class="field-value" id="approveBankDetails">-</div>
-        </div>
-        <div class="form-group mb-4">
-          <label class="field-label" for="proofUpload">Upload Payment Screenshot <span
-              style="color: #dc3545;">*</span></label>
-          <input type="file" id="proofUpload" accept="image/*" class="form-input"
-            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
-          <small class="text-muted">Image will be stored in gs://safetradehub/payment_proofs/</small>
-        </div>
-        <div class="form-group mb-4">
-          <label class="field-label" for="adminNote">Admin Note (Optional)</label>
-          <textarea id="adminNote" rows="2" class="form-input"
-            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-            placeholder="Add any internal note..."></textarea>
+        <div class="wallet-summary-item">
+          <div class="wallet-summary-label">Current Balance</div>
+          <div class="wallet-summary-value balance" id="approveCurrentBalance">—</div>
         </div>
       </div>
-      <div style="text-align: right; margin-top: 25px;">
-        <button class="btn btn-secondary" onclick="closeWithdrawalApproveModal()"
-          style="margin-right: 10px;">Cancel</button>
-        <button class="btn btn-success" onclick="processWithdrawalApproval()">Pay & Complete</button>
+      <div class="wallet-modal-body">
+        <input type="hidden" id="approveRequestId">
+        <div class="wallet-info-row">
+          <div class="wallet-info-icon bank"><i class="fas fa-university"></i></div>
+          <div class="wallet-info-detail">
+            <div class="wallet-info-key">Bank Details</div>
+            <div class="wallet-info-val" id="approveBankDetails">—</div>
+          </div>
+        </div>
+        <div>
+          <div class="wallet-field-label">
+            <i class="fas fa-image" style="color:#6366f1;"></i>
+            Payment Screenshot <span class="wallet-field-required">*</span>
+          </div>
+          <div class="wallet-upload-zone" id="staffUploadZone">
+            <input type="file" id="proofUpload" accept="image/*" onchange="handleStaffFileSelect(this)">
+            <div class="wallet-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <div class="wallet-upload-text">Click or drag &amp; drop screenshot here</div>
+            <div class="wallet-upload-hint">PNG, JPG, WEBP · Max 10MB</div>
+          </div>
+          <div class="wallet-upload-preview" id="staffUploadPreview">
+            <i class="fas fa-check-circle"></i>
+            <span id="staffUploadFilename">file selected</span>
+          </div>
+        </div>
+        <div>
+          <div class="wallet-field-label"><i class="fas fa-sticky-note" style="color:#94a3b8;"></i> Internal Note <span style="color:#94a3b8; font-weight:400;">(optional)</span></div>
+          <textarea id="adminNote" class="wallet-note-area" placeholder="Add any internal notes visible only to staff team..."></textarea>
+        </div>
+        <div class="wallet-warning">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>This action will mark the withdrawal as <strong>Completed</strong> and cannot be undone. Ensure the payment has been transferred before proceeding.</span>
+        </div>
+      </div>
+      <div class="wallet-modal-footer">
+        <button class="wallet-btn wallet-btn-cancel" onclick="closeWithdrawalApproveModal()">Cancel</button>
+        <button class="wallet-btn wallet-btn-approve" onclick="processWithdrawalApproval()">
+          <i class="fas fa-check"></i> Confirm &amp; Pay
+        </button>
       </div>
     </div>
   </div>
 
   <!-- Withdrawal Reject Modal -->
   <div id="withdrawalRejectModal" class="modal"
-    style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-    <div class="modal-content"
-      style="background-color: #fefefe; margin: 5% auto; padding: 25px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-        <h2 style="margin: 0; font-size: 1.5rem; color: #1f2937;">Reject Withdrawal</h2>
-        <span class="close" onclick="closeWithdrawalRejectModal()"
-          style="color: #9ca3af; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+    style="display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(15,23,42,0.6); backdrop-filter: blur(6px);">
+    <div class="wallet-modal-card" style="margin: 6% auto; width: 90%; max-width: 480px;">
+      <div class="wallet-modal-header">
+        <div class="wallet-modal-header-left">
+          <div class="wallet-modal-icon reject"><i class="fas fa-ban"></i></div>
+          <div>
+            <div class="wallet-modal-title">Reject Withdrawal</div>
+            <div class="wallet-modal-subtitle">Funds will be returned to the seller's wallet</div>
+          </div>
+        </div>
+        <button class="wallet-modal-close" onclick="closeWithdrawalRejectModal()"><i class="fas fa-times"></i></button>
       </div>
-      <div id="withdrawalRejectBody">
-        <div class="field mb-3">
-          <label class="field-label">User</label>
-          <div class="field-value" id="rejectUserName">-</div>
+      <div class="wallet-modal-summary" style="grid-template-columns: 1fr 1fr;">
+        <div class="wallet-summary-item">
+          <div class="wallet-summary-label">Seller</div>
+          <div class="wallet-summary-value" id="rejectUserName" style="font-size:14px;">—</div>
         </div>
-        <div class="field mb-3">
-          <label class="field-label">Amount</label>
-          <div class="field-value" id="rejectAmount">-</div>
-        </div>
-        <div class="form-group mb-4">
-          <label class="field-label" for="rejectReason">Reason of Rejection <span
-              style="color: #dc3545;">*</span></label>
-          <textarea id="rejectReason" rows="3" class="form-input"
-            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-            placeholder="Explain why this withdrawal is being rejected..."></textarea>
+        <div class="wallet-summary-item">
+          <div class="wallet-summary-label">Amount to Return</div>
+          <div class="wallet-summary-value amount" id="rejectAmount">—</div>
         </div>
       </div>
-      <div style="text-align: right; margin-top: 25px;">
-        <button class="btn btn-secondary" onclick="closeWithdrawalRejectModal()"
-          style="margin-right: 10px;">Cancel</button>
-        <button class="btn btn-danger" onclick="processWithdrawalRejection()">Reject Request</button>
+      <div class="wallet-modal-body">
+        <input type="hidden" id="rejectRequestId">
+        <div>
+          <div class="wallet-field-label">
+            <i class="fas fa-comment-alt" style="color:#ef4444;"></i>
+            Reason for Rejection <span class="wallet-field-required">*</span>
+          </div>
+          <textarea id="rejectReason" class="wallet-reject-area"
+            placeholder="Describe clearly why this request is being rejected. This message will be sent to the seller..."></textarea>
+        </div>
+        <div class="wallet-warning">
+          <i class="fas fa-undo"></i>
+          <span>The withheld amount will be <strong>credited back</strong> to the seller's wallet balance immediately upon rejection.</span>
+        </div>
+      </div>
+      <div class="wallet-modal-footer">
+        <button class="wallet-btn wallet-btn-cancel" onclick="closeWithdrawalRejectModal()">Cancel</button>
+        <button class="wallet-btn wallet-btn-reject" onclick="processWithdrawalRejection()">
+          <i class="fas fa-times-circle"></i> Confirm Rejection
+        </button>
       </div>
     </div>
   </div>
@@ -1557,10 +1503,13 @@
   <div style="margin-bottom: 50px;"></div>
 
   <!-- Staff Core Logic -->
-  <script src="/static/js/staff-dashboard.js?v=42"></script>
-  <script src="/static/js/disputes-engine.js?v=4"></script>
-  <script src="/static/js/logistics-hub-engine.js?v=2"></script>
-  <script src="/static/js/notification-manager.js?v=1"></script>
+  <script src="/static/js/analytics-engine.js" defer></script>
+  <script src="/static/js/modules/wallet.module.js" defer></script>
+  <script src="/static/js/modules/dispute.module.js" defer></script>
+  <script src="/static/js/staff-dashboard.js?v=46" defer></script>
+  <script src="/static/js/disputes-engine.js?v=4" defer></script>
+  <script src="/static/js/logistics-hub-engine.js?v=2" defer></script>
+  <!-- Notification Manager Removed -->
   <!-- Shared Dispute Detail Viewer (Admin Parity) -->
   <div id="disputeViewModal" class="modal"
     style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
@@ -1622,9 +1571,8 @@
         <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Financial Outcome</label>
         <select id="arbitrationOutcome" class="form-input"
           style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb;">
-          <option value="refund_buyer">Refund Buyer (Cancel Escrow)</option>
-          <option value="release_seller">Release to Seller (Authorize Escrow)</option>
-          <option value="partial_split">50/50 Split (Distribute Escrow)</option>
+          <option value="VERDICT_BUYER_FAULT">Buyer Fault / Remorse (10% Penalty, Seller Comp)</option>
+          <option value="VERDICT_SELLER_FAULT">Seller Fault (Full Refund & Seller Penalty)</option>
         </select>
       </div>
 

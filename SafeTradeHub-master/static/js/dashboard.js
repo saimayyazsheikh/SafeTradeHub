@@ -12,7 +12,11 @@ function formatOrderStatus(status) {
         'out_for_delivery': 'Out for Delivery',
         'delivered': 'Delivered',
         'cancelled': 'Cancelled',
-        'disputed': 'Disputed'
+        'disputed': 'UNDER DISPUTE',
+        'under_review': 'UNDER DISPUTE',
+        'REFUNDED': 'DISPUTED',
+        'refunded': 'DISPUTED',
+        'refund': 'DISPUTED'
     };
     return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Pending');
 }
@@ -142,7 +146,7 @@ async function renderSellerDashboard(uid, userData) {
             <div class="stat-card">
                 <div class="stat-icon orange"><i class="fas fa-wallet"></i></div>
                 <div class="stat-info">
-                    <h3 id="walletBalance">RS ${walletBalance}</h3>
+                    <h3 id="walletBalance">RS ${parseFloat(walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                     <p>Wallet Balance</p>
                 </div>
             </div>
@@ -240,7 +244,7 @@ async function renderSellerDashboard(uid, userData) {
                             <tbody>
                                 ${orders.slice(0, 5).map(o => `
                                     <tr>
-                                        <td>#${o.id.substring(1, 6)}</td>
+                                        <td>${o.id}</td>
                                         <td>${o.shippingAddress?.fullName || 'Customer'}</td>
                                         <td>RS ${o.total}</td>
                                         <td><span class="status-badge ${o.status === 'completed' || o.status === 'delivered' ? 'completed' : 'pending'}">${formatOrderStatus(o.status)}</span></td>
@@ -311,7 +315,7 @@ async function renderBuyerDashboard(uid, userData) {
             <div class="stat-card">
                 <div class="stat-icon green"><i class="fas fa-wallet"></i></div>
                 <div class="stat-info">
-                    <h3 id="walletBalance">RS ${walletBalance}</h3>
+                    <h3 id="walletBalance">RS ${parseFloat(walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                     <p>Wallet Balance</p>
                 </div>
             </div>
@@ -346,7 +350,7 @@ async function renderBuyerDashboard(uid, userData) {
                             <tbody>
                                 ${orders.slice(0, 5).map(o => `
                                     <tr>
-                                        <td>#${o.id.substring(1, 6)}</td>
+                                        <td>${o.id}</td>
                                         <td>${new Date(o.createdAt).toLocaleDateString()}</td>
                                         <td>RS ${o.total}</td>
                                         <td><span class="status-badge ${o.status === 'completed' || o.status === 'delivered' ? 'completed' : 'pending'}">${formatOrderStatus(o.status)}</span></td>
@@ -358,32 +362,7 @@ async function renderBuyerDashboard(uid, userData) {
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3>Quick Actions</h3>
-                </div>
-                <div class="card-body">
-                    <div class="quick-actions-grid">
-                        <a href="index.html" class="action-btn">
-                            <i class="fas fa-search"></i>
-                            <span>Browse</span>
-                        </a>
-                        <a href="cart.html" class="action-btn">
-                            <i class="fas fa-shopping-cart"></i>
-                            <span>Cart</span>
-                        </a>
-                        <a href="wallet.html" class="action-btn">
-                            <i class="fas fa-wallet"></i>
-                            <span>Wallet</span>
-                        </a>
-                        <a href="profile.html" class="action-btn">
-                            <i class="fas fa-user-cog"></i>
-                            <span>Settings</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
+
         </div>
     `;
 }
@@ -431,12 +410,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const hash = window.location.hash;
         if (hash === '#insights' && navInsights && mainView && insightsView) {
             mainView.style.display = 'none';
-            if (typeof disputesView !== 'undefined' && disputesView) disputesView.style.display = 'none';
+            if (document.getElementById('disputes-view')) {
+                document.getElementById('disputes-view').style.display = 'none';
+            }
             insightsView.style.display = 'block';
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             navInsights.classList.add('active');
+            
+            // Ensure auth is ready
             const user = firebase.auth().currentUser;
-            if (user) initV2Insights(user.uid);
+            if (user) {
+                initV2Insights(user.uid);
+            } else {
+                // Wait for auth if not ready
+                const unsubscribe = firebase.auth().onAuthStateChanged(u => {
+                    if (u) {
+                        initV2Insights(u.uid);
+                        unsubscribe();
+                    }
+                });
+            }
         }
     }
 
@@ -470,8 +463,8 @@ async function loadSellerDisputes() {
 
                 tbody.innerHTML = disputes.map(d => `
                     <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
-                        <td style="padding: 16px 24px; font-weight: 600; color: #4f46e5;">#${d.id.slice(-6).toUpperCase()}</td>
-                        <td style="padding: 16px 24px;">#${(d.orderId || '').slice(-6).toUpperCase()}</td>
+                        <td style="padding: 16px 24px; font-weight: 600; color: #4f46e5;">${d.id}</td>
+                        <td style="padding: 16px 24px;">${d.orderId || ''}</td>
                         <td style="padding: 16px 24px; color: #1e293b;">
                             <div style="font-weight: 600;">${d.issue || d.reason || 'Product Issue'}</div>
                             <div style="font-size: 0.8rem; color: #64748b; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.description || d.comment || ''}</div>
@@ -509,7 +502,7 @@ async function initV2Insights(uid) {
 
         if (crEl) crEl.innerText = stats.conversionRate + '%';
         if (tvEl) tvEl.innerText = stats.totalViews.toLocaleString();
-        if (trEl) trEl.innerText = 'RS ' + stats.revenue.toLocaleString();
+        if (trEl) trEl.innerText = 'RS ' + stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Update Tooltip based on conversion
         const tooltip = document.getElementById('v2-conversionTooltip');

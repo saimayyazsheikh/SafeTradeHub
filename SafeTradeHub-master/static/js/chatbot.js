@@ -168,6 +168,7 @@ class Chatbot {
         <div class="chips" id="chips">
           <div class="chip">How do I create an account?</div>
           <div class="chip">Fees & payments</div>
+          <div class="chip">Safe Ship & Escrow</div>
           <div class="chip">Delivery time</div>
           <div class="chip">Report a seller</div>
           <div class="chip">Contact support</div>
@@ -205,85 +206,84 @@ class Chatbot {
     const getBotResponse = (text) => {
       const lower = text.toLowerCase();
 
-      // --- Account & Registration ---
-      if (lower.includes('account') || lower.includes('register') || lower.includes('sign up') || lower.includes('join')) {
-        return "To create an account, click the 'Join' button in the top right corner. You can sign up as a Buyer or Seller. It's free to join!";
-      }
-      if (lower.includes('login') || lower.includes('sign in') || lower.includes('log in')) {
-        return "Click 'Sign In' at the top right. You can use your email/password or sign in with Google.";
-      }
-      if (lower.includes('password') || lower.includes('reset') || lower.includes('forgot')) {
-        return "If you forgot your password, go to the Sign In page and click 'Forgot Password?' to receive a reset link.";
-      }
-      if (lower.includes('delete account') || lower.includes('close account')) {
-        return "To close your account, please contact our support team directly at safetradehubteam@gmail.com for assistance.";
+      // --- PRIORITY 1: DISPUTES & REPORTING (Highest priority to avoid 'seller' keyword overlap) ---
+      if (lower.includes('report') || lower.includes('dispute') || lower.includes('problem') || lower.includes('issue') || lower.includes('scam') || lower.includes('complaint')) {
+        return `<b>Dispute Resolution Process:</b>
+        <br>1. Go to <b>Order Details</b> and click <b>'Open Dispute'</b>.
+        <br>2. Our Staff reviews the logs and photos from the <b>'Verification Hub'</b>.
+        <br>3. <b>Transparency Policy:</b> If the buyer is at fault (remorse/error), a <b>10% Holding Fee</b> is deducted from the refund to cover logistics.
+        <br>4. If the seller is at fault, a <b>100% Full Refund</b> is issued to your wallet.`;
       }
 
-      // --- Selling & Products ---
-      if (lower.includes('sell') || lower.includes('listing') || lower.includes('post product')) {
-        return "To sell an item, sign in as a Seller and click 'Add Product'. Fill in the details, upload photos, and set your price.";
+      // --- PRIORITY 2: LOGISTICS & TIMELINE ---
+      if (lower.includes('how long') || lower.includes('days') || lower.includes('arrive') || lower.includes('arrival') || (lower.includes('delivery') && lower.includes('time'))) {
+        return "<b>Delivery Timeline:</b> Typical delivery takes <b>4-7 business days</b>. This window includes secure transit to our hubs and expert manual verification to ensure you get exactly what you paid for.";
       }
-      if (lower.includes('fee') || lower.includes('cost') || lower.includes('charge') || lower.includes('commission')) {
-        return "We charge a flat 2% service fee on successful sales. There are no listing fees!";
+      if (lower.includes('track') || lower.includes('status') || lower.includes('where is my') || lower.includes('hub')) {
+        return `<b>Safe Ship Tracking Stages:</b>
+        <br>1. <b>Origin Hub:</b> Seller drops off the item.
+        <br>2. <b>Verification Hub:</b> SafeTradeHub staff inspects and confirms the product.
+        <br>3. <b>Destination Hub:</b> Final leg delivery to your doorstep.
+        <br>Check your 'Track Shipment' page for real-time updates.`;
       }
-      if (lower.includes('prohibited') || lower.includes('illegal') || lower.includes('allowed')) {
-        return "We do not allow illegal items, weapons, drugs, or counterfeit goods. Please review our Terms of Service for the full list.";
-      }
-
-      // --- Buying & Orders ---
-      if (lower.includes('buy') || lower.includes('purchase') || lower.includes('order')) {
-        return "To buy, simply browse or search for an item, click on it, and select 'Add to Cart' or 'Buy Now'. Follow the checkout steps to pay securely.";
-      }
-      if (lower.includes('track') || lower.includes('status') || lower.includes('where is my')) {
-        return "You can track your orders in your Profile under 'My Orders'. You'll see real-time updates there.";
-      }
-      if (lower.includes('cancel')) {
-        return "You can cancel an order before it is shipped. Go to 'My Orders' and select 'Cancel'. If it's already shipped, you may need to request a return.";
+      if (lower.includes('calculate') || (lower.includes('shipping') && (lower.includes('fee') || lower.includes('cost') || lower.includes('much')))) {
+        return `<b>Shipping Fee Calculation:</b>
+        <br>Our AI engine calculates costs based on:
+        <br>• <b>Weight:</b> RS 250 (Light) to RS 1,000 (Heavy).
+        <br>• <b>Volume:</b> Size (LxWxH).
+        <br>• <b>Fragility:</b> Solid, Standard, or Fragile (Impacts insurance).`;
       }
 
-      // --- Payments & Escrow ---
-      if (lower.includes('payment') || lower.includes('pay') || lower.includes('card') || lower.includes('wallet')) {
-        return "We accept credit/debit cards and wallet balances. All payments are held securely in Escrow until you receive your item.";
+      // --- PRIORITY 3: FINANCIALS & FEES ---
+      if (lower.includes('fee') || lower.includes('cost') || lower.includes('charge') || lower.includes('commission') || lower.includes('percent') || lower.includes('%')) {
+        return `<b>Tiered Escrow Fees:</b>
+        <br>• <b>2% Fee:</b> Products up to RS 10,000.
+        <br>• <b>3.5% Fee:</b> Products between RS 10,001 and RS 50,000.
+        <br>• <b>5% Fee:</b> Products above RS 50,000.
+        <br><i>Fees are strictly calculated on the product subtotal (Price × Quantity), excluding shipping costs. Listing is free!</i>`;
       }
-      if (lower.includes('escrow')) {
-        return "Escrow is our safety net. We hold the buyer's money and only release it to the seller once the buyer confirms they received the item as described.";
+      if (lower.includes('escrow') || lower.includes('hold') || lower.includes('safe') || lower.includes('money')) {
+        return "<b>Escrow Protection:</b> Your money is held securely by SafeTradeHub. We only release it to the seller <b>ONLY</b> after the product is <b>Successfully Verified</b> at our hub <b>AND</b> confirmed as <b>Delivered</b> to you.";
       }
-      if (lower.includes('refund') || lower.includes('return') || lower.includes('money back')) {
-        return "If an item is not as described, you can request a return within 3 days of delivery. Once approved, your payment will be refunded from Escrow.";
-      }
-
-      // --- Shipping & Delivery ---
-      if (lower.includes('delivery') || lower.includes('shipping') || lower.includes('arrive') || lower.includes('how long')) {
-        return "Delivery times vary by seller and location, usually 3-5 business days. Check the product page for estimated delivery times.";
-      }
-
-      // --- Safety & Trust ---
-      if (lower.includes('safe') || lower.includes('scam') || lower.includes('trust') || lower.includes('legit')) {
-        return "SafeTradeHub is 100% safe. We verify all sellers and use Escrow protection so you never lose money on a bad deal.";
-      }
-      if (lower.includes('report') || lower.includes('dispute') || lower.includes('issue') || lower.includes('problem')) {
-        return "If you have a problem, go to the order details and click 'Open Dispute'. Our team will investigate and intervene if necessary.";
-      }
-      if (lower.includes('verify') || lower.includes('verification') || lower.includes('badge')) {
-        return "Verification builds trust! Go to your Profile > Verify Identity to upload your ID and get the Verified badge.";
+      if (lower.includes('wallet') || lower.includes('balance') || lower.includes('withdraw') || lower.includes('payout')) {
+        return "<b>Wallet & Payouts:</b> Earnings/Refunds are credited to your Wallet. Sellers can withdraw funds once the Escrow is released (after delivery). Buyers get instant refunds for cancellations or won disputes.";
       }
 
-      // --- Support & General ---
-      if (lower.includes('support') || lower.includes('contact') || lower.includes('help') || lower.includes('email')) {
-        return "You can reach our support team at safetradehubteam@gmail.com. We're here to help!";
+      // --- PRIORITY 4: BUYING & SELLING ---
+      if (lower.includes('auction') || lower.includes('bid') || lower.includes('gavel')) {
+        return "<b>Auction Rules:</b> Highest bidder wins. Funds are locked in Escrow automatically when the auction ends. Note: Sellers are strictly prohibited from bidding on their own products.";
       }
-      if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('greetings')) {
-        return "Hello! 👋 I'm here to help. You can ask me about buying, selling, payments, or account safety.";
+      if (lower.includes('how to sell') || lower.includes('post') || lower.includes('list') || lower.includes('add product')) {
+        return "<b>Selling Guide:</b> Sign in as a Seller > Click <b>'Add Product'</b>. Choose Fixed Price or Auction. Be sure to provide clear photos for our Hub Verification team.";
+      }
+      if (lower.includes('buy') || lower.includes('purchase') || lower.includes('cart') || lower.includes('checkout')) {
+        return "<b>Buying Guide:</b> Browse items > <b>'Add to Cart'</b> > Checkout. You will see a clear breakdown of Price, Shipping, and Escrow Fees before you pay.";
+      }
+
+      // --- PRIORITY 5: ACCOUNT & TRUST ---
+      if (lower.includes('verify') || lower.includes('verification') || lower.includes('badge') || lower.includes('id') || lower.includes('identity')) {
+        return "<b>Verification Hub:</b> Go to your <b>Profile > Verify Identity</b> to upload your ID. Once manually approved, you get the <b>'Verified'</b> badge, increasing buyer trust and auction limits.";
+      }
+      if (lower.includes('account') || lower.includes('register') || lower.includes('sign up') || lower.includes('join') || lower.includes('role')) {
+        return "<b>Registration:</b> Click <b>'Join'</b> at top right. Choose Buyer or Seller. Note: Sellers cannot purchase items to ensure marketplace integrity.";
+      }
+      if (lower.includes('password') || lower.includes('login') || lower.includes('reset')) {
+        return "<b>Login Help:</b> Use the <b>'Sign In'</b> button. If you've forgotten your password, use the 'Forgot Password' link for a secure email reset.";
+      }
+
+      // --- PRIORITY 6: SUPPORT & GREETINGS ---
+      if (lower.includes('support') || lower.includes('contact') || lower.includes('email') || lower.includes('help') || lower.includes('admin')) {
+        return "<b>Contact Support:</b> Email us at <b>safetradehubteam@gmail.com</b>. Our expert team usually responds within <b>2-4 hours</b> during business days.";
+      }
+      if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
+        return "Hello! 👋 I'm the SafeTradeHub Assistant. I can help with <b>Fees, Escrow, Shipping, Disputes,</b> or <b>Account</b> questions. What's on your mind?";
       }
       if (lower.includes('thank') || lower.includes('thanks')) {
-        return "You're welcome! Happy trading on SafeTradeHub! 🚀";
-      }
-      if (lower.includes('bye') || lower.includes('goodbye')) {
-        return "Goodbye! Have a great day! 👋";
+        return "You're very welcome! Safe and happy trading! 🚀";
       }
 
-      // Fallback
-      return "I'm not sure I understand. You can ask me about:\n• Creating an account\n• Selling & Fees\n• Buying & Payments\n• Escrow & Safety\n• Order Tracking";
+      // Fallback Suggestion
+      return "I'm not 100% sure about that. Try asking about:<br>• <b>Fees:</b> 'What are the escrow fee percentages?'<br>• <b>Logistics:</b> 'How long does delivery take?'<br>• <b>Security:</b> 'When is escrow payment released?'<br>• <b>Disputes:</b> 'What is the 10% holding fee?'";
     };
 
     const sendMessage = () => {

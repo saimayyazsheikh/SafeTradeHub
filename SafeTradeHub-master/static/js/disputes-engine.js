@@ -6,85 +6,111 @@ let currentActiveDisputeId = null;
 // OVERRIDE: Admin Dashboard loadDisputesData()
 window.loadDisputesData = function () {
   try {
+    const db = firebase.database();
     if (typeof showLoading === 'function') showLoading('disputes');
-    const disputesRef = db.ref('disputes');
-
-    disputesRef.on('value', (snapshot) => {
-      const disputesData = snapshot.val();
-      adminData.disputes = [];
-
-      if (disputesData) {
-        Object.keys(disputesData).forEach(key => {
-          adminData.disputes.push({
-            id: key,
-            ...disputesData[key]
-          });
+    
+    db.ref('disputes').on('value', snap => {
+      const disputes = [];
+      const data = snap.val();
+      
+      if (data) {
+        Object.keys(data).forEach(key => {
+          disputes.push({ id: key, ...data[key] });
         });
       }
 
-      // Sort by creation date descending
-      adminData.disputes.sort((a, b) => {
-        const timeA = a.createdAt || 0;
-        const timeB = b.createdAt || 0;
-        return timeB - timeA;
-      });
+      // Sync with Admin Global State
+      const activeAdminData = window.adminData || (typeof adminData !== 'undefined' ? adminData : null);
+      if (activeAdminData) {
+        activeAdminData.disputes = disputes.sort((a, b) => {
+          const timeA = a.createdAt || 0;
+          const timeB = b.createdAt || 0;
+          return timeB - timeA;
+        });
 
+        // Also sync the stats object so counters update
+        if (activeAdminData.stats) {
+          activeAdminData.stats.disputes = {
+            total: disputes.length,
+            open: disputes.filter(d => d.status === 'open' || d.status === 'under_review').length,
+            resolved: disputes.filter(d => d.status === 'resolved' || d.status === 'RESOLVED').length,
+            highPriority: disputes.filter(d => (d.priority || '').toLowerCase() === 'high').length
+          };
+        }
+      }
+
+      // Update UI Components
       if (typeof updateDisputesTable === 'function') updateDisputesTable();
       if (typeof updateDashboardStats === 'function') updateDashboardStats();
-
-      const pendingCount = adminData.disputes.filter(d => d.status === 'open' || d.status === 'under_review').length;
+      
+      // Direct element updates for legacy badges
+      const pendingCount = disputes.filter(d => d.status === 'open' || d.status === 'under_review').length;
       if (typeof updateElementText === 'function') {
         updateElementText('disputesCount', pendingCount);
         updateElementText('pendingDisputes', pendingCount);
       }
-      if (typeof updateElementHTML === 'function') {
-        updateElementHTML('disputesTrend', pendingCount > 0
-          ? `<i class="fas fa-exclamation-circle"></i> ${pendingCount} open`
-          : `<i class="fas fa-check-circle"></i> All resolved`);
-      }
-
+      
       if (typeof hideLoading === 'function') hideLoading('disputes');
-    }, (error) => {
-      console.error('Firebase DB Error:', error);
-      if (typeof showError === 'function') showError('Failed to sync disputes.');
+    }, error => {
+      console.error('[DisputeEngine] Admin Sync Error:', error);
       if (typeof hideLoading === 'function') hideLoading('disputes');
     });
-  } catch (error) {
-    if (typeof hideLoading === 'function') hideLoading('disputes');
+  } catch (e) {
+    console.error('[DisputeEngine] Admin Critical Load Error:', e);
   }
 };
 
 // OVERRIDE: Staff Dashboard loadDisputes()
 window.loadDisputes = function () {
   try {
+    const db = firebase.database();
     if (typeof showLoading === 'function') showLoading('disputes');
+    
     db.ref('disputes').on('value', snap => {
       const disputes = [];
-      snap.forEach(c => disputes.push({ id: c.key, ...c.val() }));
+      const data = snap.val();
+      
+      if (data) {
+        Object.keys(data).forEach(key => {
+          disputes.push({ id: key, ...data[key] });
+        });
+      }
 
-      staffData.disputes = disputes.sort((a, b) => {
-        const timeA = a.createdAt || 0;
-        const timeB = b.createdAt || 0;
-        return timeB - timeA;
-      });
+      const activeStaffData = window.staffData || staffData;
+      if (activeStaffData) {
+        activeStaffData.disputes = disputes.sort((a, b) => {
+          const timeA = a.createdAt || 0;
+          const timeB = b.createdAt || 0;
+          return timeB - timeA;
+        });
+      }
+
+      // Update Sidebar Badge (Real-time)
+      const openCount = disputes.filter(d => (d.status || 'open').toLowerCase() === 'open').length;
+      const badge = document.getElementById('disputesCount');
+      if (badge) {
+        badge.innerText = openCount;
+        badge.style.display = openCount > 0 ? 'inline-block' : 'none';
+      }
 
       if (typeof updateDisputesTable === 'function') updateDisputesTable();
       if (typeof hideLoading === 'function') hideLoading('disputes');
-    }, error => {
-      if (typeof showError === 'function') showError('Failed to load disputes');
+    }, (error) => {
+      console.error('[DisputeEngine] Sync Error:', error);
       if (typeof hideLoading === 'function') hideLoading('disputes');
     });
   } catch (e) {
-    if (typeof hideLoading === 'function') hideLoading('disputes');
+    console.error('[DisputeEngine] Critical Load Error:', e);
   }
 };
+
 
 window.viewDispute = function (disputeId) {
   const isStaff = typeof staffData !== 'undefined';
   const dispute = isStaff ? staffData.disputes.find(d => d.id === disputeId) : adminData.disputes.find(d => d.id === disputeId);
   if (!dispute) return;
 
-  document.getElementById('viewDisputeIdTitle').innerText = disputeId.slice(-6);
+  document.getElementById('viewDisputeIdTitle').innerText = disputeId;
   document.getElementById('vDispOrder').innerText = dispute.orderId || 'N/A';
   document.getElementById('vDispStatus').innerText = (dispute.status || 'open').toUpperCase();
   document.getElementById('vDispAssignee').innerText = dispute.assignedToStaffId || 'Unassigned';
@@ -126,7 +152,7 @@ window.resolveDispute = function (id) {
 
   // Inject Dispute ID into Title
   const modalTitle = document.getElementById('arbitrationDisputeIdText');
-  if (modalTitle) modalTitle.innerText = id.slice(-6);
+  if (modalTitle) modalTitle.innerText = id;
 
   // Reset fields
   const outcomeSelect = document.getElementById('arbitrationOutcome');
@@ -153,8 +179,8 @@ window.enforceArbitrationRuling = function () {
   const comments = document.getElementById('arbitrationNotes').value.trim();
 
   if (!comments) {
-    if (window.NotificationManager) {
-      window.NotificationManager.showToast('Validation Error', 'The Official Justification/Notes field cannot be empty.', 'error');
+    if (window.showError) {
+      window.showError('Validation Error: The Official Justification/Notes field cannot be empty.');
     } else {
       alert("The Official Justification/Notes field cannot be empty. This is required for audit logs.");
     }
@@ -249,65 +275,23 @@ window._executeArbitrationRuling = async function (id, outcome, comments) {
       escrowAmount = parseFloat(order.total || order.totalAmount || order.amount || 0);
     }
 
-    // 1. EXECUTE THE FINANCIAL SETTLEMENT
-    // In a true financial system, we'd also deduct from 'in_escrow'. 
-    // We will increment the valid party's available_balance.
-    if (escrowAmount > 0) {
-      if (outcome === 'refund_buyer' && buyerId && buyerId !== 'unknown') {
-        const buyerWalletRef = db.ref(`users/${buyerId}/wallet/balance`);
-        await buyerWalletRef.transaction(currentBal => (currentBal || 0) + escrowAmount);
-      }
-      else if (outcome === 'release_seller' && sellerId && sellerId !== 'unknown') {
-        const sellerWalletRef = db.ref(`users/${sellerId}/wallet/balance`);
-        await sellerWalletRef.transaction(currentBal => (currentBal || 0) + escrowAmount);
-      }
-      else if (outcome === 'partial_split') {
-        const splitAmt = escrowAmount / 2;
-        if (buyerId && buyerId !== 'unknown') {
-          await db.ref(`users/${buyerId}/wallet/balance`).transaction(currentBal => (currentBal || 0) + splitAmt);
-        }
-        if (sellerId && sellerId !== 'unknown') {
-          await db.ref(`users/${sellerId}/wallet/balance`).transaction(currentBal => (currentBal || 0) + splitAmt);
-        }
-      }
-    }
-
-    // 2. FINALIZE ARBITRATION DB RECORD
-    await db.ref(`disputes/${id}`).update({
-      status: 'resolved',
-      outcome: outcome.toLowerCase(),
-      resolution: comments,
-      resolvedBy: staffId,
-      resolvedAt: firebase.database.ServerValue.TIMESTAMP
-    });
-
-    // 3. BROADCAST NOTIFICATIONS & UPDATE ORDER STATUS
-    const notifTitle = 'Arbitration Ruling: Escrow Executed';
-    const notifMsg = `The dispute for order #${(orderId || '').slice(-6)} has been ruled: ${outcome.toUpperCase()}.\nFunds structured: ${escrowAmount} RS.\nReason: ${comments}`;
-    const notifData = {
-      title: notifTitle,
-      message: notifMsg,
-      type: 'alert',
-      read: false,
-      timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    if (buyerId && buyerId !== 'unknown') await db.ref(`users/${buyerId}/notifications`).push(notifData);
-    if (sellerId && sellerId !== 'unknown') await db.ref(`users/${sellerId}/notifications`).push(notifData);
-    if (orderId) await db.ref(`orders/${orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
+    // NEW: Use the Stateless DisputeEngine for Atomic Resolution
+    if (!window.DisputeEngine) throw new Error("Dispute Engine not initialized.");
+    
+    await window.DisputeEngine.resolveDispute(id, outcome);
 
     // Complete UI Flow
     closeArbitrationModal();
-    if (window.NotificationManager) {
-      window.NotificationManager.showToast('Escrow Executed', 'The ruling has been enforced and the funds distributed.', 'success');
+    if (window.showSuccess) {
+      window.showSuccess('Escrow Executed: The ruling has been enforced and the funds distributed via Atomic Engine.');
     } else {
       alert('Arbitration ruling successfully enforced.');
     }
 
   } catch (e) {
     console.error('Arbitration Execute Error:', e);
-    if (window.NotificationManager) {
-      window.NotificationManager.showToast('Critical Error', 'Error while moving funds. Check console.', 'error');
+    if (window.showError) {
+      window.showError('Critical Error: Error while moving funds. Check console.');
     } else {
       alert('Critical error while moving funds. Check console.');
     }

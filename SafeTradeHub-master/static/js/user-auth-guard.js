@@ -36,11 +36,15 @@
                     return;
                 }
 
+                if (userData && (userData.isActive === false || userData.is_active === false)) {
+                    console.error('Account suspended. Redirecting...');
+                    await auth.signOut();
+                    window.location.href = 'auth.html?mode=signin&status=banned';
+                    return;
+                }
+
                 if (!userData || (userData.role !== 'Buyer' && userData.role !== 'Seller')) {
                     console.error('Unauthorized role or missing data:', userData?.role);
-                    // Optionally force signOut if they have no valid role
-                    // await auth.signOut();
-                    // window.location.href = 'auth.html';
                 }
 
             } catch (error) {

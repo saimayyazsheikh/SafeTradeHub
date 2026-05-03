@@ -59,7 +59,8 @@ window.STHAnalytics = (function() {
                     const date = new Date(o.createdAt || o.timestamp);
                     results.counters.orders++;
                     
-                    if (o.status === 'completed' || o.status === 'delivered') {
+                    const s = (o.status || '').toLowerCase();
+                    if (s === 'completed' || s === 'delivered' || s === 'refunded') {
                         results.counters.gmv = (results.counters.gmv || 0) + amt;
                         results.counters.revenue += (escrowAmt + shippingAmt);
                         results.counters.shippingRevenue += shippingAmt;
@@ -67,8 +68,8 @@ window.STHAnalytics = (function() {
                         
                         completed++;
                         if (!isNaN(date)) {
-                            const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                            results.charts.revenueTrend[monthKey] = (results.charts.revenueTrend[monthKey] || 0) + amt;
+                            const dayKey = date.toISOString().split('T')[0];
+                            results.charts.revenueTrend[dayKey] = (results.charts.revenueTrend[dayKey] || 0) + amt;
                         }
                     }
                 });
@@ -111,13 +112,73 @@ window.STHAnalytics = (function() {
             const ctx = canvas?.getContext('2d');
             if (!ctx) return null;
             if (canvas._chartInstance) canvas._chartInstance.destroy();
-            const labels = Object.keys(trendData || {}).sort();
-            if (labels.length === 0) return null;
-            const data = labels.map(l => trendData[l]);
+            
+            // Padded 30-day window for a "Proper Graph" look
+            const labels = [];
+            const chartData = [];
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dayKey = d.toISOString().split('T')[0];
+                const displayKey = i % 5 === 0 ? d.toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' }) : '';
+                labels.push(displayKey);
+                chartData.push(trendData[dayKey] || 0);
+            }
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
+            gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+            
             canvas._chartInstance = new Chart(ctx, {
                 type: 'line',
-                data: { labels: labels, datasets: [{ label: 'Revenue (RS)', data: data, borderColor: THEME.primary, backgroundColor: 'rgba(79, 70, 229, 0.05)', fill: true, tension: 0.4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Gross Sales', 
+                        data: chartData, 
+                        borderColor: THEME.primary, 
+                        borderWidth: 4,
+                        backgroundColor: gradient, 
+                        fill: true, 
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: THEME.primary,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            titleFont: { size: 13 },
+                            bodyFont: { size: 14, weight: 'bold' },
+                            callbacks: {
+                                label: (context) => 'RS ' + context.raw.toLocaleString()
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (val) => 'RS ' + (val >= 1000 ? (val/1000).toFixed(1) + 'k' : val),
+                                color: '#94a3b8',
+                                font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(241, 245, 249, 0.5)' }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        }
+                    }
+                }
             });
             return canvas._chartInstance;
         },
@@ -131,6 +192,8 @@ window.STHAnalytics = (function() {
             const labels = Object.keys(categories || {}).sort((a, b) => categories[b][mode] - categories[a][mode]);
             const data = labels.map(cat => categories[cat][mode]);
 
+            if (labels.length === 0) return null;
+
             canvas._chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -139,8 +202,9 @@ window.STHAnalytics = (function() {
                         label: mode === 'volume' ? 'Product Count' : 'Market Value (RS)',
                         data: data,
                         backgroundColor: mode === 'volume' ? THEME.secondary : THEME.primary,
-                        borderRadius: 4,
-                        indexAxis: 'y' // Horizontal bar
+                        hoverBackgroundColor: mode === 'volume' ? THEME.primary : '#3730a3',
+                        borderRadius: 8,
+                        barThickness: 30
                     }]
                 },
                 options: {
@@ -148,8 +212,12 @@ window.STHAnalytics = (function() {
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { beginAtZero: true, grid: { display: false } },
-                        y: { grid: { display: false } }
+                        x: { grid: { display: false } },
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#f1f5f9' },
+                            ticks: { stepSize: mode === 'volume' ? 1 : undefined }
+                        }
                     }
                 }
             });
@@ -176,13 +244,18 @@ window.STHAnalytics = (function() {
                         backgroundColor: 'rgba(16, 185, 129, 0.05)',
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 2
+                        pointRadius: 4,
+                        pointBackgroundColor: THEME.success
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
                 }
             });
             return canvas._chartInstance;
@@ -248,8 +321,9 @@ window.STHAnalytics = (function() {
                 Object.values(state.products).forEach(p => {
                     if (!p) return;
                     // Robust check: Direct sellerId or nested seller.id
-                    if (p.sellerId === sellerUid || (p.seller && p.seller.id === sellerUid)) {
-                        stats.totalViews += parseInt(p.views || 0);
+                    const sid = String(p.sellerId || (p.seller && p.seller.id) || '');
+                    if (sid === String(sellerUid)) {
+                        stats.totalViews += parseInt(p.views || p.totalViews || 0);
                     }
                 });
 
@@ -257,13 +331,13 @@ window.STHAnalytics = (function() {
                 Object.values(state.orders).forEach(o => {
                     if (!o) return;
                     // Robust check: match sellerId or seller.id or items[0].sellerId
-                    const sid = o.sellerId || (o.seller && o.seller.id) || (o.items && o.items[0] && o.items[0].sellerId);
+                    const sid = String(o.sellerId || (o.seller && o.seller.id) || (o.items && o.items[0] && o.items[0].sellerId) || '');
                     
-                    if (sid === sellerUid) {
+                    if (sid === String(sellerUid)) {
                         stats.salesCount++;
                         
-                        // Use subtotal (base price) for seller revenue, not the total which includes platform shipping/escrow
-                        const amt = parseFloat(o.subtotal || o.price || o.amount || 0);
+                        // Use total or subtotal for revenue
+                        const amt = parseFloat(o.total || o.subtotal || o.price || o.amount || 0);
                         if (o.status === 'completed' || o.status === 'delivered') {
                             stats.revenue += amt;
                         }
@@ -282,34 +356,25 @@ window.STHAnalytics = (function() {
                 callback(stats);
             };
 
-            // Enhanced data fetching with fallback and root observation if needed
-            const ordersRef = db.ref('orders').orderByChild('sellerId').equalTo(sellerUid);
-            const productsRef = db.ref('products').orderByChild('sellerId').equalTo(sellerUid);
-
-            ordersRef.on('value', snap => {
+            // Robust data fetching: Listen to root nodes and filter client-side
+            // This avoids issues with missing indexes in development/prototype environments
+            
+            db.ref('orders').on('value', snap => {
                 const data = snap.val() || {};
-                console.log('[Analytics v99] Orders received:', Object.keys(data).length);
+                console.log('[Analytics v99] Orders pulse received');
                 state.orders = data;
                 processAndNotify();
             }, err => {
-                console.warn('[Analytics v99] Orders query fallback triggered');
-                db.ref('orders').on('value', snap => {
-                    state.orders = snap.val() || {};
-                    processAndNotify();
-                });
+                console.error('[Analytics v99] Orders stream failed:', err);
             });
 
-            productsRef.on('value', snap => {
+            db.ref('products').on('value', snap => {
                 const data = snap.val() || {};
-                console.log('[Analytics v99] Products received:', Object.keys(data).length);
+                console.log('[Analytics v99] Products pulse received');
                 state.products = data;
                 processAndNotify();
             }, err => {
-                console.warn('[Analytics v99] Products query fallback triggered');
-                db.ref('products').on('value', snap => {
-                    state.products = snap.val() || {};
-                    processAndNotify();
-                });
+                console.error('[Analytics v99] Products stream failed:', err);
             });
         },
 

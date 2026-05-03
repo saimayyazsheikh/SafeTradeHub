@@ -35,12 +35,14 @@ function addToCart(product, qty = 1) {
   const cart = getCart();
   const i = cart.findIndex(x => x.id === product.id);
   
-  // Ensure we have seller info
+  const sId = product.sellerId || product.seller_id || (product.seller && product.seller.id) || 'admin';
+  const sName = product.sellerName || product.seller_name || (product.seller && product.seller.name) || 'SafeTradeHub';
+
   const cartItem = {
     ...product,
     qty: (i > -1) ? (cart[i].qty + qty) : qty,
-    sellerId: product.sellerId || product.seller_id || 'admin',
-    sellerName: product.sellerName || 'SafeTradeHub'
+    sellerId: sId,
+    sellerName: sName
   };
 
   if (i > -1) {
@@ -150,8 +152,8 @@ document.addEventListener('click', async (e) => {
     price: parseFloat(btn.dataset.price || '0'),
     shippingCost: parseFloat(btn.dataset.shippingCost || '0'),
     img: btn.dataset.img,
-    sellerId: btn.dataset.sellerId || 'admin',
-    sellerName: btn.dataset.sellerName || 'SafeTradeHub'
+    sellerId: btn.dataset.sellerId || btn.dataset.seller_id || 'admin',
+    sellerName: btn.dataset.sellerName || btn.dataset.seller_name || 'SafeTradeHub'
   };
 
   addToCart(product, 1);

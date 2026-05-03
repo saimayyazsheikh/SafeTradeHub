@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Setup Event Listeners
         setupSecurityForm(user);
-        setupNotificationSettings(user.uid);
         setupAvatarSync(user.uid);
     });
 
@@ -65,38 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. NOTIFICATIONS: Real-time Sync & Toggles
-    function setupNotificationSettings(uid) {
-        const settingsRef = db.ref(`users/${uid}/settings/notifications`);
-        const saveBtn = document.getElementById('saveNotifBtn');
 
-        // Real-time listener for UI state
-        settingsRef.on('value', (snapshot) => {
-            const data = snapshot.val() || {};
-            document.getElementById('emailNotif').checked = data.email !== false;
-            document.getElementById('pushNotif').checked = data.push !== false;
-            document.getElementById('marketingNotif').checked = data.marketing === true;
-        });
-
-        saveBtn.addEventListener('click', async () => {
-            try {
-                toggleButtonState('saveNotifBtn', true, 'Saving...');
-                const settings = {
-                    email: document.getElementById('emailNotif').checked,
-                    push: document.getElementById('pushNotif').checked,
-                    marketing: document.getElementById('marketingNotif').checked,
-                    lastUpdated: firebase.database.ServerValue.TIMESTAMP
-                };
-
-                await settingsRef.set(settings);
-                showToast('Success', 'Preferences saved and synced.', 'success');
-            } catch (error) {
-                showToast('Error', 'Failed to save settings: ' + error.message, 'error');
-            } finally {
-                toggleButtonState('saveNotifBtn', false, 'Save Preferences');
-            }
-        });
-    }
 
     // 3. RE-AUTHENTICATION FLOW
     window.handleReauthentication = function(user, action, data) {

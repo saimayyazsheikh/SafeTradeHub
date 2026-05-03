@@ -109,16 +109,13 @@ async function initializeDashboard() {
   // Initialize Sidebar Analytics Snapshot
   initDashboardSidebarAnalytics();
 
-  // Set user role for notification manager
-  if (window.NotificationManager) {
-    window.NotificationManager.userRole = 'Admin';
-  }
+  // Notification manager setup removed
 }
 
 // Wait for AuthManager to be available
 async function waitForAuthManager() {
   let attempts = 0;
-  const maxAttempts = 50; // 5 seconds max wait
+  const maxAttempts = 20; // 2 seconds max wait
 
   while (!window.AuthManager && attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -354,40 +351,78 @@ function initDashboardSidebarAnalytics() {
     if (fulfillmentEl) fulfillmentEl.innerText = stats.counters.fulfillmentRate + '%';
     if (issuesEl) issuesEl.innerText = stats.counters.activeDisputes;
 
-    // 2. Render Sidebar Revenue Chart (Minimalist)
+    // 2. Render Sidebar Revenue Chart (Intuitive UI)
     const canvasId = 'dashboardSidebarChart';
-    const trendData = stats.charts.revenueTrend;
+    const trendData = stats.charts.revenueTrend || {};
 
-    const labels = Object.keys(trendData || {}).sort().slice(-7); // Last 7 data points
-    const data = labels.map(l => trendData[l]);
+    // HARDENED: Generate last 7 days to ensure a "Proper Graph" with lining
+    const labels = [];
+    const chartData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayKey = d.toISOString().split('T')[0];
+      const displayKey = d.toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' });
+      
+      labels.push(displayKey);
+      chartData.push(trendData[dayKey] || 0);
+    }
 
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
 
     if (window.v2Charts.sidePulse) window.v2Charts.sidePulse.destroy();
 
+    // Create Gradient for premium look
+    const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+    gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+
     window.v2Charts.sidePulse = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: labels.map(l => l.split('-').slice(1).join('/')),
+        labels: labels,
         datasets: [{
-          data: data,
+          label: 'Revenue',
+          data: chartData,
           borderColor: '#4f46e5',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#4f46e5',
+          pointBorderWidth: 2,
           fill: true,
-          backgroundColor: 'rgba(79, 70, 229, 0.05)',
+          backgroundColor: gradient,
           tension: 0.4
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleFont: { size: 10 },
+            bodyFont: { size: 12, weight: 'bold' },
+            padding: 10,
+            displayColors: false,
+            callbacks: {
+              label: (context) => `RS ${context.raw.toLocaleString()}`
+            }
+          }
+        },
         scales: {
-          x: { display: false },
-          y: { display: false, beginAtZero: true }
+          x: { 
+            display: true, // Show context
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#94a3b8' }
+          },
+          y: { 
+            display: false, 
+            beginAtZero: true,
+            suggestedMax: Math.max(...chartData) * 1.2 || 100
+          }
         }
       }
     });
@@ -488,35 +523,36 @@ window.showConfirmModal = function (options = {}) {
 // Get real statistics
 async function getDashboardStats() {
   try {
-    // 1. Fetch Users from Firebase
+    // Fetch all data in PARALLEL (not sequential) for maximum speed
+    const [usersSnap, ordersSnap, escrowsSnap] = await Promise.all([
+      db.ref('users').once('value'),
+      db.ref('orders').once('value'),
+      db.ref('escrows').once('value')
+    ]);
+
+    // Process users
     let users = [];
-    try {
-      const snapshot = await db.ref('users').once('value');
-      if (snapshot.exists()) {
-        snapshot.forEach(child => {
-          users.push({ id: child.key, ...child.val() });
-        });
-      }
-    } catch (e) {
-      console.error('Error fetching users for stats:', e);
+    if (usersSnap.exists()) {
+      usersSnap.forEach(child => {
+        const userData = child.val();
+        users.push({ id: child.key, ...userData });
+        globalUsersMap[child.key] = userData;
+      });
     }
 
-    // 2. Fetch Orders from Firebase
+    // Process orders
     let orders = [];
-    try {
-      const snapshot = await db.ref('orders').once('value');
-      if (snapshot.exists()) {
-        snapshot.forEach(child => {
-          orders.push({ id: child.key, ...child.val() });
-        });
-      }
-    } catch (e) {
-      console.error('Error fetching orders for stats:', e);
+    if (ordersSnap.exists()) {
+      ordersSnap.forEach(child => orders.push({ id: child.key, ...child.val() }));
     }
 
-    // 3. Get other data from localStorage (for now, until migrated)
+    // Process escrows
+    let escrows = [];
+    if (escrowsSnap.exists()) {
+      escrowsSnap.forEach(child => escrows.push({ id: child.key, ...child.val() }));
+    }
+
     const products = getLocalStorageData('products');
-    const escrows = getLocalStorageData('escrows');
     const disputes = getLocalStorageData('disputes');
 
     console.log('Stats Check:', {
@@ -534,6 +570,12 @@ async function getDashboardStats() {
       const d = new Date(date);
       return d.setHours(0, 0, 0, 0) === today;
     };
+
+    // Filter for REALIZED revenue (Completed orders only)
+    const completedOrders = orders.filter(o => {
+        const s = (o.status || '').toLowerCase();
+        return s === 'completed' || s === 'delivered' || s === 'refunded';
+    });
 
     const stats = {
       users: {
@@ -553,21 +595,25 @@ async function getDashboardStats() {
       orders: {
         total: orders.length,
         pending: orders.filter(o => o.status === 'pending').length,
-        completed: orders.filter(o => o.status === 'delivered' || o.status === 'completed').length,
+        completed: completedOrders.length,
         today: orders.filter(o => isToday(o.createdAt)).length,
-        today: orders.filter(o => isToday(o.createdAt)).length,
-        // Platform Revenue includes both Escrow Fee (2%) and Shipping Fee (5%)
-        totalValue: orders.reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
-        revenueToday: orders.filter(o => isToday(o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
-        shippingRevenue: orders.reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
-        shippingToday: orders.filter(o => isToday(o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0)
+        
+        // REVENUE LOGIC: Only add amount once released (Completed)
+        totalValue: completedOrders.reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        revenueToday: completedOrders.filter(o => isToday(o.updatedAt || o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0) + parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        
+        shippingRevenue: completedOrders.reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        shippingToday: completedOrders.filter(o => isToday(o.updatedAt || o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.shippingTotal || 0)), 0).toFixed(0),
+        
+        escrowRevenue: completedOrders.reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0)), 0).toFixed(0),
+        escrowToday: completedOrders.filter(o => isToday(o.updatedAt || o.createdAt)).reduce((acc, o) => acc + (parseFloat(o.escrowFee || 0)), 0).toFixed(0)
       },
       escrows: {
         total: escrows.length,
-        held: escrows.filter(e => e.status === 'held').length,
+        held: escrows.filter(e => e.status === 'held' || e.status === 'holding').length,
         released: escrows.filter(e => e.status === 'released').length,
         disputed: escrows.filter(e => e.status === 'disputed').length,
-        totalHeld: escrows.filter(e => e.status === 'held').reduce((sum, e) => sum + (e.amount || 0), 0)
+        totalHeld: escrows.filter(e => e.status === 'held' || e.status === 'holding').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
       },
       disputes: {
         total: disputes.length,
@@ -1019,11 +1065,11 @@ function updateEscrowTable(searchTerm) {
     `;
 
     // Link
-    const orderLink = `<a href="#" onclick="viewOrder('${escrow.orderId}'); return false;">#${escrow.orderId ? escrow.orderId.substring(0, 8) : 'N/A'}</a>`;
+    const orderLink = `<a href="#" onclick="viewOrder('${escrow.orderId}'); return false;">${escrow.orderId || 'N/A'}</a>`;
 
     return `
     <tr>
-      <td>#${escrow.id.substring(0, 8)}</td>
+      <td>${escrow.id}</td>
       <td>${orderLink}</td>
       <td>RS ${amount}</td>
       <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
@@ -1049,66 +1095,74 @@ window.releaseEscrow = async function (escrowId) {
     if (!escrow) throw new Error('Escrow record not found');
     if (escrow.status === 'released') throw new Error('Funds already released');
 
-    // 1. Fetch Order Data (REQUIRED for Fee and Verification)
+    // ATOMIC LOCK: Claim the escrow to prevent double-release
+    let lockAcquired = false;
+    await escrowRef.transaction(current => {
+      if (!current) return;
+      if (current.status === 'released' || current.status === 'releasing') return;
+      lockAcquired = true;
+      current.status = 'releasing';
+      return current;
+    });
+
+    if (!lockAcquired) {
+      showLoading(false);
+      showError('This escrow is already being processed or released.');
+      return;
+    }
+
+    // 1. Fetch Order Data
     const orderSnap = await db.ref(`orders/${escrow.orderId}`).once('value');
     const order = orderSnap.val();
 
     if (!order) throw new Error('Associated order not found');
 
     if ((order.status || '').toLowerCase() !== 'delivered' && (order.status || '').toLowerCase() !== 'completed') {
-      showLoading(false);
-      showError('Cannot release funds. Order status must be Delivered.');
-      return;
+      throw new Error('Cannot release funds. Order status must be Delivered.');
     }
 
     showLoading(false);
     
-    if (!await showConfirmationModal('Release Payment', 'Are you sure you want to release these funds to the seller? This cannot be undone.', { confirmText: 'Release Funds', confirmColor: '#10b981' })) return;
-
-    showLoading(true);
-
-    // 2. Identify Seller (Robust Lookup)
-    let sellerId = escrow.sellerId;
-
-    // If missing, invalid, or mismatch, prefer order's seller
-    if (!sellerId || sellerId === 'admin' || sellerId === 'undefined') {
-      sellerId = order.sellerId;
-
-      // Deep lookup fallback
-      if (!sellerId || sellerId === 'admin' || sellerId === 'undefined') {
-        if (order.items && order.items.length > 0) {
-          sellerId = order.items[0].sellerId;
-
-          // Double deep: Check product owner
-          if (!sellerId || sellerId === 'admin' || sellerId === 'undefined') {
-            try {
-              const prodSnap = await db.ref(`products/${order.items[0].id}/sellerId`).once('value');
-              if (prodSnap.exists()) sellerId = prodSnap.val();
-            } catch (e) { console.error(e); }
-          }
-        }
-      }
+    if (!await showConfirmationModal('Release Payment', 'Are you sure you want to release these funds to the seller? This cannot be undone.', { confirmText: 'Release Funds', confirmColor: '#10b981' })) {
+      throw new Error('Release cancelled by user.');
     }
 
-    if (!sellerId || sellerId === 'admin') throw new Error('Could not resolve valid seller ID to credit funds.');
+    showLoading(true, 'Processing fund transfer...');
 
-    // 3. Perform Transaction
+    // 2. Identify Seller
+    let sellerId = escrow.sellerId || order.sellerId;
+    if ((!sellerId || sellerId === 'admin') && order.items && order.items.length > 0) {
+        sellerId = order.items[0].sellerId;
+    }
+
+    if (!sellerId || sellerId === 'admin') throw new Error('Could not resolve valid seller ID.');
+
+    // 3. Perform Transaction (Standardized: Subtotal based)
     const totalAmount = parseFloat(escrow.amount);
-    // Fee is in the ORDER object
-    const fee = parseFloat(order.escrowFee || 0);
-    const payoutAmount = totalAmount - fee;
+    const escrowFee = parseFloat(order.escrowFee || 0);
+    
+    let payoutAmount = 0;
+    const subtotal = parseFloat(order.subtotal);
+    
+    if (!isNaN(subtotal) && subtotal > 0) {
+        payoutAmount = subtotal;
+    } else if (order.items && order.items.length > 0) {
+        payoutAmount = order.items.reduce((sum, item) => sum + (parseFloat(item.price) * (parseInt(item.qty) || 1)), 0);
+    }
+
+    // Safety Cap
+    const maxPayout = totalAmount - escrowFee;
+    if (payoutAmount > maxPayout || payoutAmount <= 0) {
+        payoutAmount = maxPayout;
+    }
 
     const updates = {};
-
-    // Update Escrow
     updates[`escrows/${escrowId}/status`] = 'released';
     updates[`escrows/${escrowId}/releasedAt`] = firebase.database.ServerValue.TIMESTAMP;
-
-    // Update Order
     updates[`orders/${escrow.orderId}/status`] = 'completed';
     updates[`orders/${escrow.orderId}/paymentStatus`] = 'paid';
 
-    // Update Wallet (Transaction) - Credit ONLY the payout amount
+    // 4. Update Wallets
     const walletRef = db.ref(`users/${sellerId}/wallet`);
     await walletRef.transaction(wallet => {
       if (!wallet) wallet = { balance: 0, totalEarned: 0 };
@@ -1117,38 +1171,33 @@ window.releaseEscrow = async function (escrowId) {
       return wallet;
     });
 
-    // Create Wallet Transaction Record
+    // Create Record
     const txnId = db.ref('walletTransactions').push().key;
     updates[`walletTransactions/${txnId}`] = {
       userId: sellerId,
       type: 'credit',
       amount: payoutAmount,
-      fee: fee, // Record the fee for transparency
-      description: `Order Payment #${escrow.orderId} (less RS ${fee} fee)`,
+      fee: escrowFee,
+      description: `Order Payment #${escrow.orderId} (Net: RS ${payoutAmount})`,
       referenceId: escrow.orderId,
       status: 'completed',
       createdAt: firebase.database.ServerValue.TIMESTAMP
     };
 
-    // Notify Seller
-    const notifId = db.ref(`users/${sellerId}/notifications`).push().key;
-    updates[`users/${sellerId}/notifications/${notifId}`] = {
-      title: 'Payment Released',
-      message: `Funds for Order #${escrow.orderId} (RS ${payoutAmount}) have been released to your wallet. (Service Fee: RS ${fee})`,
-      type: 'payment',
-      read: false,
-      timestamp: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    // Execute all updates
     await db.ref().update(updates);
-
-    showSuccess('Funds released to seller successfully');
-    loadEscrowData(); // Refresh UI
+    showSuccess('Funds released successfully');
+    loadEscrowData();
 
   } catch (e) {
     console.error('Release failed:', e);
     showError(e.message);
+    // Rollback Lock
+    try {
+      const snap = await db.ref(`escrows/${escrowId}/status`).once('value');
+      if (snap.val() === 'releasing') {
+        await db.ref(`escrows/${escrowId}/status`).set('holding');
+      }
+    } catch (err) {}
   } finally {
     showLoading(false);
   }
@@ -1533,7 +1582,7 @@ window.approveVerification = async function (userId, type) {
     try {
       await db.ref('global_notifications/admin_alerts').push({
         title: `${typeName} Verification Approved`,
-        message: `${typeName} for user ID ${userId.substring(0, 6)}... has been approved by ${auditorName}.`,
+        message: `${typeName} for user ID ${userId} has been approved by ${auditorName}.`,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
         userId: userId,
         type: 'verification'
@@ -1617,7 +1666,7 @@ window.rejectVerification = async function (userId, type) {
     // Always push to Global Admin Trail
     await db.ref('global_notifications/admin_alerts').push({
       title: `${typeName} Verification Rejected`,
-      message: `${typeName} rejection for user ID ${userId.substring(0, 6)}... by ${auditorName}. Reason: ${reason}`,
+      message: `${typeName} rejection for user ID ${userId} by ${auditorName}. Reason: ${reason}`,
       timestamp: firebase.database.ServerValue.TIMESTAMP,
       userId: userId,
       type: 'alert'
@@ -1675,20 +1724,17 @@ async function loadLogisticsData() {
 
 async function loadWalletData() {
 
-  showLoading(true);
-
   try {
-    // 0. Load Users (for ID mapping)
-    const userSnapshot = await db.ref('users').once('value');
-    const users = [];
-    userSnapshot.forEach(child => {
-      users.push({ id: child.key, ...child.val() });
-    });
-    // Sort users by createdAt to ensure consistent ID numbering
-    users.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    adminData.users = users; // Save to global data
-    // Map for faster lookups
-    users.forEach(u => { globalUsersMap[u.id] = u; });
+    // Load users in background — non-blocking for UI render
+    if (!adminData.users || adminData.users.length === 0) {
+      db.ref('users').once('value').then(userSnapshot => {
+        const users = [];
+        userSnapshot.forEach(child => users.push({ id: child.key, ...child.val() }));
+        users.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        adminData.users = users;
+        users.forEach(u => { globalUsersMap[u.id] = u; });
+      });
+    }
 
     // 1. Load Deposits
     db.ref('deposits').on('value', (snapshot) => {
@@ -1711,18 +1757,43 @@ async function loadWalletData() {
       const processSnap = (snap1, snap2) => {
         const merged = new Map();
 
-        if (snap1 && snap1.exists()) {
-          snap1.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
-        }
-        if (snap2 && snap2.exists()) {
-          snap2.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
-        }
+        const data1 = snap1 && snap1.exists() ? snap1.val() : {};
+        const data2 = snap2 && snap2.exists() ? snap2.val() : {};
+
+        Object.entries(data1).forEach(([key, val]) => {
+          if (val) merged.set(key, { id: key, ...val });
+        });
+
+        Object.entries(data2).forEach(([key, val]) => {
+          if (val) merged.set(key, { id: key, ...val });
+        });
 
         const withdrawals = Array.from(merged.values());
-        withdrawals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        // Robust sorting with fallback to timestamp or 0
+        withdrawals.sort((a, b) => {
+          const timeA = a.createdAt || a.timestamp || 0;
+          const timeB = b.createdAt || b.timestamp || 0;
+          return timeB - timeA;
+        });
+
+        console.log('🏦 Wallet Sync: Processed', withdrawals.length, 'withdrawals');
 
         adminData.withdrawals = withdrawals;
         renderWithdrawals(withdrawals);
+
+        // Update Sidebar Badge
+        const pendingCount = withdrawals.filter(w => {
+          const s = String(w.status || w.Status || w.state || 'pending').toLowerCase().trim();
+          // Negative filter: if it's not finalized, it's pending
+          return s !== 'completed' && s !== 'rejected' && s !== 'approved' && s !== 'success';
+        }).length;
+        
+        const sidebarBadge = document.getElementById('pendingWithdrawalsCount');
+        if (sidebarBadge) {
+          sidebarBadge.textContent = pendingCount;
+          sidebarBadge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+        }
 
         // Update Header Count for debugging/visibility
         const countHeader = document.querySelector('#withdrawalsTableBody').closest('.content-card')?.querySelector('h3');
@@ -1939,9 +2010,19 @@ async function updateWalletStats() {
     updateElementText('totalSystemBalance', `RS ${totalBalance.toLocaleString()}`);
 
     // 2. Pending Withdrawals
-    const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending');
-    const totalPendingWithdrawals = pendingWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+    const pendingWithdrawals = withdrawals.filter(w => {
+      const s = String(w.status || w.Status || w.state || 'pending').toLowerCase().trim();
+      return s !== 'completed' && s !== 'rejected' && s !== 'approved' && s !== 'success';
+    });
+    const totalPendingWithdrawals = pendingWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
     updateElementText('totalPendingWithdrawals', `RS ${totalPendingWithdrawals.toLocaleString()}`);
+
+    // Update Sidebar Badge (redundancy for accuracy)
+    const sidebarBadge = document.getElementById('pendingWithdrawalsCount');
+    if (sidebarBadge) {
+      sidebarBadge.textContent = pendingWithdrawals.length;
+      sidebarBadge.style.display = pendingWithdrawals.length > 0 ? 'inline-block' : 'none';
+    }
 
     // 3. Pending Deposits
     const pendingDeposits = deposits.filter(d => d.status === 'pending');
@@ -1999,12 +2080,12 @@ function getStatusBadgeColor(status) {
       return 'info';
 
     case 'disputed':
+    case 'under_review':
+    case 'refunded':
+    case 'REFUNDED':
     case 'rejected':
-      return 'danger';
-
     case 'cancelled':
-    case 'dismissed':
-      return 'secondary';
+      return 'danger';
 
     default:
       return 'secondary';
@@ -2026,7 +2107,11 @@ function formatOrderStatus(status) {
     'at_destination': 'At Destination Hub',
     'out_for_delivery': 'Out for Delivery',
     'delivered': 'Delivered',
-    'disputed': 'Disputed',
+    'disputed': 'UNDER DISPUTE',
+    'under_review': 'UNDER DISPUTE',
+    'REFUNDED': 'DISPUTED',
+    'refunded': 'DISPUTED',
+    'refund': 'DISPUTED',
     'cancelled': 'Cancelled'
   };
   return mapping[s] || status || 'Order Placed';
@@ -2160,6 +2245,7 @@ function updateDashboardStats() {
   updateElementText('totalOrders', stats.orders?.total || 0);
   updateElementText('totalRevenue', `RS ${stats.orders?.totalValue || 0}`);
   updateElementText('shippingRevenue', `RS ${stats.orders?.shippingRevenue || 0}`);
+  updateElementText('escrowRevenue', `RS ${stats.orders?.escrowRevenue || 0}`);
   updateElementText('pendingDisputes', stats.disputes?.open || 0);
 
   // Update trends (Real Data)
@@ -2167,6 +2253,7 @@ function updateDashboardStats() {
   const ordersToday = stats.orders?.today || 0;
   const revenueToday = stats.orders?.revenueToday || 0;
   const shippingToday = stats.orders?.shippingToday || 0;
+  const escrowToday = stats.orders?.escrowToday || 0;
   const openDisputes = stats.disputes?.open || 0;
 
   updateElementHTML('usersTrend', usersToday > 0
@@ -2185,13 +2272,22 @@ function updateDashboardStats() {
     ? `<i class="fas fa-arrow-up"></i> RS ${shippingToday} today`
     : `<i class="fas fa-minus"></i> No shipping today`);
 
+  updateElementHTML('escrowTrend', escrowToday > 0
+    ? `<i class="fas fa-arrow-up"></i> RS ${escrowToday} today`
+    : `<i class="fas fa-minus"></i> No escrow today`);
+
   updateElementHTML('disputesTrend', openDisputes > 0
     ? `<i class="fas fa-exclamation-circle"></i> ${openDisputes} open`
     : `<i class="fas fa-check-circle"></i> All clear`);
 
-  // Update navigation badges
+  // Update navigation badges (Real-time Sync)
   updateElementText('usersCount', stats.users?.total || 0);
   updateElementText('productsCount', stats.products?.total || 0);
+  updateElementText('ordersCount', stats.orders?.total || 0);
+  updateElementText('logisticsCount', stats.orders?.shipped || 0);
+  updateElementText('escrowCount', stats.escrows?.total || 0);
+  updateElementText('disputesCount', stats.disputes?.open || 0);
+  updateElementText('fraudReportsCount', stats.reports?.total || 0);
   updateElementText('pendingVerifications', stats.users?.verified || 0);
 }
 
@@ -2472,21 +2568,21 @@ async function updateOrdersTable(searchTerm) {
     <tr data-status="${(order.status || 'pending').toLowerCase()}">
       <td>
         <a href="${firebaseLink}" target="_blank" title="View in Firebase Console" style="text-decoration: underline; color: #4f46e5; font-weight: bold;">
-          #${order.id.slice(-6)}
+          ${order.id}
         </a>
       </td>
       <td>
         <div class="d-flex flex-column">
           <span class="fw-bold" style="font-size: 0.9rem;">${buyerName}</span>
           <span class="small text-muted" style="font-size: 0.8rem;">${buyerEmail}</span>
-          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${buyerId.slice(0, 8)}...</span>
+          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${buyerId}</span>
         </div>
       </td>
       <td>
         <div class="d-flex flex-column">
           <span class="fw-bold" style="font-size: 0.9rem;">${sellerDisplayName}</span>
           <span class="small text-muted" style="font-size: 0.8rem;">${sellerEmail}</span>
-          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${sellerDisplayId.substring(0, 8)}...</span>
+          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${sellerDisplayId}</span>
         </div>
       </td>
       <td>${itemsSummary}</td>
@@ -2896,8 +2992,8 @@ function updateDisputesTable(searchTerm) {
 
     return `
     <tr>
-      <td>#${dispute.id.substring(0, 8)}</td>
-      <td><a href="#" onclick="viewOrder('${dispute.orderId}'); return false;">#${dispute.orderId ? dispute.orderId.substring(0, 8) : 'N/A'}</a></td>
+      <td>${dispute.id}</td>
+      <td><a href="#" onclick="viewOrder('${dispute.orderId}'); return false;">${dispute.orderId || 'N/A'}</a></td>
       <td>
         <div style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${dispute.issue || dispute.reason || 'N/A'}">
           ${dispute.issue || dispute.reason || 'N/A'}
@@ -3714,7 +3810,7 @@ async function resolveDispute(id) {
     if (disp) {
       const notifData = {
         title: 'Dispute Arbitration Concluded',
-        message: `The arbitration for order #${(disp.orderId || '').slice(-6)} is complete. Outcome: ${outcome.toUpperCase()}.\nAdmin Notes: ${comments}`,
+        message: `The arbitration for order ${disp.orderId || ''} is complete. Outcome: ${outcome.toUpperCase()}.\nAdmin Notes: ${comments}`,
         type: 'alert',
         read: false,
         timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -3725,11 +3821,7 @@ async function resolveDispute(id) {
       if (disp.orderId) await db.ref(`orders/${disp.orderId}`).update({ status: 'dispute_resolved', disputeOutcome: outcome });
     }
 
-    if (window.NotificationManager) {
-      window.NotificationManager.showToast('Dispute Resolved', 'The arbitration ruling has been securely enforced.', 'success');
-    } else {
-      alert('Arbitration ruling successfully enforced.');
-    }
+    showSuccess('Dispute Resolved: The arbitration ruling has been securely enforced.');
   } catch (e) {
     console.error('Arbitration Error:', e);
     alert('Critical error while enforcing resolution. See console.');
@@ -3801,8 +3893,22 @@ function renderWithdrawals(withdrawals) {
   const tbody = document.getElementById('withdrawalsTableBody');
   if (!tbody) return;
 
-  const filter = document.getElementById('withdrawalStatusFilter')?.value || 'pending';
-  const filteredWithdrawals = withdrawals.filter(w => filter === 'all' || w.status === filter);
+  const filter = (document.getElementById('withdrawalStatusFilter')?.value || 'pending').toLowerCase();
+  
+  console.log('🔍 Rendering Withdrawals. Filter:', filter, 'Total Count:', withdrawals.length);
+
+  const filteredWithdrawals = withdrawals.filter(w => {
+    const s = String(w.status || w.Status || w.state || 'pending').toLowerCase().trim();
+    // console.log(`   -> Item ID: ${w.id}, Resolved Status: "${s}"`);
+    
+    if (filter === 'all') return true;
+    if (filter === 'pending') {
+      return s !== 'completed' && s !== 'rejected' && s !== 'approved' && s !== 'success';
+    }
+    return s === filter;
+  });
+
+  console.log('✅ Filtered Count:', filteredWithdrawals.length);
 
   if (filteredWithdrawals.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" class="text-center">No withdrawal requests found</td></tr>';
@@ -3810,7 +3916,7 @@ function renderWithdrawals(withdrawals) {
   }
 
   tbody.innerHTML = filteredWithdrawals.map((w, index) => {
-    const requestId = w.id ? w.id.substring(1, 8).toUpperCase() : String(index + 1).padStart(3, '0');
+    const requestId = w.id ? w.id : String(index + 1).padStart(3, '0');
     const userDisplayId = getUserDisplayId(w.userId);
 
     // Use data attributes for event delegation
@@ -3870,9 +3976,15 @@ function renderWithdrawals(withdrawals) {
   }).join('');
 }
 
-// Render Wallet Transactions Table
+function getUserName(uid) {
+  if (!uid) return 'Unknown User';
+  const u = globalUsersMap[uid];
+  if (!u) return 'Unknown User';
+  return u.fullName || u.displayName || u.name || u.username || 'Unknown User';
+}
+
 function renderWalletTransactions(searchTerm) {
-  const tbody = document.getElementById('walletTransactionsTableBody');
+  const tbody = document.getElementById('walletTransactionsTable');
   if (!tbody) return;
 
   // Sync state if passed directly
@@ -3906,13 +4018,13 @@ function renderWalletTransactions(searchTerm) {
     const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' :
       status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
 
-    const transactionUser = t.userName || t.user || globalUsersMap[t.userId]?.name || 'Unknown User';
+    const transactionUser = t.userName || t.user || getUserName(t.userId);
     const userDisplayId = getUserDisplayId(t.userId);
     const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A';
 
     return `
       <tr>
-        <td style="font-family: monospace; font-weight: 600; color: #64748b;">#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
+        <td style="font-family: monospace; font-weight: 600; color: #64748b;">${t.id || 'N/A'}</td>
         <td>
             <div class="d-flex align-items-center">
                 <div>
@@ -4213,6 +4325,16 @@ function closeWithdrawalRejectModal() {
 }
 
 // Process Withdrawal Approval (upload image & call API)
+// File preview for admin upload zone
+window.handleAdminFileSelect = function(input) {
+  const preview = document.getElementById('adminUploadPreview');
+  const filename = document.getElementById('adminUploadFilename');
+  if (input.files && input.files[0]) {
+    if (preview) { preview.classList.add('visible'); }
+    if (filename) { filename.textContent = input.files[0].name; }
+  }
+};
+
 async function processWithdrawalApproval() {
   const fileInput = document.getElementById('proofUpload');
   const file = fileInput.files[0];
@@ -4680,9 +4802,11 @@ async function renderFraudReports() {
             <button class="fm-btn fm-btn-dismiss" onclick="moderateAction('dismiss', '${resolvedTarget}', '${report.id}', this)">
               <i class="fas fa-times"></i> Clear
             </button>
-            <button class="fm-btn fm-btn-delete" onclick="moderateAction('delete_listing', '${resolvedTarget}', '${report.id}', this)">
-              <i class="fas fa-trash-alt"></i> Purge
-            </button>
+            ${(report.targetType || 'Product') === 'Product' ? `
+              <button class="fm-btn fm-btn-delete" onclick="moderateAction('delete_listing', '${resolvedTarget}', '${report.id}', this)">
+                <i class="fas fa-trash-alt"></i> Purge
+              </button>
+            ` : ''}
             <button class="fm-btn fm-btn-suspend" onclick="moderateAction('suspend_user', '${resolvedTarget}', '${report.id}', this)">
               <i class="fas fa-user-slash"></i> Ban User
             </button>
@@ -4733,12 +4857,65 @@ function closeFraudModal() {
   document.getElementById('fraudInvestigationModal').style.display = 'none';
 }
 
+let pendingModAction = null;
+
 async function moderateAction(actionType, targetId, reportId, btnElement) {
-  if (!confirm('Are you certain you want to perform this moderation action? This may be irreversible.')) return;
+  // Store context for confirmation
+  pendingModAction = { actionType, targetId, reportId, btnElement };
+
+  // Setup Modal UI based on action
+  const title = document.getElementById('modConfirmTitle');
+  const text = document.getElementById('modConfirmText');
+  const icon = document.getElementById('modConfirmIcon');
+  const content = document.getElementById('modConfirmContent');
+  const confirmBtn = document.getElementById('modConfirmBtn');
+
+  if (actionType === 'dismiss') {
+    title.innerText = 'Clear Report';
+    text.innerText = 'Are you sure you want to dismiss this fraud report? This will remove it from the active queue without taking further action.';
+    icon.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i>';
+    content.style.borderTopColor = '#10b981';
+    confirmBtn.style.background = '#10b981';
+  } else if (actionType === 'delete_listing') {
+    title.innerText = 'Purge Content';
+    text.innerText = 'WARNING: This will immediately delete the reported listing from the marketplace. This action is irreversible.';
+    icon.innerHTML = '<i class="fas fa-trash-alt" style="color: #f59e0b;"></i>';
+    content.style.borderTopColor = '#f59e0b';
+    confirmBtn.style.background = '#f59e0b';
+  } else if (actionType === 'suspend_user') {
+    title.innerText = 'Ban & Purge User';
+    text.innerText = 'DANGER: This will permanently suspend the user account AND automatically purge their entire product catalog. Use only for confirmed fraud.';
+    icon.innerHTML = '<i class="fas fa-user-slash" style="color: #ef4444;"></i>';
+    content.style.borderTopColor = '#ef4444';
+    confirmBtn.style.background = '#ef4444';
+  }
+
+  // Set the confirm button click handler
+  confirmBtn.onclick = () => executeModerateAction();
+
+  // Show Modal
+  document.getElementById('modConfirmModal').style.display = 'flex';
+}
+
+window.cancelModAction = () => {
+  document.getElementById('modConfirmModal').style.display = 'none';
+  pendingModAction = null;
+};
+
+async function executeModerateAction() {
+  if (!pendingModAction) return;
+  const { actionType, targetId, reportId, btnElement } = pendingModAction;
+  
+  // Close modal immediately
+  document.getElementById('modConfirmModal').style.display = 'none';
 
   const originalText = btnElement.innerHTML;
   btnElement.disabled = true;
   btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+  // Find report to determine targetType (User or Product)
+  const report = fraudReports.find(r => r.id === reportId);
+  const targetType = report ? (report.targetType || 'Product') : 'Product';
 
   try {
     if (actionType === 'dismiss') {
@@ -4746,32 +4923,103 @@ async function moderateAction(actionType, targetId, reportId, btnElement) {
       showSuccess('Report dismissed.');
     }
     else if (actionType === 'delete_listing') {
-      await db.ref(`products/${targetId}`).remove();
-      await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Deleted)' });
-      showSuccess('Listing forcefully removed.');
+      if (targetType === 'User') {
+        // Clear entire store for this user
+        const prodSnap = await db.ref('products').once('value');
+        if (prodSnap.exists()) {
+          const updates = {};
+          prodSnap.forEach(child => {
+            const p = child.val();
+            if (p.sellerId === targetId || p.seller_id === targetId) {
+              updates[child.key] = null;
+            }
+          });
+          const count = Object.keys(updates).length;
+          if (count > 0) {
+            await db.ref('products').update(updates);
+            showSuccess(`Purged entire store (${count} listings removed).`);
+          } else {
+            showSuccess('User has no active listings to purge.');
+          }
+        }
+      } else {
+        // Standard single product purge
+        // Notify user first
+        const prodSnap = await db.ref(`products/${targetId}`).once('value');
+        if (prodSnap.exists()) {
+            const sellerId = prodSnap.val().sellerId || prodSnap.val().seller_id;
+            if (sellerId) {
+                await db.ref(`users/${sellerId}/notifications`).push({
+                    title: 'Listing Forcefully Removed',
+                    message: `Your listing "${prodSnap.val().name}" has been removed by administrators due to a confirmed policy violation.`,
+                    type: 'alert',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    read: false,
+                    link: '#'
+                });
+            }
+        }
+        await db.ref(`products/${targetId}`).remove();
+        showSuccess('Listing forcefully removed.');
+      }
+      await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Purged)' });
     }
     else if (actionType === 'suspend_user') {
-      // Find the product to get the sellerId
-      const prodSnap = await db.ref(`products/${targetId}`).once('value');
-      if (prodSnap.exists()) {
-        const sellerId = prodSnap.val().sellerId || prodSnap.val().seller_id;
+      let sellerId = targetId;
+      
+      // If the report was against a product, we need to find the seller first
+      if (targetType === 'Product') {
+        const prodSnap = await db.ref(`products/${targetId}`).once('value');
+        if (prodSnap.exists()) {
+          sellerId = prodSnap.val().sellerId || prodSnap.val().seller_id;
+        } else {
+          sellerId = null;
+          showError('Target product no longer exists.');
+        }
+      }
+
         if (sellerId) {
-          // Force is_active and isActive to false for both legacy and new structures
+          // 0. Notify User BEFORE suspension
+          await db.ref(`users/${sellerId}/notifications`).push({
+              title: 'ACCOUNT SUSPENDED',
+              message: 'Your account has been suspended for violating our marketplace policies. Your listings have been automatically purged.',
+              type: 'alert',
+              timestamp: firebase.database.ServerValue.TIMESTAMP,
+              read: false,
+              link: 'auth.html?mode=signin&status=banned'
+          });
+
+          // 1. Suspend User
           await db.ref(`users/${sellerId}`).update({
             isActive: false,
             is_active: false
           });
-          await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Suspended User)' });
-          showSuccess('Seller suspended permanently.');
-        } else {
-          showError('Could not locate seller ID for this product.');
-        }
+
+          // 2. AUTO-PURGE: Automatically remove all listings for this user
+          const prodSnap = await db.ref('products').once('value');
+          let purgedCount = 0;
+          if (prodSnap.exists()) {
+            const updates = {};
+            prodSnap.forEach(child => {
+              const p = child.val();
+              if (p.sellerId === sellerId || p.seller_id === sellerId) {
+                updates[child.key] = null;
+              }
+            });
+            purgedCount = Object.keys(updates).length;
+            if (purgedCount > 0) {
+              await db.ref('products').update(updates);
+            }
+          }
+
+          await db.ref(`reports/${reportId}`).update({ status: 'Resolved (User Banned & Store Purged)' });
+          showSuccess(`User banned and ${purgedCount} listings purged automatically.`);
       } else {
-        // Product already gone?
-        showError('Target product no longer exists.');
-        await db.ref(`reports/${reportId}`).update({ status: 'Resolved (Missing Target)' });
+        showError('Could not identify user for suspension.');
       }
     }
+    
+    if (typeof closeFraudModal === 'function') closeFraudModal();
   } catch (error) {
     console.error('Moderation error:', error);
     showError('Moderation action failed: ' + error.message);
@@ -4940,32 +5188,48 @@ async function loadAnalyticsData() {
       
       console.log('🤖 AI ENGINE DATA:', data);
 
-      if (data.status === 'success') {
-        // 1. Render Bar Chart
-        if (v2Charts.aiTrends) v2Charts.aiTrends.destroy();
-        const keywords = data.trending_keywords || [];
+      if (data.success && data.trends) {
+        // 1. Render AI Trends Chart (Review Sentiment Keywords)
+        const keywords = data.trends.keywords || [];
+        const container = document.getElementById('v2-aiTrendContainer');
         
-        if (keywords.length > 0) {
-            v2Charts.aiTrends = STHAnalytics.Admin.renderAITrendChart('v2-aiTrendChart', keywords);
-            
-            // 2. Update Search Cloud (Tags)
-            const cloud = document.getElementById('v2-searchCloud');
-            if (cloud) {
-              cloud.innerHTML = keywords.map(k => `
-                <span class="trend-tag" style="background: #f5f3ff; padding: 8px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; color: #7c3aed; border: 1px solid #ddd6fe; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                  ${k.keyword} <small style="color: #a78bfa; margin-left: 6px;">${k.count}</small>
-                </span>
-              `).join('');
+        if (container) {
+          if (keywords.length > 0) {
+            // Restore canvas if it was removed
+            if (!document.getElementById('v2-aiTrendChart')) {
+              container.innerHTML = '<canvas id="v2-aiTrendChart"></canvas>';
             }
-        } else {
-            console.warn('🤖 AI ENGINE: No trending keywords found yet.');
-            document.getElementById('v2-searchCloud').innerHTML = '<p style="color: #94a3b8; font-style: italic; padding: 20px;">The AI is still learning! Leave some reviews to see trends appear.</p>';
+            if (v2Charts.aiTrends) v2Charts.aiTrends.destroy();
+            v2Charts.aiTrends = STHAnalytics.Admin.renderAITrendChart('v2-aiTrendChart', keywords);
+          } else {
+            if (v2Charts.aiTrends) v2Charts.aiTrends.destroy();
+            container.innerHTML = `
+              <canvas id="v2-aiTrendChart" style="display:none;"></canvas>
+              <div style="height:100%; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-style:italic; text-align:center; padding:20px;">
+                No significant review trends found yet.
+              </div>`;
+          }
+        }
+            
+        // 2. Render Popular Search Terms (Search Telemetry)
+        const searchTerms = data.trends.search_terms || [];
+        const cloud = document.getElementById('v2-searchCloud');
+        if (cloud) {
+          if (searchTerms.length > 0) {
+            cloud.innerHTML = searchTerms.map(k => `
+              <span class="trend-tag" style="background: #f5f3ff; padding: 8px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; color: #7c3aed; border: 1px solid #ddd6fe; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; cursor: default;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                ${k.keyword} <small style="color: #a78bfa; margin-left: 6px;">${k.count}</small>
+              </span>
+            `).join('');
+          } else {
+            cloud.innerHTML = '<p style="color: #94a3b8; font-style: italic; padding: 20px;">Tracking search intent... No queries recorded yet.</p>';
+          }
         }
       }
     } catch (e) {
       console.error('AI Analytics Fetch Error:', e);
-      // Retry in 5 seconds
-      setTimeout(refreshAITrends, 5000);
+      // Retry in 10 seconds
+      setTimeout(refreshAITrends, 10000);
     }
   };
 
@@ -4995,7 +5259,7 @@ async function loadAnalyticsData() {
 
     // Update Top Counters
     const elements = {
-      'v2-totalRevenue': 'RS ' + stats.counters.revenue.toLocaleString(),
+      'v2-totalRevenue': 'RS ' + (stats.counters.gmv || 0).toLocaleString(),
       'v2-orderCount': stats.counters.orders.toLocaleString(),
       'v2-escrowValue': 'RS ' + stats.counters.escrowValue.toLocaleString(),
       'v2-activeDisputes': stats.counters.activeDisputes.toLocaleString(),

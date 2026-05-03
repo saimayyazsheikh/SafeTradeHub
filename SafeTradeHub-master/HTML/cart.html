@@ -82,8 +82,8 @@
           
           <div class="total-line">
             <span style="display: flex; align-items: center; gap: 5px;">
-              Escrow Fee
-              <i class="fas fa-info-circle" title="Securely holds your funds until you receive the item." style="color: #64748b; cursor: help; font-size: 0.85rem;"></i>
+              <span id="escrowLabel">Escrow Fee</span>
+              <i class="fas fa-info-circle" title="Securely holds your funds until you receive the item. Calculated from product subtotal only, excluding shipping." style="color: #64748b; cursor: help; font-size: 0.85rem;"></i>
             </span>
             <strong id="escrowTotal">—</strong>
           </div>
@@ -103,10 +103,15 @@
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="site-footer">
+  <!-- Redesigned Functional Footer -->
+  <footer class="site-footer" style="background: #0f172a; padding: 30px 0; color: #94a3b8; margin-top: auto;">
     <div class="container">
-      <p>&copy; 2026 SafeTradeHub. All Rights Reserved.</p>
+      <div style="text-align: center;">
+        <p style="margin: 0; font-size: 0.9rem;">&copy; 2026 SafeTradeHub. All Rights Reserved.</p>
+        <p style="margin-top: 10px; font-size: 0.85rem;">
+          For Help & Support Contact: <a href="mailto:safetradehubteam@gmail.com" style="color: #6366f1; text-decoration: none; font-weight: 600;">safetradehubteam@gmail.com</a>
+        </p>
+      </div>
     </div>
   </footer>
 
@@ -144,10 +149,14 @@
       return arr.map(i => ({
         id: i.id,
         title: i.title || i.name || 'Item',
+        name: i.title || i.name || 'Item',
         price: Number(i.price) || 0,
         shippingCost: Number(i.shippingCost) || 0,
         img: i.img || '',
-        qty: Number(i.qty) || 1
+        qty: Number(i.qty) || 1,
+        sellerId: i.sellerId || i.seller_id || 'admin',
+        sellerName: i.sellerName || i.seller_name || 'SafeTradeHub',
+        stock: typeof i.stock !== 'undefined' ? i.stock : 999 // Default to 999 until synced
       }));
     }
     function writeCart(items) { localStorage.setItem(CART_KEY, JSON.stringify(items)); }
@@ -183,6 +192,9 @@
             <div class="shipping-note">
               Shipping: ${money(it.shippingCost)}
             </div>
+            <div class="seller-note" style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+              Seller: ${it.sellerName}
+            </div>
           </div>
           <div class="qty-wrapper">
             <input type="number" min="1" value="${it.qty}" data-idx="${idx}" />
@@ -198,11 +210,18 @@
       const shippingTotal = items.reduce((s, i) => s + i.shippingCost, 0);
       
       let escrowFee = 0;
+      let escrowPercent = 0;
       if (window.FeeEngine) {
         const escrowResult = window.FeeEngine.calculateEscrow(subtotal);
         if (escrowResult.success) {
           escrowFee = escrowResult.data.fee;
+          escrowPercent = escrowResult.data.percentage;
         }
+      }
+
+      const escrowLabel = document.getElementById('escrowLabel');
+      if (escrowLabel) {
+        escrowLabel.textContent = `Escrow Fee (${escrowPercent}%)`;
       }
 
       document.getElementById('subtotal').textContent = money(subtotal);
@@ -216,7 +235,19 @@
       if (!e.target.matches('.qty-wrapper input')) return;
       const idx = +e.target.dataset.idx;
       const items = readCart();
-      items[idx].qty = Math.max(1, parseInt(e.target.value || '1', 10));
+      const inputVal = parseInt(e.target.value || '1', 10);
+      const stock = parseInt(items[idx].stock || 9999); // Fallback if stock not yet synced
+
+      if (inputVal > stock) {
+        items[idx].qty = stock;
+        e.target.value = stock;
+        if (window.NotificationManager) {
+          window.NotificationManager.showToast('Inventory Limit', `Only ${stock} items available in stock.`, 'warning');
+        }
+      } else {
+        items[idx].qty = Math.max(1, inputVal);
+      }
+
       writeCart(items);
       renderCart();
     });
@@ -235,7 +266,7 @@
       writeCart([]); renderCart();
     });
 
-    document.getElementById('processOrderBtn').addEventListener('click', () => {
+    document.getElementById('processOrderBtn').addEventListener('click', async () => {
       const items = readCart();
       if (!items.length) {
         if (window.NotificationManager && window.NotificationManager.showToast) {
@@ -246,18 +277,70 @@
         return;
       }
 
-      // Use global AuthManager for authentication check
+      // 1. Authentication Check
       if (!window.AuthManager || !window.AuthManager.isAuthenticated()) {
         const shouldRedirect = confirm('Please sign in to proceed with checkout. Would you like to go to the login page?');
         if (shouldRedirect) {
-          // Store current cart and redirect to login with return URL
           window.location.href = 'auth.html?mode=signin&redirect=' + encodeURIComponent('checkout.html');
         }
         return;
       }
 
-      // Go to escrow checkout
-      location.href = 'checkout.html';
+      // 2. Professional Live Inventory Verification
+      const btn = document.getElementById('processOrderBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying Inventory...';
+
+      try {
+        const db = firebase.database();
+        const verificationPromises = items.map(async (item) => {
+          const snap = await db.ref(`products/${item.id}/stock`).once('value');
+          const liveStock = parseInt(snap.val() || 0);
+          return {
+            id: item.id,
+            title: item.title,
+            requested: item.qty,
+            available: liveStock,
+            isValid: item.qty <= liveStock
+          };
+        });
+
+        const results = await Promise.all(verificationPromises);
+        const failed = results.find(r => !r.isValid);
+
+        if (failed) {
+          if (window.NotificationManager) {
+            window.NotificationManager.showToast('Inventory Issue', `"${failed.title}" has only ${failed.available} left in stock. Please adjust your quantity.`, 'error');
+          } else {
+            alert(`⚠️ "${failed.title}" has only ${failed.available} left in stock.`);
+          }
+          
+          // Sync local stock data to prevent further errors
+          const updatedItems = items.map(it => {
+            const res = results.find(r => r.id === it.id);
+            if (res) it.stock = res.available;
+            return it;
+          });
+          writeCart(updatedItems);
+          renderCart();
+
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+          return;
+        }
+
+        // All good, proceed
+        location.href = 'checkout.html';
+
+      } catch (err) {
+        console.error('Inventory verification failed:', err);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        if (window.NotificationManager) {
+          window.NotificationManager.showToast('System Error', 'Could not verify inventory. Please try again.', 'error');
+        }
+      }
     });
 
     /* init */
@@ -271,26 +354,35 @@
       let updated = false;
       const db = firebase.database();
 
-      // Check each item
       const promises = items.map(async (item, idx) => {
-        // Only fetch if shippingCost is missing or 0 (to be safe, though 0 might be valid)
-        // To avoid excessive reads, we could check if it's explicitly undefined in the raw data, 
-        // but readCart normalizes it. 
-        // Let's just fetch all items to ensure price and shipping are up to date.
         try {
           const snap = await db.ref('products/' + item.id).once('value');
           if (snap.exists()) {
             const p = snap.val();
-            // Robust price, shipping, and location extraction
             const shipping = parseFloat(p.shippingCost || p.shipping_cost || 0);
             const price = parseFloat(p.price || 0);
             const location = p.location || '';
+            const stock = parseInt(p.stock) || 0;
+            const sId = p.sellerId || p.seller_id || (p.seller && p.seller.id) || 'admin';
+            const sName = p.sellerName || p.seller_name || (p.seller && p.seller.name) || 'SafeTradeHub';
 
-            // Update if different or if critical fields were missing
-            if (item.shippingCost !== shipping || item.price !== price || item.location !== location || typeof item.shippingCost === 'undefined') {
+            // Validate and cap quantity
+            let finalQty = item.qty;
+            if (item.qty > stock) {
+              finalQty = stock;
+              if (window.NotificationManager) {
+                window.NotificationManager.showToast('Inventory Update', `Quantity for "${item.title}" adjusted to available stock (${stock}).`, 'warning');
+              }
+            }
+
+            if (item.shippingCost !== shipping || item.price !== price || item.location !== location || item.sellerId !== sId || item.qty !== finalQty || typeof item.shippingCost === 'undefined') {
               items[idx].shippingCost = shipping;
               items[idx].price = price;
               items[idx].location = location;
+              items[idx].sellerId = sId;
+              items[idx].sellerName = sName;
+              items[idx].qty = finalQty;
+              items[idx].stock = stock; // Store stock for UI reference
               updated = true;
             }
           }
@@ -304,10 +396,82 @@
       if (updated) {
         writeCart(items);
         renderCart();
-        
       }
+    }
+
+    function toggleFAQModal() {
+        document.getElementById('chatbot-container').classList.toggle('show');
+    }
+
+    async function handleNewsletter(event) {
+        event.preventDefault();
+        const input = event.target.querySelector("input");
+        const email = input.value.trim();
+        if (!email) return;
+        
+        try {
+            await firebase.database().ref("newsletter_subscribers").push({
+                email: email,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                source: window.location.pathname
+            });
+            input.value = "";
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast("Success", "Subscribed successfully!", "success");
+            } else {
+                alert("Subscribed!");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+  </script>
+
+  <!-- Legal Content Modal -->
+  <div id="legal-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(8px); z-index:2000; padding:20px; overflow-y:auto;">
+    <div style="background:white; max-width:800px; margin:40px auto; border-radius:24px; padding:40px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+        <button onclick="closeLegalModal()" style="position:absolute; top:20px; right:20px; background:#f1f5f9; border:none; width:40px; height:40px; border-radius:12px; cursor:pointer; display:grid; place-items:center; transition:all 0.2s;">
+            <i class="fas fa-times" style="color:#64748b;"></i>
+        </button>
+        <div id="legal-modal-content" style="color:#1e293b; font-family:'Inter', sans-serif; line-height:1.6;">
+            <!-- Content will be injected here -->
+        </div>
+    </div>
+  </div>
+
+  <script>
+    const legalContent = {
+        privacy: `
+            <h1 style="font-family:'Outfit'; font-weight:800; margin-bottom:20px;">Privacy Policy</h1>
+            <p>Last Updated: May 2026</p>
+            <h2 style="margin-top:20px;">1. Information We Collect</h2>
+            <p>SafeTradeHub collects information you provide directly to us when you create an account, list a product, or communicate with other users.</p>
+        `,
+        terms: `
+            <h1 style="font-family:'Outfit'; font-weight:800; margin-bottom:20px;">Terms of Service</h1>
+            <p>Last Updated: May 2026</p>
+            <h2 style="margin-top:20px;">1. Marketplace Rules</h2>
+            <p>Users must provide accurate information. SafeTradeHub verified sellers undergo a strict manual verification process.</p>
+        `
+    };
+
+    function openLegalModal(type) {
+        document.getElementById("legal-modal-content").innerHTML = legalContent[type];
+        document.getElementById("legal-modal").style.display = "block";
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeLegalModal() {
+        document.getElementById("legal-modal").style.display = "none";
+        document.body.style.overflow = "auto";
+    }
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById("legal-modal");
+        if (event.target == modal) {
+            closeLegalModal();
+        }
     }
   </script>
 </body>
-
 </html>

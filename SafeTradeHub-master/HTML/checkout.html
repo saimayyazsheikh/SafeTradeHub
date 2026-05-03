@@ -1146,10 +1146,11 @@
           if (!productSnap.exists()) {
             throw new Error(`Product "${item.title}" no longer exists.`);
           }
-          const productData = productSnap.val();
-          const currentStock = parseInt(productData.stock) || 0;
+          const productData = productSnap.val() || {};
+          const currentStock = parseInt(productData.stock) || parseInt(productData.inventory) || 0;
+          const requestedQty = parseInt(item.qty) || 1;
           
-          if (currentStock < item.qty) {
+          if (currentStock < requestedQty) {
             throw new Error(`Insufficient stock for "${item.title}". Only ${currentStock} available.`);
           }
         }
@@ -1212,10 +1213,39 @@
         // Generate Tracking Number (e.g., STH-12345678)
         const trackingNumber = 'STH-' + Math.floor(10000000 + Math.random() * 90000000);
 
-        // Enhanced Seller Identification
-        const firstItem = cart[0] || {};
-        const sellerId = firstItem.sellerId || firstItem.seller_id || 'admin';
-        const sellerName = firstItem.sellerName || firstItem.seller_name || 'SafeTradeHub';
+        // Enhanced Seller Identification (Multi-Pass)
+        let sellerId = 'admin';
+        let sellerName = 'SafeTradeHub';
+
+        // Pass 1: Try to get from first item in cart
+        if (cart.length > 0) {
+          const firstItem = cart[0];
+          sellerId = firstItem.sellerId || firstItem.seller_id || 'admin';
+          sellerName = firstItem.sellerName || firstItem.seller_name || 'SafeTradeHub';
+        }
+
+        // Pass 2: Verification Loop - Ensure each item has a sellerId and try to resolve 'admin'
+        for (let i = 0; i < cart.length; i++) {
+          try {
+            const prodSnap = await db.ref(`products/${cart[i].id}`).once('value');
+            if (prodSnap.exists()) {
+              const p = prodSnap.val();
+              const resolvedId = p.sellerId || p.seller_id || (p.seller && p.seller.id);
+              const resolvedName = p.sellerName || p.seller_name || (p.seller && p.seller.name);
+              
+              if (resolvedId && (sellerId === 'admin' || !sellerId)) {
+                sellerId = resolvedId;
+                sellerName = resolvedName || sellerName;
+              }
+              
+              // Ensure the item in the order record has the correct sellerId
+              cart[i].sellerId = resolvedId || cart[i].sellerId || 'admin';
+              cart[i].sellerName = resolvedName || cart[i].sellerName || 'SafeTradeHub';
+            }
+          } catch (e) {
+            console.warn('Seller resolution failed for item:', cart[i].id, e);
+          }
+        }
 
         // 1. Create Order
         const orderData = {
@@ -1271,35 +1301,46 @@
         };
         updates[`transactions/${transactionId}`] = transactionData;
 
-        // 4. Update Wallet & Inventory (Transactional)
-        // We'll run inventory updates first, then wallet.
-        // This ensures stock is reserved before funds are moved.
-        
-        const inventoryPromises = cart.map(item => {
-          return db.ref(`products/${item.id}`).transaction((currentProduct) => {
-            if (currentProduct) {
-              const stock = parseInt(currentProduct.stock) || 0;
-              if (stock < item.qty) return; // Abort if someone else bought it first
-              
-              const newStock = stock - item.qty;
-              currentProduct.stock = newStock;
-              
-              // If stock reaches 0, mark as sold out
-              if (newStock <= 0) {
-                currentProduct.isActive = false;
-                currentProduct.status = 'sold_out';
-              }
+        // 4. Update Inventory (Atomic Transactional Loop)
+        // We handle the initial null state to prevent premature transaction aborts.
+        const inventoryResults = await Promise.all(cart.map(async (item) => {
+          const itemRef = db.ref(`products/${item.id}`);
+          const { committed, snapshot } = await itemRef.transaction((currentProduct) => {
+            if (currentProduct === null) return currentProduct; // Let Firebase retry
+            
+            const currentStock = parseInt(currentProduct.stock) || parseInt(currentProduct.inventory) || 0;
+            const requestedQty = parseInt(item.qty) || 1;
+            
+            if (currentStock < requestedQty) {
+              console.warn(`[Inventory] Insufficient stock for ${item.id}: ${currentStock} < ${requestedQty}`);
+              return; // Abort
             }
+            
+            const newStock = currentStock - requestedQty;
+            currentProduct.stock = newStock;
+            currentProduct.updatedAt = new Date().toISOString();
+            
+            if (newStock <= 0) {
+              currentProduct.isActive = false;
+              currentProduct.status = 'sold_out';
+            }
+            
             return currentProduct;
           });
-        });
+          return { committed, snapshot, itemId: item.id, itemTitle: item.title };
+        }));
 
-        await Promise.all(inventoryPromises);
+        // Check if any inventory update failed
+        const failedItem = inventoryResults.find(r => !r.committed);
+        if (failedItem) {
+          throw new Error(`Insufficient stock for "${failedItem.itemTitle}". Please update your cart.`);
+        }
 
-        // Write the other records (Order, Escrow, Transaction)
+        // 5. Write the other records (Order, Escrow, Transaction)
+        // Since inventory is successfully deducted, we can safely commit the order metadata.
         await db.ref().update(updates);
 
-        // 5. Update Wallet (Atomic Transaction)
+        // 6. Update Wallet (Atomic Transaction)
         const walletRef = db.ref(`users/${user.uid}/wallet`);
         const { committed, snapshot } = await walletRef.transaction((currentWallet) => {
           if (currentWallet) {

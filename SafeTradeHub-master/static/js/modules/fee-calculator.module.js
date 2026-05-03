@@ -86,7 +86,7 @@ const FeeEngine = {
             if (p <= 10000) {
                 tier = 1;
                 feePercentage = 0.02; // 2%
-                minFee = 50;
+                minFee = 0;
             } else if (p > 10000 && p <= 50000) {
                 tier = 2;
                 feePercentage = 0.035; // 3.5%
@@ -104,7 +104,7 @@ const FeeEngine = {
                 success: true,
                 data: {
                     tier: tier,
-                    percentage: feePercentage * 100,
+                    percentage: parseFloat((feePercentage * 100).toFixed(2)),
                     fee: calculatedFee
                 }
             };

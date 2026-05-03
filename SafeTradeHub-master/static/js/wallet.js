@@ -114,7 +114,7 @@ async function loadWalletData() {
         
         // Update max withdraw hint if applicable
         const hint = document.getElementById('maxWithdrawHint');
-        if (hint) hint.textContent = `Max available: RS ${cachedBalance.toLocaleString()}`;
+        if (hint) hint.textContent = `Max available: RS ${cachedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         
         // Trigger validation if modal is open
         if (document.getElementById('withdrawModal').style.display === 'flex') {
@@ -129,8 +129,11 @@ async function loadWalletData() {
 function toggleRoleUI(role) {
     const mainBtn = document.getElementById('mainActionBtn');
     const sideBtn = document.getElementById('sideActionBtn');
+    const lockedCard = document.getElementById('lockedBalanceCard');
     
     if (role === 'Seller') {
+        if (lockedCard) lockedCard.style.display = 'none';
+        
         if (mainBtn) {
             mainBtn.onclick = openWithdrawModal;
             mainBtn.style.background = 'var(--danger)';
@@ -140,7 +143,12 @@ function toggleRoleUI(role) {
             sideBtn.onclick = openWithdrawModal;
             sideBtn.innerHTML = '<i class="fas fa-hand-holding-usd"></i><span>Withdraw</span><small style="color:var(--text-secondary);font-size:0.8rem;">Request payout</small>';
         }
+        
+        // Setup Seller Escrow Listener (Money waiting from active orders)
+        setupSellerEscrowListener(currentUser.uid);
     } else {
+        if (lockedCard) lockedCard.style.display = 'block';
+        
         // Buyer logic - switch back to deposits
         if (mainBtn) {
             mainBtn.onclick = openDepositModal;
@@ -154,19 +162,53 @@ function toggleRoleUI(role) {
     }
 }
 
+function setupSellerEscrowListener(uid) {
+    if (window._sellerEscrowListener) {
+        db.ref('orders').off('value', window._sellerEscrowListener);
+    }
+    
+    window._sellerEscrowListener = db.ref('orders').orderByChild('sellerId').equalTo(uid).on('value', snap => {
+        const orders = snap.val() || {};
+        let total = 0;
+        Object.values(orders).forEach(o => {
+            const s = (o.status || '').toLowerCase();
+            // Count any order that hasn't been finalized (completed/released or cancelled/refunded)
+            if (!['completed', 'cancelled', 'refunded'].includes(s)) {
+                // For sellers, we show the order total which will eventually be credited
+                total += parseFloat(o.total || o.price || 0);
+            }
+        });
+        
+        window._sellerCalculatedEscrow = total;
+        
+        // Update UI immediately if we are a seller
+        const role = document.getElementById('userRole')?.textContent;
+        if (role === 'Seller') {
+            const el = document.getElementById('escrowHeld');
+            if (el) el.textContent = `RS ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    });
+}
+
 function updateWalletUI(wallet) {
     const balance = wallet.balance || wallet.available_balance || 0;
     const withdrawn = wallet.total_withdrawn || wallet.withdrawn || 0;
-    const escrow = wallet.in_escrow || 0;
     const locked = wallet.locked_balance || 0;
+    
+    // For Sellers, we use the calculated escrow from active orders
+    const role = document.getElementById('userRole')?.textContent;
+    let escrow = wallet.in_escrow || 0;
+    if (role === 'Seller' && window._sellerCalculatedEscrow !== undefined) {
+        escrow = window._sellerCalculatedEscrow;
+    }
 
-    document.getElementById('walletBalance').textContent = `RS ${parseFloat(balance).toLocaleString()}`;
+    document.getElementById('walletBalance').textContent = `RS ${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const tw = document.getElementById('totalWithdrawn');
-    if (tw) tw.textContent = `RS ${parseFloat(withdrawn).toLocaleString()}`;
-    document.getElementById('escrowHeld').textContent = `RS ${parseFloat(escrow).toLocaleString()}`;
+    if (tw) tw.textContent = `RS ${parseFloat(withdrawn).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('escrowHeld').textContent = `RS ${parseFloat(escrow).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
     const lb = document.getElementById('lockedBalance');
-    if (lb) lb.textContent = `RS ${parseFloat(locked).toLocaleString()}`;
+    if (lb) lb.textContent = `RS ${parseFloat(locked).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function loadTransactions() {
@@ -218,6 +260,9 @@ function loadTransactions() {
             if (data.type === 'payment') displayType = 'Order Payment';
             if (data.type === 'escrow_hold') displayType = 'Escrow Hold';
             if (data.type === 'refund') displayType = 'Refund';
+            if (data.type === 'dispute_refund') displayType = 'Dispute Refund';
+            if (data.type === 'dispute_compensation') displayType = 'Dispute Comp';
+            if (data.type === 'dispute_penalty') displayType = 'Dispute Penalty';
 
             list.push({ 
                 id: c.key, 
@@ -234,6 +279,9 @@ function loadTransactions() {
             let displayType = 'Credit';
             if (data.type === 'credit') displayType = 'Escrow Release';
             if (data.type === 'bonus') displayType = 'Bonus';
+            if (data.type === 'dispute_refund') displayType = 'Dispute Refund';
+            if (data.type === 'dispute_compensation') displayType = 'Dispute Comp';
+            if (data.type === 'dispute_penalty') displayType = 'Dispute Penalty';
 
             list.push({ 
                 id: c.key, 
@@ -278,11 +326,17 @@ function renderTransactions(transactions) {
         const date = new Date(t.timestamp || t.createdAt).toLocaleDateString();
         const type = t.type || 'Transaction';
         const method = t.method || 'System';
-        const amount = parseFloat(t.amount || 0).toLocaleString();
+        const amount = parseFloat(t.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const status = t.status || 'completed';
+        const rejectionReason = t.rejectionReason || t.reason || '';
+        const adminNote = t.admin_note || t.adminNote || '';
         
         // Define which types are deductions (Red) vs additions (Green)
-        const isDeduction = ['Withdrawal', 'Escrow Hold', 'Order Payment', 'Payment'].includes(type);
+        const isDeduction = ['Withdrawal', 'Escrow Hold', 'Order Payment', 'Payment', 'Dispute Penalty'].includes(type);
+        
+        // Explicitly ensure dispute credits are NOT deductions
+        const isActuallyCredit = (type === 'Dispute Refund' || type === 'Dispute Comp' || type === 'Escrow Release' || type === 'Bonus' || type === 'Refund');
+        const finalIsDeduction = isDeduction && !isActuallyCredit;
 
         let actionHtml = '';
         if (t.slipUrl) {
@@ -299,14 +353,28 @@ function renderTransactions(transactions) {
                     <small style="color:var(--text-secondary);">${method}</small>
                 </div>
             </td>
-            <td style="color: ${isDeduction ? '#ef4444' : '#10b981'}; font-weight:600;">
-                ${isDeduction ? '-' : '+'} RS ${amount}
+            <td style="color: ${finalIsDeduction ? '#ef4444' : '#10b981'}; font-weight:600;">
+                ${finalIsDeduction ? '-' : '+'} RS ${amount}
             </td>
             <td>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span class="badge badge-${getStatusBadge(status)}">${status.toUpperCase()}</span>
                     ${actionHtml}
                 </div>
+            </td>
+            <td>
+                ${(status.toLowerCase() === 'rejected' && rejectionReason) ? `
+                    <div style="color: #ef4444; font-size: 0.75rem; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                        <i class="fas fa-info-circle" style="font-size: 0.7rem;"></i>
+                        <span>${rejectionReason}</span>
+                    </div>
+                ` : ''}
+                ${(status.toLowerCase() === 'completed' && adminNote) ? `
+                    <div style="color: #64748b; font-size: 0.75rem; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                        <i class="fas fa-sticky-note" style="font-size: 0.7rem;"></i>
+                        <span>${adminNote}</span>
+                    </div>
+                ` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -375,7 +443,7 @@ function validateWithdrawalAmount() {
 
     if (val > cachedBalance) {
         input.style.borderColor = '#ef4444';
-        error.textContent = `Insufficient balance. You only have RS ${cachedBalance.toLocaleString()} available.`;
+        error.textContent = `Insufficient balance. You only have RS ${cachedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available.`;
         error.style.display = 'block';
         btn.disabled = true;
         btn.style.opacity = '0.5';
@@ -494,7 +562,7 @@ async function processDeposit() {
         // Notify User
         await db.ref(`users/${currentUser.uid}/notifications`).push({
             title: 'Deposit Submitted',
-            message: `Your deposit request for RS ${parseFloat(amount).toLocaleString()} has been received and is pending verification.`,
+            message: `Your deposit request for RS ${parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} has been received and is pending verification.`,
             type: 'payment',
             read: false,
             timestamp: firebase.database.ServerValue.TIMESTAMP

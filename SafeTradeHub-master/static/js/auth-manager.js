@@ -133,6 +133,18 @@ class AuthManager {
             // Set up real-time listener if not already done
             firebase.database().ref('users/' + firebaseUser.uid).on('value', (snap) => {
               const updatedData = snap.val() || {};
+              
+              // CRITICAL: Real-time Ban Enforcement
+              if (updatedData.isActive === false || updatedData.is_active === false) {
+                  console.warn('🚨 AUTH-MANAGER: Account suspended in real-time. Terminating session.');
+                  this.clearAuth();
+                  // Check if we are already on auth.html to avoid loops
+                  if (!window.location.pathname.includes('auth.html')) {
+                      window.location.href = 'auth.html?mode=signin&status=banned';
+                  }
+                  return;
+              }
+
               this.setAuthData({ ...userData, ...updatedData }, null);
             });
           } catch (error) {

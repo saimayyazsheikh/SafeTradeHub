@@ -251,9 +251,17 @@
     /* Mode switch */
     const params = new URLSearchParams(location.search);
     const isSignin = params.get('mode') === 'signin';
+    const status = params.get('status');
+
     document.getElementById('pageTitle').textContent = isSignin ? 'Sign In' : 'Join';
+    
     if (isSignin) {
       document.getElementById('authTitleSignin').textContent = 'Welcome Back';
+      if (status === 'banned') {
+          setTimeout(() => {
+              showError('Your account has been suspended for violating our marketplace policies. Please contact support for more information.');
+          }, 500);
+      }
     } else {
       document.getElementById('authTitleJoin').textContent = 'Create Your Account';
     }
@@ -587,6 +595,13 @@
         const staffSnap = await db.ref('staff_registry/' + user.uid).once('value');
         const staffData = staffSnap.val();
 
+        if (userData && (userData.isActive === false || userData.is_active === false)) {
+            showError('Access Denied: This account has been suspended for policy violations.');
+            setLoading(false, 'signinForm');
+            await auth.signOut();
+            return;
+        }
+
         if (userData && userData.role === 'Admin') {
             showSuccess('Administrator identified. Redirecting to Management Console...');
             setTimeout(() => location.href = 'admin-dashboard.html', 1500);
@@ -594,6 +609,13 @@
         }
 
         if (staffData) {
+            // Check for staff activity too
+            if (staffData.isActive === false) {
+                 showError('Access Denied: Your staff credentials have been deactivated.');
+                 setLoading(false, 'signinForm');
+                 await auth.signOut();
+                 return;
+            }
             showSuccess('Staff member identified. Redirecting to Staff Hub...');
             setTimeout(() => location.href = 'staff-dashboard.html', 1500);
             return;

@@ -313,6 +313,11 @@ body {
     color: #dc2626;
 }
 
+.badge-success {
+    background: #d1fae5;
+    color: #059669;
+}
+
 .badge-warning {
     background: #fef3c7;
     color: #d97706;

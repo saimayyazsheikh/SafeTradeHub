@@ -23,8 +23,10 @@ let staffData = {
     wallets: '',
     transactions: '',
     escrow: '',
-    escrowStatus: ''
-  }
+    escrowStatus: '',
+    disputeStatus: ''
+  },
+  disputes: []
 };
 
 // --- POLYFILLS FOR ADMIN METHODS ---
@@ -110,19 +112,25 @@ function showError(message) {
   }, 4000);
 }
 
-async function logAudit(action, details) {
+// Helper to get staff name safely
+function getStaffName() {
+  if (!staffData.profile) return 'Staff Member';
+  return staffData.profile.name || staffData.profile.fullName || staffData.profile.displayName || staffData.profile.username || 'Staff Member';
+}
+
+async function logAudit(action, details = {}) {
   try {
     if (!staffData.profile) return;
     await db.ref('audit_logs').push({
       action: action,
-      adminId: staffData.profile.uid, // Using adminId for compatibility with backend structure
-      staffName: staffData.profile.name,
+      staffId: staffData.profile.uid,
+      staffName: getStaffName(),
       details: details,
-      isLogistics: true,
-      timestamp: firebase.database.ServerValue.TIMESTAMP
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      location: 'Staff Hub'
     });
   } catch (error) {
-    console.error('Audit logging failed:', error);
+    console.error('Audit log failed:', error);
   }
 }
 
@@ -155,18 +163,16 @@ function setupAuthState() {
       const data = snapshot.val();
 
       if (!data) {
-        window.NotificationManager.showToast('Access Denied: Not a registered staff member.', 'error');
+        showError('Access Denied: Not a registered staff member.');
         await auth.signOut();
         window.location.href = 'staff-login.html';
         return;
       }
 
-      staffData.profile = { uid: user.uid, ...data };
+      const processedName = data.fullName || data.name || data.displayName || data.username || 'Staff Member';
+      staffData.profile = { uid: user.uid, ...data, name: processedName };
 
-      // Set user role for notification manager
-      if (window.NotificationManager) {
-        window.NotificationManager.userRole = 'Staff';
-      }
+      // Notification manager setup removed
 
       // Update Redesigned Header
       const displayName = data.fullName || data.name || data.displayName || data.username || 'Staff Member';
@@ -191,6 +197,12 @@ function setupAuthState() {
       }
 
       document.body.style.display = 'block';
+      
+      // Initialize real-time listeners for badges and background data
+      if (typeof window.loadDisputes === 'function') window.loadDisputes();
+      
+      // Also start verification and other background listeners if they exist
+      if (typeof window.loadVerifications === 'function') window.loadVerifications();
 
     } catch (error) {
       console.error('Staff Auth verification failed:', error);
@@ -319,19 +331,18 @@ function setupEventListeners() {
       const btn = e.target.closest('.withdrawal-action-btn');
       const action = btn.getAttribute('data-action');
       const requestId = btn.getAttribute('data-id');
-      const userId = btn.getAttribute('data-uid');
 
       if (!requestId) return;
 
       switch (action) {
         case 'view':
-          await openWithdrawalView(requestId);
+          await window.openWithdrawalView(requestId);
           break;
         case 'approve':
-          await openWithdrawalApprove(requestId);
+          await window.openWithdrawalApprove(requestId);
           break;
         case 'reject':
-          await openWithdrawalReject(requestId);
+          await window.openWithdrawalReject(requestId);
           break;
       }
     }
@@ -471,7 +482,7 @@ function renderTrackingUpdateUI(orderId, order) {
   resultDiv.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-                <h3>Order #${orderId.substring(0, 8)}</h3>
+                <h3>Order ${orderId}</h3>
                 <p>Status: <span class="badge badge-info">${order.status}</span></p>
                 <p>Buyer Hub: ${order.buyerHub || 'Not Assigned'}</p>
             </div>
@@ -515,28 +526,13 @@ window.updateOrderStatus = async function (orderId, newStatus) {
       location: 'Central Logistics Hub'
     });
 
-    window.NotificationManager.showToast('Status updated successfully!', 'success');
+    showSuccess('Status updated successfully!');
     searchTracking(); // Refresh result
   } catch (e) {
     alert('Update failed: ' + e.message);
   }
 }
 
-// Log Audit Action
-async function logAudit(action, details = {}) {
-  try {
-    await db.ref('audit_logs').push({
-      staffId: staffData.profile.uid,
-      staffName: staffData.profile.name,
-      action: action,
-      details: details,
-      timestamp: firebase.database.ServerValue.TIMESTAMP,
-      location: 'Staff Hub'
-    });
-  } catch (error) {
-    console.error('Audit log failed:', error);
-  }
-}
 
 window.deleteUser = async function (uid) {
   if (!confirm('PERMANENT DELETION: Are you sure you want to delete this user from AUTH and DB?')) return;
@@ -551,7 +547,7 @@ window.deleteUser = async function (uid) {
     if (!response.ok) throw new Error('Deletion failed');
 
     await logAudit('Permanently Deleted User', { deletedUid: uid });
-    window.NotificationManager.showToast('User permanently removed.', 'success');
+    showSuccess('User permanently removed.');
     loadUsers();
   } catch (e) {
     alert('Error: ' + e.message);
@@ -724,7 +720,7 @@ async function updateOrdersTable(searchTerm) {
     <tr data-status="${(order.status || 'pending').toLowerCase()}">
       <td>
         <a href="${firebaseLink}" target="_blank" title="View in Firebase Console" style="text-decoration: underline; color: #4f46e5; font-weight: bold;">
-          #${order.id.slice(-6)}
+          ${order.id}
         </a>
       </td>
       <td>
@@ -738,7 +734,7 @@ async function updateOrdersTable(searchTerm) {
         <div class="d-flex flex-column">
           <span class="fw-bold" style="font-size: 0.9rem;">${sellerDisplayName}</span>
           <span class="small text-muted" style="font-size: 0.8rem;">${sellerEmail}</span>
-          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${sellerDisplayId.substring(0, 8)}...</span>
+          <span class="small text-muted" style="font-size: 0.75rem;">ID: ${sellerDisplayId}</span>
         </div>
       </td>
       <td>${itemsSummary}</td>
@@ -1073,7 +1069,7 @@ window.approveVerification = async function (userId, type) {
     // Always push to Global Admin Trail for professional logging
     await db.ref('global_notifications/admin_alerts').push({
       title: `${typeName} Verification Approved`,
-      message: `${typeName} for user ID ${userId.substring(0, 6)}... has been approved by ${auditorName}.`,
+      message: `${typeName} for user ID ${userId} has been approved by ${auditorName}.`,
       timestamp: firebase.database.ServerValue.TIMESTAMP,
       userId: userId,
       type: 'verification'
@@ -1438,7 +1434,7 @@ window.viewUser = async function viewUser(userId) {
         if (snap.exists()) {
           user = { id: snap.key, ...snap.val() };
         } else {
-          window.NotificationManager.showToast('User record not found in system.', 'error');
+          showError('User record not found in system.');
           return;
         }
       } catch (e) {
@@ -1695,7 +1691,11 @@ function formatOrderStatus(status) {
     'out_for_delivery': 'Out for Delivery',
     'delivered': 'Delivered',
     'cancelled': 'Cancelled',
-    'disputed': 'Disputed'
+    'disputed': 'UNDER DISPUTE',
+    'under_review': 'UNDER DISPUTE',
+    'REFUNDED': 'DISPUTED',
+    'refunded': 'DISPUTED',
+    'refund': 'DISPUTED'
   };
   return mapping[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending');
 }
@@ -1711,6 +1711,9 @@ function getStatusBadgeColor(status) {
     case 'delivered': return 'success';
     case 'cancelled': return 'danger';
     case 'disputed': return 'danger';
+    case 'under_review': return 'danger';
+    case 'refunded': return 'danger';
+    case 'REFUNDED': return 'danger';
     default: return 'secondary';
   }
 }
@@ -1770,7 +1773,7 @@ function showConfirmationModal(title, message, options = {}) {
     okBtn.onclick = () => {
       const val = options.showInput ? input.value.trim() : true;
       if (options.showInput && !val) {
-        window.NotificationManager.showToast('Please provide the required information', 'error');
+        showError('Please provide the required information');
         return;
       }
       cleanup();
@@ -1919,7 +1922,7 @@ function renderProductVerificationTable() {
 
     return `
       <tr>
-        <td>#${product.id.slice(-6)}</td>
+        <td>${product.id}</td>
         <td>
             <div class="product-img-container">
                 <img src="${mainImage}" class="product-img-mini" onerror="this.src='/static/img/placeholder.png'">
@@ -2051,7 +2054,7 @@ window.rejectProduct = async function (productId) {
 }
 
 function exportProductQueue() {
-  window.NotificationManager.showToast('Exporting product verification queue as CSV...', 'info');
+  showSuccess('Exporting product verification queue as CSV...');
 }
 
 // Ensure all global functions are attached to window
@@ -2106,7 +2109,7 @@ function updateLogisticsUI() {
   if (activityBody && staffData.logistics.activity) {
     activityBody.innerHTML = staffData.logistics.activity.map(a => `
             <tr>
-                <td>#${a.orderId.slice(-6)}</td>
+                <td>${a.orderId}</td>
                 <td><span class="badge badge-${getStatusBadgeColor(a.status)}">${a.status.toUpperCase()}</span></td>
                 <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${a.trackingNumber || 'PENDING'}</code></td>
                 <td>${new Date(a.timestamp).toLocaleDateString()}</td>
@@ -2161,15 +2164,27 @@ async function loadWallet() {
       const processSnap = (snap1, snap2) => {
         const merged = new Map();
 
-        if (snap1 && snap1.exists()) {
-          snap1.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
-        }
-        if (snap2 && snap2.exists()) {
-          snap2.forEach(child => merged.set(child.key, { id: child.key, ...child.val() }));
-        }
+        const data1 = snap1 && snap1.exists() ? snap1.val() : {};
+        const data2 = snap2 && snap2.exists() ? snap2.val() : {};
+
+        Object.entries(data1).forEach(([key, val]) => {
+          if (val) merged.set(key, { id: key, ...val });
+        });
+
+        Object.entries(data2).forEach(([key, val]) => {
+          if (val) merged.set(key, { id: key, ...val });
+        });
 
         const withdrawals = Array.from(merged.values());
-        withdrawals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        // Robust sorting with fallback to timestamp or 0
+        withdrawals.sort((a, b) => {
+          const timeA = a.createdAt || a.timestamp || 0;
+          const timeB = b.createdAt || b.timestamp || 0;
+          return timeB - timeA;
+        });
+
+        console.log('🏦 Staff Wallet Sync: Processed', withdrawals.length, 'withdrawals');
 
         staffData.withdrawals = withdrawals;
         renderWithdrawals(withdrawals);
@@ -2233,7 +2248,10 @@ async function updateWalletStats() {
     updateElementText('totalSystemBalance', `RS ${totalBalance.toLocaleString()}`);
 
     // 2. Pending Withdrawals
-    const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending');
+    const pendingWithdrawals = withdrawals.filter(w => {
+      const s = String(w.status || w.Status || w.state || 'pending').toLowerCase().trim();
+      return s !== 'completed' && s !== 'rejected' && s !== 'approved' && s !== 'success';
+    });
     const totalPendingWithdrawals = pendingWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
     updateElementText('totalPendingWithdrawals', `RS ${totalPendingWithdrawals.toLocaleString()}`);
 
@@ -2341,8 +2359,22 @@ function renderWithdrawals(withdrawals) {
   const tbody = document.getElementById('withdrawalsTableBody');
   if (!tbody) return;
 
-  const filter = document.getElementById('withdrawalStatusFilter')?.value || 'pending';
-  const filteredWithdrawals = withdrawals.filter(w => filter === 'all' || w.status === filter);
+  const filter = (document.getElementById('withdrawalStatusFilter')?.value || 'pending').toLowerCase();
+  
+  console.log('🔍 Staff Rendering Withdrawals. Filter:', filter, 'Total Count:', withdrawals.length);
+
+  const filteredWithdrawals = withdrawals.filter(w => {
+    const s = String(w.status || w.Status || w.state || 'pending').toLowerCase().trim();
+    // console.log(`   -> Item ID: ${w.id}, Resolved Status: "${s}"`);
+    
+    if (filter === 'all') return true;
+    if (filter === 'pending') {
+      return s !== 'completed' && s !== 'rejected' && s !== 'approved' && s !== 'success';
+    }
+    return s === filter;
+  });
+
+  console.log('✅ Staff Filtered Count:', filteredWithdrawals.length);
 
   if (filteredWithdrawals.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" class="text-center">No withdrawal requests found</td></tr>';
@@ -2350,7 +2382,7 @@ function renderWithdrawals(withdrawals) {
   }
 
   tbody.innerHTML = filteredWithdrawals.map((w, index) => {
-    const requestId = w.id ? w.id.substring(1, 8).toUpperCase() : String(index + 1).padStart(3, '0');
+    const requestId = w.id ? w.id : String(index + 1).padStart(3, '0');
     const userDisplayId = getUserDisplayId(w.userId);
 
     // Use data attributes for event delegation
@@ -2410,6 +2442,13 @@ function renderWithdrawals(withdrawals) {
   }).join('');
 }
 
+function getUserName(uid) {
+  if (!uid) return 'Unknown User';
+  const u = globalUsersMap[uid];
+  if (!u) return 'Unknown User';
+  return u.fullName || u.displayName || u.name || u.username || 'Unknown User';
+}
+
 function renderWalletTransactions() {
   const tbody = document.getElementById('walletTransactionsTableBody');
   if (!tbody) return;
@@ -2439,13 +2478,13 @@ function renderWalletTransactions() {
     const statusClass = status === 'approved' || status === 'completed' || status === 'success' ? 'success' :
       status === 'rejected' || status === 'failed' ? 'danger' : 'warning';
 
-    const transUser = t.userName || t.user || globalUsersMap[t.userId]?.name || 'Unknown User';
+    const transUser = t.userName || t.user || getUserName(t.userId);
     const userDisplayId = getUserDisplayId(t.userId);
     const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A';
 
     return `
       <tr>
-        <td style="font-family: monospace; font-weight: 600; color: #64748b;">#${t.id ? t.id.substring(0, 6) : 'N/A'}</td>
+        <td style="font-family: monospace; font-weight: 600; color: #64748b;">${t.id || 'N/A'}</td>
         <td>
             <div class="d-flex align-items-center">
                 <div>
@@ -2640,156 +2679,11 @@ async function openWithdrawalView(requestId) {
   }
 }
 
-async function openWithdrawalApprove(requestId) {
-  try {
-    const snapshot = await db.ref('withdrawal_requests/' + requestId).once('value');
-    let data = snapshot.val();
-    if (!data) {
-      const legacySnap = await db.ref('withdrawals/' + requestId).once('value');
-      data = legacySnap.val();
-    }
-    if (!data || data.status !== 'pending') {
-      showError('Withdrawal request not available');
-      return;
-    }
-    currentWithdrawalId = requestId;
-    currentWithdrawalData = data;
-
-    let balance = 'RS 0';
-    if (data.userId) {
-      const walletSnap = await db.ref(`users/${data.userId}/wallet`).once('value');
-      const wallet = walletSnap.val();
-      balance = 'RS ' + (wallet?.balance || 0).toLocaleString();
-    }
-
-    document.getElementById('approveUserName').textContent = data.userName || 'Unknown';
-    document.getElementById('approveAmount').textContent = 'RS ' + parseFloat(data.amount || 0).toLocaleString();
-    document.getElementById('approveCurrentBalance').textContent = balance;
-    document.getElementById('approveBankDetails').textContent = `${data.bankDetails?.bankName || ''} - ${data.bankDetails?.title || ''} (${data.bankDetails?.accountNumber || ''})`;
-    document.getElementById('proofUpload').value = '';
-    document.getElementById('adminNote').value = '';
-
-    document.getElementById('withdrawalApproveModal').style.display = 'block';
-  } catch (error) {
-    showError('Failed to load withdrawal details');
-  }
-}
-
-async function openWithdrawalReject(requestId) {
-  try {
-    const snapshot = await db.ref('withdrawal_requests/' + requestId).once('value');
-    let data = snapshot.val();
-    if (!data) {
-      const legacySnap = await db.ref('withdrawals/' + requestId).once('value');
-      data = legacySnap.val();
-    }
-    if (!data || data.status !== 'pending') {
-      showError('Withdrawal request not available');
-      return;
-    }
-    currentWithdrawalId = requestId;
-    currentWithdrawalData = data;
-
-    document.getElementById('rejectUserName').textContent = data.userName || 'Unknown';
-    document.getElementById('rejectAmount').textContent = 'RS ' + parseFloat(data.amount || 0).toLocaleString();
-    document.getElementById('rejectReason').value = '';
-
-    document.getElementById('withdrawalRejectModal').style.display = 'block';
-  } catch (error) {
-    showError('Failed to load withdrawal details');
-  }
-}
+// Redundant processing functions removed (using window.* equivalents below)
 
 window.closeWithdrawalViewModal = () => document.getElementById('withdrawalViewModal').style.display = 'none';
 window.closeWithdrawalApproveModal = () => document.getElementById('withdrawalApproveModal').style.display = 'none';
 window.closeWithdrawalRejectModal = () => document.getElementById('withdrawalRejectModal').style.display = 'none';
-
-async function processWithdrawalApproval() {
-  const fileInput = document.getElementById('proofUpload');
-  const file = fileInput.files[0];
-  if (!file) {
-    showError('Please upload a payment screenshot');
-    return;
-  }
-
-  const adminNote = document.getElementById('adminNote').value.trim();
-  const requestId = currentWithdrawalId;
-  const data = currentWithdrawalData;
-
-  try {
-    showLoading(true);
-    const timestamp = Date.now();
-    const filename = `withdrawals/${requestId}/${timestamp}_${file.name}`;
-    const storageRef = firebase.storage().ref(filename);
-    const uploadTask = await storageRef.put(file);
-    const proofUrl = await uploadTask.ref.getDownloadURL();
-
-    const idToken = await firebase.auth().currentUser.getIdToken();
-    const response = await fetch('/api/v1/wallet/approve-payout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        requestId: requestId,
-        proofUrl: proofUrl,
-        adminNote: adminNote,
-        staffId: staffData.profile?.uid || 'Staff'
-      })
-    });
-
-    const result = await response.json();
-    if (result.success) {
-      showSuccess('Withdrawal approved and payout completed');
-      closeWithdrawalApproveModal();
-    } else {
-      showError(result.error || 'Failed to approve payout');
-    }
-  } catch (error) {
-    showError('Approval failed: ' + error.message);
-  } finally {
-    showLoading(false);
-  }
-}
-
-async function processWithdrawalRejection() {
-  const reason = document.getElementById('rejectReason').value.trim();
-  if (!reason) {
-    showError('Please provide a reason for rejection');
-    return;
-  }
-  const requestId = currentWithdrawalId;
-
-  try {
-    showLoading(true);
-    const idToken = await firebase.auth().currentUser.getIdToken();
-    const response = await fetch('/api/v1/wallet/reject-withdrawal', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        requestId: requestId,
-        reason: reason,
-        staffId: staffData.profile?.uid || 'Staff'
-      })
-    });
-
-    const result = await response.json();
-    if (result.success) {
-      showSuccess('Withdrawal rejected and funds returned');
-      closeWithdrawalRejectModal();
-    } else {
-      showError(result.error || 'Failed to reject withdrawal');
-    }
-  } catch (error) {
-    showError('Rejection failed: ' + error.message);
-  } finally {
-    showLoading(false);
-  }
-}
 
 // Export Wallet Data
 window.exportWalletData = async function () {
@@ -2936,8 +2830,8 @@ function updateEscrowTable(searchTerm) {
 
     return `
       <tr>
-        <td>#${escrow.id.substring(0, 8)}</td>
-        <td><a href="#" onclick="viewOrder('${escrow.orderId}'); return false;">#${escrow.orderId.substring(0, 8)}</a></td>
+        <td>${escrow.id}</td>
+        <td><a href="#" onclick="viewOrder('${escrow.orderId}'); return false;">${escrow.orderId}</a></td>
         <td>RS ${amount}</td>
         <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
         <td>${date}</td>
@@ -2996,14 +2890,14 @@ async function releaseEscrow(escrowId) {
     if (!order) throw new Error('Order not found');
 
     if ((order.status || '').toLowerCase() !== 'delivered' && (order.status || '').toLowerCase() !== 'completed') {
-      showLoading(false);
-      showError('Cannot release funds. Order status must be Delivered.');
-      return;
+      throw new Error('Cannot release funds. Order status must be Delivered.');
     }
 
     showLoading(false);
     
-    if (!await showConfirmationModal('Release Funds', 'Are you sure you want to release these funds to the seller? This action is permanent.', { confirmText: 'Release Now', confirmColor: '#10b981' })) return;
+    if (!await showConfirmationModal('Release Funds', 'Are you sure you want to release these funds to the seller? This action is permanent.', { confirmText: 'Release Now', confirmColor: '#10b981' })) {
+      throw new Error('Release cancelled by user.');
+    }
 
     showLoading(true, 'Processing fund transfer...');
 
@@ -3031,16 +2925,26 @@ async function releaseEscrow(escrowId) {
 
     if (!sellerId || sellerId === 'admin') throw new Error('Invalid seller ID: The system could not resolve the actual merchant for this order.');
 
-    // 2. Calculate Payout
-    // The escrow.amount is always stored as 107% of the base bid (bid * 1.07).
-    // Seller receives 100% = the base bid.
-    // Dividing by 1.07 is the ONLY reliable method — order fields like
-    // shippingTotal / escrowFee may be missing on older orders, causing wrong payouts.
-    const totalAmount = parseFloat(escrow.amount);
-    const payoutAmount = Math.round((totalAmount / 1.07) * 100) / 100; // Base bid, rounded to 2dp
-    // For audit/logging only — fall back to formula if order fields missing
-    const escrowFee = parseFloat(order.escrowFee) || Math.round(payoutAmount * 0.02 * 100) / 100;
-    const shippingFee = parseFloat(order.shippingTotal) || Math.round(payoutAmount * 0.05 * 100) / 100;
+    // 2. Calculate Payout (Seller receives Product Price only)
+    let payoutAmount = 0;
+    const subtotal = parseFloat(order.subtotal);
+    
+    if (!isNaN(subtotal) && subtotal > 0) {
+        payoutAmount = subtotal;
+    } else if (order.items && order.items.length > 0) {
+        // Fallback: Sum items
+        payoutAmount = order.items.reduce((sum, item) => sum + (parseFloat(item.price) * (parseInt(item.qty) || 1)), 0);
+    }
+
+    // Safety check: Payout cannot exceed (Total - Fee)
+    const maxPayout = totalAmount - escrowFee;
+    if (payoutAmount > maxPayout || payoutAmount <= 0) {
+        payoutAmount = maxPayout;
+    }
+
+    // For audit/logging only — use real data from order
+    const escrowFee = parseFloat(order.escrowFee) || 0;
+    const shippingFee = parseFloat(order.shippingTotal) || 0;
 
     const updates = {};
     updates[`escrows/${escrowId}/status`] = 'released';
@@ -3139,18 +3043,6 @@ window.exportEscrow = async function () {
 
 // Global exports
 // Dispute Resolution Management
-async function loadDisputes() {
-  try {
-    // Disputes logic now handled via shared arbitration engine (disputes-engine.js)
-    // updateDisputesTable is the primary rendering entry point
-    updateDisputesTable();
-    hideLoading('disputes');
-  } catch (error) {
-    console.error('Error loading disputes:', error);
-    showError('Failed to load disputes');
-    hideLoading('disputes');
-  }
-}
 
 function updateDisputesTable(searchTerm) {
   const tableBody = document.querySelector('#disputesTable tbody');
@@ -3203,8 +3095,8 @@ function updateDisputesTable(searchTerm) {
 
     return `
     <tr>
-      <td>#${dispute.id.substring(0, 8)}</td>
-      <td><a href="#" onclick="viewOrder('${dispute.orderId}'); return false;">#${dispute.orderId ? dispute.orderId.substring(0, 8) : 'N/A'}</a></td>
+      <td>${dispute.id}</td>
+      <td><a href="#" onclick="viewOrder('${dispute.orderId}'); return false;">${dispute.orderId || 'N/A'}</a></td>
       <td>
         <div style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${dispute.issue || dispute.reason || 'N/A'}">
           ${dispute.issue || dispute.reason || 'N/A'}
@@ -3233,32 +3125,15 @@ function updateDisputesTable(searchTerm) {
 window.loadLogistics = loadLogistics;
 window.loadWallet = loadWallet;
 window.loadEscrow = loadEscrow;
-window.loadDisputes = loadDisputes;
 // analytics export removed
 window.approveDeposit = approveDeposit;
 window.rejectDeposit = rejectDeposit;
 window.releaseEscrow = releaseEscrow;
 window.filterDeposits = () => renderDeposits(staffData.deposits);
 window.filterWithdrawals = () => renderWithdrawals(staffData.withdrawals);
-window.processWithdrawalApproval = processWithdrawalApproval;
-window.processWithdrawalRejection = processWithdrawalRejection;
+// Withdrawal processing assigned as window functions below
 
-// Event Delegation for Withdrawal Actions
-document.addEventListener('click', async (e) => {
-  if (e.target.closest('.withdrawal-action-btn')) {
-    const btn = e.target.closest('.withdrawal-action-btn');
-    const action = btn.getAttribute('data-action');
-    const requestId = btn.getAttribute('data-id');
-
-    if (!requestId) return;
-
-    switch (action) {
-      case 'view': await openWithdrawalView(requestId); break;
-      case 'approve': await openWithdrawalApprove(requestId); break;
-      case 'reject': await openWithdrawalReject(requestId); break;
-    }
-  }
-});
+// Redundant global delegation listener removed (moved to setupEventListeners)
 
 /* --- DETAILED VIEW HANDLERS (LOGISTICS & DISPUTES) --- */
 
@@ -3499,7 +3374,7 @@ window.pushStatusUpdate = async function (orderId) {
     showLoading(true, 'Pushing update to network...');
     await db.ref(`orders/${orderId}`).update({
       status: newStatus,
-      lastScanLocation: 'Staff ID: ' + staffData.profile.name + ' - Hub Portal',
+      lastScanLocation: 'Staff ID: ' + getStaffName() + ' - Hub Portal',
       lastUpdatedAt: firebase.database.ServerValue.TIMESTAMP
     });
 
@@ -3507,14 +3382,14 @@ window.pushStatusUpdate = async function (orderId) {
  
     // Push to Tracking History (Consistent with Backend)
     const friendlyStatus = formatOrderStatus(newStatus);
-    const location = 'Staff ID: ' + staffData.profile.name + ' - Hub Portal';
+    const location = 'Staff ID: ' + getStaffName() + ' - Hub Portal';
     
     await db.ref(`tracking_history/${orderId}`).push({
       status: newStatus,
       displayStatus: friendlyStatus,
       desc: `Logistics status updated by Hub Operator.`,
       location: location,
-      staffId: staffData.profile.name,
+      staffId: getStaffName(),
       timestamp: firebase.database.ServerValue.TIMESTAMP
     });
 
@@ -3524,7 +3399,7 @@ window.pushStatusUpdate = async function (orderId) {
     if (order) {
       const notif = {
         title: 'Shipment Update',
-        message: `Order #${orderId.slice(-6)} is now: ${friendlyStatus}`,
+        message: `Order ${orderId} is now: ${friendlyStatus}`,
         type: 'order',
         read: false,
         link: order.buyerId ? `orders.html#${orderId}` : '',
@@ -3567,7 +3442,7 @@ window.editTracking = async function (orderId) {
     if (order) {
       const notif = {
         title: 'Tracking Updated',
-        message: `Tracking number for order #${orderId.slice(-6)} has been updated to: ${newTracking}`,
+        message: `Tracking number for order ${orderId} has been updated to: ${newTracking}`,
         type: 'order',
         read: false,
         timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -3739,16 +3614,23 @@ window.openWithdrawalApprove = async function (requestId) {
       return;
     }
 
-    // Safely parse amount
-    const amount = parseFloat(request.amount || 0);
-    if (isNaN(amount)) {
-      console.warn('Invalid amount in withdrawal request:', request.amount);
+    // Case-insensitive status check — allow any non-finalized status
+    const status = String(request.status || '').toLowerCase().trim();
+    if (status === 'completed' || status === 'rejected' || status === 'approved' || status === 'success') {
+      showError('This withdrawal has already been processed');
+      return;
     }
 
+    // Safely parse amount
+    const amount = parseFloat(request.amount || 0);
+    
     // Safely handle bankDetails
     const bankDetails = request.bankDetails || {};
     const bankName = typeof bankDetails.bankName === 'string' ? bankDetails.bankName : 'N/A';
     const accountNumber = typeof bankDetails.accountNumber === 'string' ? bankDetails.accountNumber : 'N/A';
+
+    currentWithdrawalId = requestId;
+    currentWithdrawalData = request;
 
     document.getElementById('approveRequestId').value = requestId;
     document.getElementById('approveUserName').textContent = request.userName || 'Unknown';
@@ -3764,15 +3646,16 @@ window.openWithdrawalApprove = async function (requestId) {
       currentBalance = wallet.balance || 0;
     } catch (balanceError) {
       console.warn('Could not fetch user balance:', balanceError);
-      currentBalance = 0;
     }
     document.getElementById('approveCurrentBalance').textContent = `RS ${currentBalance.toLocaleString()}`;
 
-    // Reset file input (HTML uses proofUpload, not approveProofFile)
-    document.getElementById('proofUpload').value = '';
-    // Clear any preview if it exists
-    const preview = document.getElementById('approveProofPreview');
-    if (preview) preview.innerHTML = '';
+    // Reset UI elements
+    const proofUpload = document.getElementById('proofUpload');
+    if (proofUpload) proofUpload.value = '';
+    const staffPreview = document.getElementById('staffUploadPreview');
+    if (staffPreview) staffPreview.classList.remove('visible');
+    const adminNote = document.getElementById('adminNote');
+    if (adminNote) adminNote.value = '';
 
     document.getElementById('withdrawalApproveModal').style.display = 'block';
   } catch (error) {
@@ -3790,6 +3673,13 @@ window.openWithdrawalReject = async function (requestId) {
       return;
     }
 
+    // Case-insensitive status check
+    const status = String(request.status || '').toLowerCase().trim();
+    if (status === 'completed' || status === 'rejected' || status === 'approved' || status === 'success') {
+      showError('This withdrawal has already been processed');
+      return;
+    }
+
     // Check if userId exists (needed for backend API)
     if (!request.userId) {
       console.error('Withdrawal request missing userId:', request);
@@ -3799,16 +3689,17 @@ window.openWithdrawalReject = async function (requestId) {
 
     // Safely parse amount
     const amount = parseFloat(request.amount || 0);
-    if (isNaN(amount)) {
-      console.warn('Invalid amount in withdrawal request:', request.amount);
-    }
+
+    currentWithdrawalId = requestId;
+    currentWithdrawalData = request;
 
     document.getElementById('rejectRequestId').value = requestId;
     document.getElementById('rejectUserName').textContent = request.userName || 'Unknown';
     document.getElementById('rejectAmount').textContent = `RS ${amount.toLocaleString()}`;
 
     // Reset reason input
-    document.getElementById('rejectReason').value = '';
+    const rejectReason = document.getElementById('rejectReason');
+    if (rejectReason) rejectReason.value = '';
 
     document.getElementById('withdrawalRejectModal').style.display = 'block';
   } catch (error) {
@@ -3827,6 +3718,16 @@ window.closeWithdrawalApproveModal = function () {
 
 window.closeWithdrawalRejectModal = function () {
   document.getElementById('withdrawalRejectModal').style.display = 'none';
+};
+
+// File preview for staff upload zone
+window.handleStaffFileSelect = function(input) {
+  const preview = document.getElementById('staffUploadPreview');
+  const filename = document.getElementById('staffUploadFilename');
+  if (input.files && input.files[0]) {
+    if (preview) { preview.classList.add('visible'); }
+    if (filename) { filename.textContent = input.files[0].name; }
+  }
 };
 
 window.processWithdrawalApproval = async function () {

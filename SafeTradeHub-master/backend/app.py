@@ -55,6 +55,100 @@ else:
 
 from firebase_admin import db
 
+# --- Financial Engine ---
+class FeeEngine:
+    @staticmethod
+    def calculate_escrow(price):
+        try:
+            p = float(price)
+            if p <= 10000:
+                fee_pct = 0.02
+                min_fee = 50
+            elif p <= 50000:
+                fee_pct = 0.035
+                min_fee = 0
+            else:
+                fee_pct = 0.05
+                min_fee = 0
+            
+            calculated_fee = p * fee_pct
+            return max(calculated_fee, min_fee)
+        except Exception as e:
+            print(f"Escrow calc error: {e}")
+            return price * 0.035
+
+    @staticmethod
+    def calculate_base_shipping(product):
+        try:
+            def to_float(val, default=0):
+                try:
+                    if val is None or str(val).strip() == "": return default
+                    return float(val)
+                except: return default
+
+            dims = product.get('dimensions') or {}
+            w = to_float(product.get('weight'), 1)
+            l = to_float(dims.get('length'), 10)
+            wi = to_float(dims.get('width'), 10)
+            h = to_float(dims.get('height'), 10)
+            f = str(product.get('fragility', 'Standard')).lower()
+
+            weight_score = 20
+            if w > 2 and w <= 10: weight_score = 50
+            elif w > 10: weight_score = 100
+
+            volume = l * wi * h
+            volume_score = 20
+            if volume > 10000 and volume <= 50000: volume_score = 50
+            elif volume > 50000: volume_score = 100
+
+            fragility_score = 50
+            if f == 'solid': fragility_score = 20
+            elif f == 'fragile': fragility_score = 100
+
+            avg_score = (weight_score + volume_score + fragility_score) / 3
+            if avg_score >= 40 and avg_score <= 70:
+                return 500
+            elif avg_score > 70:
+                return 1000
+            else:
+                return 250
+        except Exception as e:
+            print(f"Base ship calc error: {e}")
+            return 250
+
+    @staticmethod
+    def calculate_total_shipping(base_fee, origin, dest):
+        try:
+            location_map = {
+                "islamabad": "Federal", "karachi": "Sindh", "lahore": "Punjab",
+                "multan": "Punjab", "faisalabad": "Punjab", "peshawar": "KPK",
+                "quetta": "Balochistan", "rawalpindi": "Punjab", "sialkot": "Punjab",
+                "gujranwala": "Punjab", "hyderabad": "Sindh"
+            }
+            
+            origin = str(origin or "").lower().strip()
+            dest = str(dest or "").lower().strip()
+            
+            if not origin or not dest:
+                return base_fee
+            
+            o_prov = next((v for k, v in location_map.items() if k in origin), None)
+            d_prov = next((v for k, v in location_map.items() if k in dest), None)
+            
+            if not o_prov or not d_prov:
+                return base_fee
+            
+            if origin == dest:
+                return base_fee
+            elif o_prov == d_prov:
+                return base_fee + 150
+            else:
+                return base_fee + 350
+        except Exception as e:
+            print(f"Total ship calc error: {e}")
+            return base_fee
+
 # Initialize Services
 ai_cred_source = json.loads(firebase_json) if firebase_json else cred_path
 ai_service = AIService(ai_cred_source)
@@ -245,6 +339,149 @@ def get_staff_email():
     except Exception as e:
         print(f"Error fetching staff email: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/restore-metadata', methods=['GET', 'POST'])
+def restore_metadata():
+    """Emergency route to restore deleted category metadata using Admin SDK"""
+    try:
+        categories = {
+            "mobile": {
+                "title": "Mobiles & Tablets",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "placeholder": "e.g. Apple, Samsung", "required": True },
+                    { "id": "model", "label": "Model Name", "type": "text", "placeholder": "e.g. iPhone 15 Pro", "required": True },
+                    { "id": "storage", "label": "Storage Capacity", "type": "dropdown", "options": ["64GB", "128GB", "256GB", "512GB", "1TB"], "required": True },
+                    { "id": "ram", "label": "RAM", "type": "dropdown", "options": ["4GB", "6GB", "8GB", "12GB", "16GB"], "required": True },
+                    { "id": "condition_score", "label": "Physical Condition (1-10)", "type": "number", "min": 1, "max": 10, "required": True }
+                ],
+                "hasVariantInventory": True,
+                "variantType": "Storage",
+                "variants": ["64GB", "128GB", "256GB", "512GB", "1TB"]
+            },
+            "camera": {
+                "title": "Cameras & Photography",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "placeholder": "e.g. Canon, Sony, Nikon", "required": True },
+                    { "id": "type", "label": "Camera Type", "type": "dropdown", "options": ["DSLR", "Mirrorless", "Point & Shoot", "Action Camera"], "required": True },
+                    { "id": "resolution", "label": "Resolution (MP)", "type": "number", "required": True },
+                    { "id": "shutter_count", "label": "Shutter Count (approx)", "type": "number", "required": False }
+                ]
+            },
+            "computers": {
+                "title": "Laptops & Computers",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "required": True },
+                    { "id": "processor", "label": "Processor", "type": "text", "placeholder": "e.g. Intel i7, M2", "required": True },
+                    { "id": "ram", "label": "RAM", "type": "dropdown", "options": ["8GB", "16GB", "32GB", "64GB"], "required": True },
+                    { "id": "gpu", "label": "Graphics Card", "type": "text", "required": False }
+                ],
+                "hasVariantInventory": True,
+                "variantType": "Configuration",
+                "variants": ["Standard", "High-End", "Custom"]
+            },
+            "electronics": {
+                "title": "Other Electronics",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "required": True },
+                    { "id": "type", "label": "Device Type", "type": "text", "placeholder": "e.g. Headphones, Smartwatch", "required": True },
+                    { "id": "power_source", "label": "Power Source", "type": "dropdown", "options": ["Battery", "Wired", "Solar"], "required": False }
+                ]
+            },
+            "fashion": {
+                "title": "Fashion & Apparel",
+                "fields": [
+                    { "id": "size", "label": "Size", "type": "dropdown", "options": ["XS", "S", "M", "L", "XL", "XXL"], "required": True },
+                    { "id": "material", "label": "Material", "type": "text", "required": True },
+                    { "id": "gender", "label": "Gender", "type": "dropdown", "options": ["Men", "Women", "Unisex", "Kids"], "required": True }
+                ],
+                "hasVariantInventory": True,
+                "variantType": "Size",
+                "variants": ["S", "M", "L", "XL"]
+            },
+            "beauty": {
+                "title": "Beauty & Personal Care",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "required": True },
+                    { "id": "volume", "label": "Volume/Weight", "type": "text", "placeholder": "e.g. 50ml, 100g", "required": True },
+                    { "id": "expiry", "label": "Expiry Date", "type": "text", "placeholder": "MM/YYYY", "required": True }
+                ]
+            },
+            "books": {
+                "title": "Books & Media",
+                "fields": [
+                    { "id": "author", "label": "Author Name", "type": "text", "required": True },
+                    { "id": "isbn", "label": "ISBN Number", "type": "text", "required": False },
+                    { "id": "format", "label": "Format", "type": "dropdown", "options": ["Hardcover", "Paperback", "E-book", "Audiobook"], "required": True }
+                ]
+            },
+            "furniture": {
+                "title": "Furniture & Decor",
+                "fields": [
+                    { "id": "material", "label": "Primary Material", "type": "text", "placeholder": "e.g. Wood, Metal", "required": True },
+                    { "id": "dimensions", "label": "Dimensions (LxWxH)", "type": "text", "required": True },
+                    { "id": "color", "label": "Color", "type": "text", "required": True }
+                ]
+            },
+            "home": {
+                "title": "Home & Garden",
+                "fields": [
+                    { "id": "brand", "label": "Brand", "type": "text", "required": True },
+                    { "id": "warranty", "label": "Warranty Period", "type": "text", "required": False },
+                    { "id": "power", "label": "Power Consumption", "type": "text", "required": False }
+                ]
+            },
+            "automotive": {
+                "title": "Automotive & Parts",
+                "fields": [
+                    { "id": "brand", "label": "Brand/Manufacturer", "type": "text", "required": True },
+                    { "id": "compatibility", "label": "Vehicle Compatibility", "type": "text", "placeholder": "e.g. Toyota Corolla 2018", "required": True },
+                    { "id": "part_type", "label": "Part Category", "type": "dropdown", "options": ["Engine", "Brakes", "Exterior", "Interior", "Tyres"], "required": True }
+                ]
+            },
+            "gym": {
+                "title": "Gym & Fitness Equipment",
+                "fields": [
+                    { "id": "type", "label": "Equipment Type", "type": "text", "required": True },
+                    { "id": "weight_range", "label": "Weight Range (kg)", "type": "text", "required": False },
+                    { "id": "brand", "label": "Brand", "type": "text", "required": False }
+                ]
+            },
+            "sports": {
+                "title": "Sports & Outdoor Equipment",
+                "fields": [
+                    { "id": "sport", "label": "Sport Type", "type": "text", "required": True },
+                    { "id": "age_group", "label": "Age Group", "type": "dropdown", "options": ["Adult", "Youth", "Child"], "required": True }
+                ]
+            },
+            "toys": {
+                "title": "Toys & Games",
+                "fields": [
+                    { "id": "age_recommendation", "label": "Age Range", "type": "dropdown", "options": ["0-3 years", "3-6 years", "6-12 years", "12+ years"], "required": True },
+                    { "id": "brand", "label": "Brand", "type": "text", "required": False }
+                ]
+            },
+            "pets": {
+                "title": "Pet Care Products",
+                "fields": [
+                    { "id": "pet_type", "label": "Target Pet Type", "type": "dropdown", "options": ["Dog", "Cat", "Bird", "Fish", "Other"], "required": True },
+                    { "id": "brand", "label": "Brand Name", "type": "text", "required": False }
+                ]
+            },
+            "services": {
+                "title": "Professional Services",
+                "fields": [
+                    { "id": "experience", "label": "Years of Experience (Years)", "type": "number", "required": True },
+                    { "id": "delivery_time", "label": "Estimated Delivery Time", "type": "text", "required": True },
+                    { "id": "portfolio", "label": "Portfolio Link", "type": "text", "required": False }
+                ],
+                "isService": True
+            }
+        }
+        
+        db.reference('category_metadata').set(categories)
+        return "<h1>✅ ALL 15 CATEGORIES Restored Professionally!</h1><p>Mobiles, Automotive, Toys, Electronics, and all others are now configured. Refresh your product upload page.</p>"
+    except Exception as e:
+        return f"<h1>❌ Restoration Failed</h1><p>{str(e)}</p>", 500
 
 # --- API: AI Verification ---
 @app.route('/api/verify-image', methods=['POST'])
@@ -512,8 +749,8 @@ def submit_review():
         if uid == target_id:
             return jsonify({'success': False, 'error': 'You cannot review yourself.'}), 403
 
-        if reviewer_role == 'seller' and target_role == 'seller':
-            return jsonify({'success': False, 'error': 'Peer-to-Peer seller reviews are restricted.'}), 403
+        if reviewer_role == 'seller':
+            return jsonify({'success': False, 'error': 'Seller-to-Buyer reviews have been disabled to streamline the marketplace experience.'}), 403
 
         # 1. Verify Order Status & Ownership
         order_ref = db.reference(f'orders/{order_id}')
@@ -529,8 +766,8 @@ def submit_review():
                 return jsonify({'success': False, 'error': 'Target user mismatch for this order.'}), 403
 
         status = str(order.get('status', '')).lower()
-        if status not in ['delivered', 'completed']:
-            return jsonify({'success': False, 'error': f'Order must be delivered or completed to review (Current status: {status})'}), 400
+        if status not in ['delivered', 'completed', 'refunded']:
+            return jsonify({'success': False, 'error': f'Order must be delivered, completed, or refunded to review (Current status: {status})'}), 400
 
         # 2. Check for duplicate review (by this specific reviewer for this order)
         review_ref = db.reference(f'reviews/{order_id}_{reviewer_id}')
@@ -1172,8 +1409,16 @@ def place_bid():
         wallet = wallet_ref.get() or {'balance': 0, 'locked_balance': 0}
         available_balance = float(wallet.get('balance', 0))
         
-        # Calculate total required (Bid + 5% Shipping + 2% Escrow)
-        total_required = bid_amount * 1.07
+        # DYNAMIC CALCULATION LAYER (Replacing 7% flat)
+        shipping_details = data.get('shippingDetails', {})
+        dest_city = shipping_details.get('city')
+        origin_city = product.get('location') or product.get('sellerOriginCity') or 'Karachi'
+        
+        escrow_fee = FeeEngine.calculate_escrow(bid_amount)
+        base_ship = FeeEngine.calculate_base_shipping(product)
+        total_shipping = FeeEngine.calculate_total_shipping(base_ship, origin_city, dest_city)
+        
+        total_required = bid_amount + escrow_fee + total_shipping
         
         if available_balance < total_required:
             return jsonify({
@@ -1181,12 +1426,18 @@ def place_bid():
                 'error': f'Insufficient Balance: Please add tokens to your wallet to secure this bid. (Required Total with Fees: RS {total_required:,.2f}, Available: RS {available_balance:,.2f})'
             }), 400
 
+        # Save Proxy Shipping Details for future auto-adjustments
+        db.reference(f'proxy_bids/{product_id}/{uid}/shippingDetails').set(shipping_details)
+        db.reference(f'proxy_bids/{product_id}/{uid}/baseShipping').set(total_shipping)
+
         # ATOMIC BID TRANSACTION
         def bid_transaction(current_product):
             if current_product is None: return None
             
             # 1. Basic Validation
             curr_auction = current_product.get('auction', {})
+            if curr_auction.get('highestBidderId') == uid:
+                raise ValueError("You are already the leading bidder.")
             inc = float(curr_auction.get('minIncrement', 100))
             starting = float(curr_auction.get('startingPrice', 0))
             current_highest = float(curr_auction.get('currentHighestBid', 0))
@@ -1214,20 +1465,38 @@ def place_bid():
             # Battle: User Max Bid vs Other Proxy Max Bid
             if max_bid <= highest_other_proxy_val:
                 # User loses to an existing proxy
-                # Increment the bid by the min increment over the user's max
                 new_total_bid = min(highest_other_proxy_val, max_bid + inc)
                 curr_auction['currentHighestBid'] = new_total_bid
                 curr_auction['highestBidderId'] = highest_other_bidder
                 curr_auction['bidCount'] = (curr_auction.get('bidCount', 0)) + 1
+                
+                # Re-calculate Proxy Winner's New Lock
+                # Fetch their shipping from proxy node
+                proxy_data = proxies.get(highest_other_bidder, {})
+                p_ship = float(proxy_data.get('baseShipping', 500))
+                p_escrow = FeeEngine.calculate_escrow(new_total_bid)
+                
+                curr_auction['highestBidderLocked'] = new_total_bid + p_escrow + p_ship
+                curr_auction['highestBidderEscrow'] = p_escrow
+                curr_auction['highestBidderShipping'] = p_ship
+                curr_auction['shippingDetails'] = proxy_data.get('shippingDetails', {})
+                
                 current_product['auction'] = curr_auction
                 return current_product 
             else:
                 # User wins or is highest for now
-                # The bid becomes max(highest_other_proxy_val + inc, starting, bid_amount)
                 new_total_bid = max(highest_other_proxy_val + inc, starting, bid_amount)
                 curr_auction['currentHighestBid'] = new_total_bid
                 curr_auction['highestBidderId'] = uid
                 curr_auction['bidCount'] = (curr_auction.get('bidCount', 0)) + 1
+                
+                # CAPTURE NEW WINNER BREAKDOWN
+                new_escrow = FeeEngine.calculate_escrow(new_total_bid)
+                curr_auction['highestBidderLocked'] = new_total_bid + new_escrow + total_shipping
+                curr_auction['highestBidderEscrow'] = new_escrow
+                curr_auction['highestBidderShipping'] = total_shipping
+                curr_auction['shippingDetails'] = shipping_details
+
                 current_product['auction'] = curr_auction
                 return current_product
 
@@ -1251,7 +1520,7 @@ def place_bid():
                 # Release Previous Bidder (if exists and different)
                 if old_highest_bidder and old_highest_bidder != uid:
                     prev_wallet_ref = db.reference(f'users/{old_highest_bidder}/wallet')
-                    total_to_refund = old_highest_bid * 1.07
+                    total_to_refund = old_auction.get('highestBidderLocked', old_highest_bid * 1.07)
                     
                     def release_funds(w):
                         if not w: return w
@@ -1267,14 +1536,14 @@ def place_bid():
                     send_system_notification(old_highest_bidder, 'Outbid!', f'Your RS {total_to_refund:,.2f} (Bid + Fees) has been returned to your available balance.', 'warning')
 
                 # Lock New Bidder's Funds
-                total_to_lock = new_highest_bid * 1.07
+                total_to_lock = result.get('auction', {}).get('highestBidderLocked', new_highest_bid * 1.07)
                 def lock_new_funds(w):
                     if not w: return w
                     avail = float(w.get('balance', 0))
                     locked = float(w.get('locked_balance', 0))
                     
                     # If updating own bid, refund old first
-                    adjustment_refund = (old_highest_bid * 1.07) if old_highest_bidder == uid else 0
+                    adjustment_refund = old_auction.get('highestBidderLocked', old_highest_bid * 1.07) if old_highest_bidder == uid else 0
                     
                     if (avail + adjustment_refund) < total_to_lock:
                         raise ValueError("Insufficient funds at lock time")
@@ -1303,8 +1572,8 @@ def place_bid():
             # Path B: User was outbid by a proxy instantly
             elif new_highest_bidder != uid and new_highest_bidder == old_highest_bidder:
                 # Previous bidder's lock needs update to the new proxy-triggered price
-                total_new_lock = new_highest_bid * 1.07
-                total_old_lock = old_highest_bid * 1.07
+                total_new_lock = result.get('auction', {}).get('highestBidderLocked', new_highest_bid * 1.07)
+                total_old_lock = old_auction.get('highestBidderLocked', old_highest_bid * 1.07)
                 
                 def update_proxy_lock(w):
                     if not w: return w
@@ -1321,7 +1590,7 @@ def place_bid():
             bidder_data = db.reference(f'users/{uid}').get() or {}
             bidder_name = bidder_data.get('displayName') or bidder_data.get('fullName') or 'Anonymous'
 
-            db.reference(f'proxy_bids/{product_id}/{uid}').set({'maxBid': max_bid, 'updatedAt': {".sv": "timestamp"}})
+            db.reference(f'proxy_bids/{product_id}/{uid}').update({'maxBid': max_bid, 'updatedAt': {".sv": "timestamp"}})
             db.reference(f'bids/{product_id}').push({
                 'bidderId': uid, 
                 'bidderName': bidder_name, 
@@ -1400,6 +1669,13 @@ def finalize_auction():
         
         tracking_number = 'STH-' + str(int(time.time() * 1000))[-8:]
         
+        # Retrieve precise financial breakdown from auction record
+        auction_data = product.get('auction', {})
+        shipping_details = auction_data.get('shippingDetails', {})
+        escrow_fee = float(auction_data.get('highestBidderEscrow', winning_bid_amt * 0.035))
+        shipping_total = float(auction_data.get('highestBidderShipping', winning_bid_amt * 0.05))
+        total_to_lock = float(auction_data.get('highestBidderLocked', winning_bid_amt + escrow_fee + shipping_total))
+
         # Prepare Order Data (Mirroring checkout.html schema)
         order_data = {
             'id': order_id,
@@ -1419,16 +1695,17 @@ def finalize_auction():
             }],
             'buyer': {
                 'id': winner_uid,
-                'name': winner_name,
+                'name': shipping_details.get('fullName', winner_name),
                 'email': winner_profile.get('email', ''),
-                'phone': winner_profile.get('phone', 'N/A'),
-                'address': winner_profile.get('address', 'N/A')
+                'phone': shipping_details.get('phone', winner_profile.get('phone', 'N/A')),
+                'address': shipping_details.get('address', winner_profile.get('address', 'N/A')),
+                'city': shipping_details.get('city', winner_profile.get('city', 'N/A'))
             },
             'subtotal': winning_bid_amt,
-            'shippingTotal': winning_bid_amt * 0.05, 
-            'escrowFee': winning_bid_amt * 0.02,
-            'total': winning_bid_amt * 1.07,
-            'totalAmount': winning_bid_amt * 1.07,
+            'shippingTotal': shipping_total,
+            'escrowFee': escrow_fee,
+            'total': total_to_lock,
+            'totalAmount': total_to_lock,
             'status': 'pending', 
             'paymentMethod': 'wallet_tokens',
             'trackingNumber': tracking_number,
@@ -1445,7 +1722,7 @@ def finalize_auction():
             'orderId': order_id,
             'buyerId': winner_uid,
             'sellerId': seller_uid,
-            'amount': winning_bid_amt * 1.07,
+            'amount': total_to_lock,
             'status': 'holding',
             'createdAt': {".sv": "timestamp"}
         })
@@ -1459,7 +1736,7 @@ def finalize_auction():
             if not w: return w
             locked = float(w.get('locked_balance', 0))
             escrow = float(w.get('in_escrow', 0))
-            total_to_move = winning_bid_amt * 1.07
+            total_to_move = total_to_lock
             w['locked_balance'] = max(0, locked - total_to_move)
             w['in_escrow'] = escrow + total_to_move
             return w
@@ -1468,7 +1745,7 @@ def finalize_auction():
 
         # 5. Logging & Notifications
         db.reference(f'transactions/{winner_uid}').push({
-            'type': 'auction_win', 'amount': winning_bid_amt * 1.07, 'productId': product_id, 'orderId': order_id,
+            'type': 'auction_win', 'amount': total_to_lock, 'productId': product_id, 'orderId': order_id,
             'description': f'Auction for {product.get("name")} finalized. Order #{order_id} created.',
             'timestamp': {".sv": "timestamp"}
         })
@@ -1657,15 +1934,38 @@ def get_admin_email_details(email_id):
 @app.route('/api/v1/analytics/trends', methods=['GET'])
 def get_trends():
     """
-    Returns platform-wide trending keywords and categories based on NLP analysis of reviews.
+    Returns platform-wide trending keywords (from reviews) and 
+    real-time search terms (from search telemetry).
     """
     try:
+        # 1. Get AI Review Trends (NLP Analysis)
         trends = nlp_engine.analyze_trends()
+        
+        # 2. Get Live Search Telemetry (Most popular queries)
+        search_ref = db.reference('global_trends/search_terms')
+        search_data = search_ref.get() or {}
+        
+        # Transform search data: { "keyword": count, ... } -> [ { "keyword": "...", "count": X }, ... ]
+        search_list = []
+        for term, count in search_data.items():
+            # De-sanitize characters that were escaped for Firebase
+            display_term = term.replace('_', ' ')
+            search_list.append({"keyword": display_term, "count": count})
+            
+        # Sort by popularity
+        search_list.sort(key=lambda x: x['count'], reverse=True)
+        top_search = search_list[:15] # Top 15 search terms
+
         return jsonify({
             'success': True,
-            'trends': trends
+            'trends': {
+                'keywords': trends.get('keywords', []),
+                'categories': trends.get('categories', []),
+                'search_terms': top_search
+            }
         })
     except Exception as e:
+        print(f"Analytics API Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/v1/analytics/track-search', methods=['POST'])

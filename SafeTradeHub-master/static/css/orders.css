@@ -165,6 +165,9 @@
 .badge-completed { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
 .badge-cancelled { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); }
 .badge-disputed { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); }
+.badge-under_review { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); }
+.badge-refunded { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); }
+.badge-refund { background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); }
 
 .action-strip {
     display: flex;

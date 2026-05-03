@@ -35,7 +35,12 @@ function formatOrderStatus(status) {
         'out_for_delivery': 'Out for Delivery',
         'delivered': 'Delivered',
         'cancelled': 'Cancelled',
-        'disputed': 'Disputed'
+        'disputed': 'UNDER DISPUTE',
+        'under_review': 'UNDER DISPUTE',
+        'REFUNDED': 'DISPUTED',
+        'refunded': 'DISPUTED',
+        'refund': 'DISPUTED',
+        'cancelled': 'Cancelled'
     };
     return mapping[status] || (status ? status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Pending');
 }
@@ -95,6 +100,11 @@ function initActivePipeline() {
             return;
         }
 
+        // Update Stats
+        const pendingDeparture = activeOrders.filter(o => ['received_at_seller_hub', 'verified'].includes(o.status)).length;
+        const pendingEl = document.getElementById('hubPendingDeparture');
+        if (pendingEl) pendingEl.innerText = pendingDeparture;
+
         tableBody.innerHTML = activeOrders.map(o => {
             const items = o.items ? Object.values(o.items) : [];
             const firstItem = items[0] || {};
@@ -104,7 +114,7 @@ function initActivePipeline() {
 
             return `
                 <tr>
-                    <td><strong style="color: #1e293b;">#${o.id.substring(0, 8)}</strong></td>
+                    <td><strong style="color: #1e293b;">${o.id}</strong></td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <img src="${productImg}" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e2e8f0;">
@@ -168,7 +178,7 @@ async function scanShipment() {
 
         if (!order) {
             resultCard.innerHTML = `<div class="alert alert-danger" style="margin:0; padding: 20px; border-radius: 12px; background: #fee2e2; border: 1px solid #fecaca; color: #991b1b;">
-                <i class="fas fa-exclamation-triangle"></i> <strong>Network Error:</strong> ID #${orderId} not found.
+                <i class="fas fa-exclamation-triangle"></i> <strong>Network Error:</strong> ID ${orderId} not found.
             </div>`;
             return;
         }
@@ -214,7 +224,7 @@ function renderScanResult(order) {
                         <i class="fas fa-satellite-dish"></i>
                     </div>
                     <div>
-                        <h3 style="margin: 0; font-size: 1rem; color: #1e293b;">Order Management: #${order.id}</h3>
+                        <h3 style="margin: 0; font-size: 1rem; color: #1e293b;">Order Management: ${order.id}</h3>
                         <p style="margin: 0; font-size: 0.8rem; color: #64748b;">Processing Hub: <strong>${hub}</strong></p>
                     </div>
                 </div>
@@ -321,6 +331,13 @@ async function processLogisticsUpdate(orderId, nextStatus, location, btn) {
 function renderHubActivity(logs) {
     const tbody = document.querySelector('#hubActivityTable tbody');
     if (!tbody) return;
+
+    // Update Processed Today Stat
+    const today = new Date().toDateString();
+    const processedToday = logs.filter(l => new Date(l.timestamp).toDateString() === today).length;
+    const processedEl = document.getElementById('hubProcessedToday');
+    if (processedEl) processedEl.innerText = processedToday;
+
     if (logs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #94a3b8;">No activity logs found.</td></tr>';
         return;
@@ -331,10 +348,10 @@ function renderHubActivity(logs) {
         return `
             <tr>
                 <td><span style="color: #64748b; font-size: 0.8rem;">${time}</span></td>
-                <td><strong style="color: #2563eb;">#${(log.entityId || '').substring(0, 8)}</strong></td>
-                <td><span style="font-weight: 500;">Network Update</span></td>
-                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${log.newValues ? formatOrderStatus(log.newValues.status) : 'Update'}</span></td>
-                <td><small style="color: #64748b;">${(log.newValues && log.newValues.location) || 'Central Station'}</small></td>
+                <td><strong style="color: #2563eb;">${log.targetId || ''}</strong></td>
+                <td><span style="font-weight: 500;">Shipment Update</span></td>
+                <td><span class="status-badge" style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0;">${log.newValue ? formatOrderStatus(log.newValue.status) : 'Update'}</span></td>
+                <td><small style="color: #64748b;">${(log.newValue && log.newValue.location) || 'Central Station'}</small></td>
             </tr>
         `;
     }).join('');

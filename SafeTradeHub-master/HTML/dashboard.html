@@ -164,6 +164,118 @@
 
   <!-- Scripts -->
   <script src="/static/js/dashboard.js?v=99"></script>
+
+  <!-- FAQ Modal Logic -->
+  <script>
+    function toggleFAQModal() {
+        if (typeof toggleChat === "function") {
+            toggleChat();
+        } else if (window.toggleChat) {
+            window.toggleChat();
+        } else {
+            console.warn("Chatbot not loaded on this page.");
+        }
+    }
+  </script>
+
+  <!-- Footer Logic (Newsletter & FAQ) -->
+  <script>
+    function toggleFAQModal() {
+        if (typeof toggleChat === "function") {
+            toggleChat();
+        } else if (window.toggleChat) {
+            window.toggleChat();
+        } else {
+            console.warn("Chatbot not loaded on this page.");
+        }
+    }
+
+    async function handleNewsletter(event) {
+        event.preventDefault();
+        const input = event.target.querySelector("input");
+        const email = input.value.trim();
+        if (!email) return;
+        
+        try {
+            await firebase.database().ref("newsletter_subscribers").push({
+                email: email,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                source: window.location.pathname
+            });
+            input.value = "";
+            if (window.NotificationManager) {
+                window.NotificationManager.showToast("Success", "Subscribed successfully!", "success");
+            } else {
+                alert("Subscribed!");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+  </script>
+
+  <!-- Legal Content Modal -->
+  <div id="legal-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); backdrop-filter:blur(8px); z-index:2000; padding:20px; overflow-y:auto;">
+    <div style="background:white; max-width:800px; margin:40px auto; border-radius:24px; padding:40px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+        <button onclick="closeLegalModal()" style="position:absolute; top:20px; right:20px; background:#f1f5f9; border:none; width:40px; height:40px; border-radius:12px; cursor:pointer; display:grid; place-items:center; transition:all 0.2s;">
+            <i class="fas fa-times" style="color:#64748b;"></i>
+        </button>
+        <div id="legal-modal-content" style="color:#1e293b; font-family:'Inter', sans-serif; line-height:1.6;">
+            <!-- Content will be injected here -->
+        </div>
+    </div>
+  </div>
+
+  <script>
+    const legalContent = {
+        privacy: `
+            <h1 style="font-family:'Outfit'; font-weight:800; margin-bottom:20px;">Privacy Policy</h1>
+            <p>Last Updated: May 2026</p>
+            <h2 style="margin-top:20px;">1. Information We Collect</h2>
+            <p>SafeTradeHub collects information you provide directly to us when you create an account, list a product, or communicate with other users. This includes your name, email address, and transaction history.</p>
+            <h2 style="margin-top:20px;">2. How We Use Your Information</h2>
+            <p>We use your information to facilitate secure trades, protect against fraud through our escrow system, and improve our marketplace experience.</p>
+            <h2 style="margin-top:20px;">3. Data Security</h2>
+            <p>All transaction data is encrypted. Your funds are held in secure escrow accounts and are only released upon successful verification of delivery.</p>
+        `,
+        terms: `
+            <h1 style="font-family:'Outfit'; font-weight:800; margin-bottom:20px;">Terms of Service</h1>
+            <p>Last Updated: May 2026</p>
+            <h2 style="margin-top:20px;">1. Marketplace Rules</h2>
+            <p>Users must provide accurate information. SafeTradeHub verified sellers undergo a strict manual verification process. Fraudulent behavior will result in permanent account termination and forfeiture of escrowed funds.</p>
+            <h2 style="margin-top:20px;">2. Escrow & Fee Structure</h2>
+            <p>By using SafeTradeHub, you agree to our 7% mathematical escrow model (107% total calculation). This fee covers the secure holding of funds, manual verification by our staff, and insurance for both parties during transit.</p>
+            <h2 style="margin-top:20px;">3. Logistics & Verification</h2>
+            <p>All items must pass through our "Safe Ship" verification hubs. Our staff verifies that the item matches the description, condition, and quantity specified in the listing before it is sealed and shipped to the buyer.</p>
+            <h2 style="margin-top:20px;">4. Dispute Resolution</h2>
+            <p>In case of a dispute, SafeTradeHub administrators will review tracking history (Origin Hub, Verification Hub, and Destination Hub logs) and verification photographs to reach a fair and binding resolution.</p>
+        `
+    };
+
+    function openLegalModal(type) {
+        document.getElementById("legal-modal-content").innerHTML = legalContent[type];
+        document.getElementById("legal-modal").style.display = "block";
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeLegalModal() {
+        document.getElementById("legal-modal").style.display = "none";
+        document.body.style.overflow = "auto";
+    }
+    
+    // Close on click outside
+    window.onclick = function(event) {
+        const modal = document.getElementById("legal-modal");
+        if (event.target == modal) {
+            closeLegalModal();
+        }
+    }
+  </script>
 </body>
 
 </html>
+
+
+
+
+
