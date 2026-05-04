@@ -14,13 +14,6 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '..', '.env'))
 
 import nltk
-# Download required NLTK data
-try:
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
-    nltk.download('averaged_perceptron_tagger')
-except Exception as e:
-    print(f"Error downloading NLTK data: {e}")
 
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS

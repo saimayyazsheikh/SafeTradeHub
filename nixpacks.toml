@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["python -m nltk.downloader punkt punkt_tab averaged_perceptron_tagger"]
+
+[start]
+cmd = "gunicorn --chdir backend -b 0.0.0.0:$PORT app:app"
