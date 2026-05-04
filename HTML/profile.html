@@ -404,9 +404,8 @@
       }
     });
 
-    // Cloudinary Configuration
-    const CLOUD_NAME = "dfkeplyzn";
-    const UPLOAD_PRESET = "sth_unsigned";
+    // Firebase Storage upload functionality
+    const storage = firebase.storage();
 
     // Avatar upload functionality
     document.getElementById('uploadAvatar').addEventListener('click', () => {
@@ -435,31 +434,22 @@
         uploadBtn.innerHTML = '<div style="width: 16px; height: 16px; border: 2px solid currentColor; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
         uploadBtn.disabled = true;
 
-        // Upload to Cloudinary
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-        formData.append('folder', `safetradehub/avatars/${currentUser.uid}`);
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-          method: 'POST',
-          body: formData
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error?.message || 'Upload failed');
-        }
+        // Upload to Firebase Storage
+        const timestamp = Date.now();
+        const filename = `avatars/${currentUser.uid}/${timestamp}_${file.name}`;
+        const storageRef = storage.ref(filename);
+        
+        const uploadTask = await storageRef.put(file);
+        const downloadURL = await uploadTask.ref.getDownloadURL();
 
         // Update user profile with new avatar URL
         await db.ref('users/' + currentUser.uid).update({
-          'profile/avatar': result.secure_url,
+          'profile/avatar': downloadURL,
           updatedAt: firebase.database.ServerValue.TIMESTAMP
         });
 
         // Update avatar display
-        updateAvatarDisplay(result.secure_url);
+        updateAvatarDisplay(downloadURL);
 
         showSuccess('Profile image updated successfully!');
 

@@ -8,3 +8,4 @@ beautifulsoup4
 selenium
 webdriver_manager
 textblob
+gunicorn
